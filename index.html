@@ -79,22 +79,18 @@
     box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
   }
 
-  /* Sólo número + palo, en las esquinas opuestas y bien claros. En las
-     columnas las cartas se superponen y sólo se ve la franja superior, por
-     eso el número y el palo van en una misma línea: así ambos se ven siempre. */
+  /* La letra arriba-izquierda y el palo abajo-derecha: grandes, claros y nada más.
+     La letra va en color del palo, así al apilarse en las columnas (sólo se ve
+     la franja superior) se distingue número y color de un vistazo. */
   .card .corner {
-    position: absolute; display: flex; align-items: center;
-    line-height: 1; font-weight: 800; white-space: nowrap;
+    position: absolute; line-height: 1; font-weight: 900; white-space: nowrap;
     text-shadow: 0 1px 0 rgba(255,255,255,0.65);
   }
-  .card .corner.tl { top: 6%; left: 8%; }
-  .card .corner.br { bottom: 6%; right: 8%; transform: rotate(180deg); }
-  .card .corner .cr { font-size: calc(var(--cw) * 0.40); }
-  .card .corner .cs { font-size: calc(var(--cw) * 0.32); margin-left: 2px; }
-  /* Vista cómoda: números y palos más grandes */
-  body.comfortable .card .corner { font-weight: 900; }
-  body.comfortable .card .corner .cr { font-size: calc(var(--cw) * 0.44); }
-  body.comfortable .card .corner .cs { font-size: calc(var(--cw) * 0.34); }
+  .card .corner.tl { top: 5%; left: 9%; font-size: calc(var(--cw) * 0.50); }
+  .card .corner.br { bottom: 4%; right: 9%; font-size: calc(var(--cw) * 0.52); }
+  /* Vista cómoda: aún más grandes */
+  body.comfortable .card .corner.tl { font-size: calc(var(--cw) * 0.56); }
+  body.comfortable .card .corner.br { font-size: calc(var(--cw) * 0.58); }
 
   .card.sel {
     outline: 3px solid #e8b44a; outline-offset: -1px;
@@ -626,9 +622,8 @@ function el(tag, cls, html) {
 function cardFace(card) {
   var r = RANK_LABEL[card.rank];
   var s = SUIT[card.suit].symbol;
-  var corner = '<span class="cr">' + r + '</span><span class="cs">' + s + '</span>';
-  return '<div class="corner tl">' + corner + '</div>' +
-         '<div class="corner br">' + corner + '</div>';
+  return '<div class="corner tl">' + r + '</div>' +
+         '<div class="corner br">' + s + '</div>';
 }
 function makeCardEl(card, selected) {
   var cls = "card " + (card.faceUp ? ("up " + card.suit) : "down") + (selected ? " sel" : "");
