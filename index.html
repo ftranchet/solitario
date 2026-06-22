@@ -44,6 +44,15 @@
   .btn:disabled { opacity: 0.4; }
   .btn.ghost { width: 36px; padding: 7px 0; text-align: center; font-size: 15px; }
   .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+  /* Botón "Nueva" resaltado cuando no quedan jugadas */
+  .btn.attention {
+    background: #e8b44a; color: #2a1d05; border-color: #e8b44a;
+    animation: attention 1s ease-in-out infinite;
+  }
+  @keyframes attention {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0.0); transform: scale(1); }
+    50% { box-shadow: 0 0 0 5px rgba(232,180,74,0.55), 0 4px 12px rgba(0,0,0,0.35); transform: scale(1.06); }
+  }
 
   #board {
     width: 100%; margin: 0 auto;
@@ -139,8 +148,11 @@
     max-height: 90vh; overflow-y: auto;
   }
   .win-modal { text-align: center; }
-  .win-emoji { font-size: 52px; animation: pop 0.6s ease; }
+  .win-emoji { font-size: 56px; animation: pop 0.6s ease, bob 1.6s ease-in-out 0.6s infinite; }
   @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
+  .win-congrats { font-weight: 700; font-size: 16px; margin-top: 2px; }
+  .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
   .card-modal h2 { margin: 4px 0 6px; }
   .card-modal p { margin: 6px 0; line-height: 1.5; }
   .card-modal ol { padding-left: 20px; line-height: 1.6; margin: 10px 0; }
@@ -294,6 +306,7 @@
   <div class="card-modal win-modal">
     <div class="win-emoji">🎉</div>
     <h2>¡Ganaste!</h2>
+    <p class="win-congrats">🎊 ¡Felicitaciones! Completaste el solitario 🥳</p>
     <p id="win-stats"></p>
     <div class="modal-actions">
       <button id="win-new" class="btn primary">Nueva partida</button>
@@ -609,7 +622,8 @@ function startTimer() {
 function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 function resetTimer() { stopTimer(); seconds = 0; started = false; updateHUD(); }
 
-/* ---------- Victoria ---------- */
+/* ---------- Victoria + festejo ---------- */
+var confettiRAF = null;
 function checkWin() {
   var total = 0;
   for (var i = 0; i < 4; i++) total += state.foundations[i].length;
@@ -619,6 +633,98 @@ function checkWin() {
     var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
     document.getElementById("win-stats").textContent = "Tiempo " + t + " \u00b7 " + state.moves + " movimientos";
     document.getElementById("win").hidden = false;
+    celebrate();
+  }
+}
+function stopConfetti() {
+  if (confettiRAF) { cancelAnimationFrame(confettiRAF); confettiRAF = null; }
+  var c = document.querySelector(".confetti-canvas");
+  if (c) { if (c._onResize) window.removeEventListener("resize", c._onResize); c.remove(); }
+}
+function celebrate() {
+  stopConfetti();
+  var canvas = el("canvas", "confetti-canvas");
+  document.body.appendChild(canvas);
+  var ctx = canvas.getContext("2d");
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  canvas._onResize = resize;
+  window.addEventListener("resize", resize);
+  var colors = ["#e8b44a", "#c62828", "#1f7a46", "#1f6fd0", "#ffffff", "#ff7ab6"];
+  var N = Math.max(80, Math.min(200, Math.round(window.innerWidth / 4)));
+  var parts = [];
+  for (var i = 0; i < N; i++) {
+    parts.push({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * canvas.height,
+      w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+      vx: -1.5 + Math.random() * 3, vy: 2 + Math.random() * 3.5,
+      rot: Math.random() * Math.PI, vr: -0.2 + Math.random() * 0.4,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+  var DURATION = 4500, start = Date.now();
+  function frame() {
+    var elapsed = Date.now() - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var fade = elapsed > DURATION - 900 ? Math.max(0, (DURATION - elapsed) / 900) : 1;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.rot += p.vr;
+      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (elapsed < DURATION) confettiRAF = requestAnimationFrame(frame);
+    else stopConfetti();
+  }
+  confettiRAF = requestAnimationFrame(frame);
+}
+
+/* ---------- Sin jugadas (derrota) ---------- */
+var stuckNotified = false;
+function canPlaceCardAnywhere(card) {
+  if (canMoveToFoundation(card) >= 0) return true;
+  for (var c = 0; c < 7; c++) if (canPlaceOnTableau(card, c)) return true;
+  return false;
+}
+function hasAnyMove() {
+  // Movimientos directos desde las columnas
+  for (var col = 0; col < 7; col++) {
+    var t = state.tableau[col];
+    if (!t.length) continue;
+    if (canMoveToFoundation(t[t.length - 1]) >= 0) return true;
+    var fu = firstFaceUpIndex(t);
+    if (fu >= 0) {
+      var lead = t[fu];
+      for (var dc = 0; dc < 7; dc++) {
+        if (dc === col) continue;
+        if (!canPlaceOnTableau(lead, dc)) continue;
+        // mover un Rey solo a otra columna vac\u00eda no aporta nada
+        if (lead.rank === 13 && fu === 0 && state.tableau[dc].length === 0) continue;
+        return true;
+      }
+    }
+  }
+  // Descarte (carta de arriba)
+  if (state.waste.length && canPlaceCardAnywhere(state.waste[state.waste.length - 1])) return true;
+  // Cartas que se pueden traer dando vuelta el mazo (mazo + resto del descarte)
+  for (var i = 0; i < state.stock.length; i++) if (canPlaceCardAnywhere(state.stock[i])) return true;
+  for (var j = 0; j < state.waste.length - 1; j++) if (canPlaceCardAnywhere(state.waste[j])) return true;
+  return false;
+}
+function updateStuckState() {
+  var btnNew = document.getElementById("btn-new");
+  var stuck = !isWon() && !autoTimer && !hasAnyMove();
+  btnNew.classList.toggle("attention", stuck);
+  if (stuck) {
+    if (!stuckNotified) { toast("No quedan jugadas. Toc\u00e1 \u00abNueva\u00bb para empezar otra."); stuckNotified = true; }
+  } else {
+    stuckNotified = false;
   }
 }
 
@@ -744,6 +850,7 @@ function render() {
   updateHUD();
   document.getElementById("btn-undo").disabled = undoStack.length === 0;
   updateAutoButton();
+  updateStuckState();
 }
 
 function updateHUD() {
@@ -986,8 +1093,10 @@ function toast(msg) {
 /* ---------- Nueva partida ---------- */
 function newGame() {
   stopAutoComplete();
+  stopConfetti();
   clearHintHighlights();
   hintMoves = null; hintStateMoves = -1;
+  stuckNotified = false;
   deal();
   selection = null;
   undoStack = [];
@@ -1009,7 +1118,7 @@ document.getElementById("help-close").onclick = function () { document.getElemen
 document.getElementById("btn-settings").onclick = function () { updateSettingsUI(); document.getElementById("settings").hidden = false; };
 document.getElementById("settings-close").onclick = function () { document.getElementById("settings").hidden = true; };
 document.getElementById("win-new").onclick = newGame;
-document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; };
+document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; stopConfetti(); };
 document.getElementById("btn-hint").onclick = onHint;
 document.getElementById("btn-auto").onclick = startAutoComplete;
 
