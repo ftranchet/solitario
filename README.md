@@ -1,0 +1,2 @@
+# Solitario
+Salitario online
