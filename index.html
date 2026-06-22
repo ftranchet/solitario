@@ -100,11 +100,8 @@
     position: absolute; line-height: 1; font-weight: 900; white-space: nowrap;
     text-shadow: 0 1px 0 rgba(255,255,255,0.65);
   }
-  .card .corner.tl { top: 5%; left: 9%; font-size: calc(var(--cw) * 0.50); }
-  .card .corner.br { bottom: 4%; right: 9%; font-size: calc(var(--cw) * 0.52); }
-  /* Vista cómoda: aún más grandes */
-  body.comfortable .card .corner.tl { font-size: calc(var(--cw) * 0.56); }
-  body.comfortable .card .corner.br { font-size: calc(var(--cw) * 0.58); }
+  .card .corner.tl { top: 5%; left: 9%; font-size: calc(var(--cw) * 0.48); }
+  .card .corner.br { bottom: 4%; right: 9%; font-size: calc(var(--cw) * 0.50); }
 
   .card.sel {
     outline: 3px solid #e8b44a; outline-offset: -1px;
@@ -226,7 +223,7 @@
   }
 </style>
 </head>
-<body class="comfortable">
+<body>
 <div id="app">
   <header>
     <div class="brand">
@@ -286,15 +283,6 @@
       <div class="hint">Cuántas cartas se dan vuelta del mazo cada vez.</div>
     </div>
 
-    <div class="opt">
-      <div class="opt-label">Vista cómoda</div>
-      <div class="seg">
-        <button class="seg-btn" data-comfort="1">Sí</button>
-        <button class="seg-btn" data-comfort="0">No</button>
-      </div>
-      <div class="hint">Números y palos más grandes, con más separación.</div>
-    </div>
-
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
     </div>
@@ -332,7 +320,7 @@ var selection = null;      // { pile, col, index }
 var undoStack = [];
 var seconds = 0, timerId = null, started = false;
 var CW, CH, OFFSET_UP, OFFSET_DOWN;
-var settings = { draw: 1, comfortable: true };
+var settings = { draw: 1 };
 
 /* ---------- Arrastre ---------- */
 var pending = null;        // { src, startX, startY, rect, pointerId, elem }
@@ -692,6 +680,35 @@ function canPlaceCardAnywhere(card) {
   for (var c = 0; c < 7; c++) if (canPlaceOnTableau(card, c)) return true;
   return false;
 }
+/* Cartas que pueden llegar a quedar arriba del descarte dando vuelta el mazo y
+   reciclando, SIN hacer otros movimientos. Simula el ciclo completo, por lo que
+   funciona tanto en reparto de 1 como de 3 (en 3 no todas las cartas son
+   alcanzables). Como nada se quita, el ciclo es finito: paramos al repetirse. */
+function reachableStockWasteCards() {
+  var stock = state.stock.slice();
+  var waste = state.waste.slice();
+  var draw = settings.draw;
+  var tops = [];
+  if (waste.length) tops.push(waste[waste.length - 1]);
+  if (stock.length === 0 && waste.length === 0) return tops;
+  var seen = {}, guard = 0;
+  while (guard++ < 4000) {
+    if (stock.length === 0 && waste.length === 0) break;
+    var key = "";
+    for (var a = 0; a < stock.length; a++) key += stock[a].id + ",";
+    key += "|";
+    for (var b = 0; b < waste.length; b++) key += waste[b].id + ",";
+    if (seen[key]) break;
+    seen[key] = 1;
+    if (stock.length === 0) {
+      while (waste.length) stock.push(waste.pop());
+    } else {
+      for (var k = 0; k < draw && stock.length; k++) waste.push(stock.pop());
+      if (waste.length) tops.push(waste[waste.length - 1]);
+    }
+  }
+  return tops;
+}
 function hasAnyMove() {
   // Movimientos directos desde las columnas
   for (var col = 0; col < 7; col++) {
@@ -710,11 +727,9 @@ function hasAnyMove() {
       }
     }
   }
-  // Descarte (carta de arriba)
-  if (state.waste.length && canPlaceCardAnywhere(state.waste[state.waste.length - 1])) return true;
-  // Cartas que se pueden traer dando vuelta el mazo (mazo + resto del descarte)
-  for (var i = 0; i < state.stock.length; i++) if (canPlaceCardAnywhere(state.stock[i])) return true;
-  for (var j = 0; j < state.waste.length - 1; j++) if (canPlaceCardAnywhere(state.waste[j])) return true;
+  // Cartas alcanzables del mazo/descarte dando vuelta y reciclando
+  var reach = reachableStockWasteCards();
+  for (var i = 0; i < reach.length; i++) if (canPlaceCardAnywhere(reach[i])) return true;
   return false;
 }
 function updateStuckState() {
@@ -878,10 +893,10 @@ function setSizes() {
   var cwByHeight = ((availH - 14) / 3.0) / 1.42;
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
-  CW = Math.max(38, Math.min(CW, 132));
+  CW = Math.max(36, Math.min(CW, 110));
   CH = Math.round(CW * 1.42);
-  OFFSET_DOWN = settings.comfortable ? Math.max(12, Math.round(CH * 0.18)) : Math.max(9, Math.round(CH * 0.16));
-  OFFSET_UP = settings.comfortable ? Math.max(26, Math.round(CH * 0.36)) : Math.max(20, Math.round(CH * 0.30));
+  OFFSET_DOWN = Math.max(10, Math.round(CH * 0.16));
+  OFFSET_UP = Math.max(24, Math.round(CH * 0.34));
   root.style.setProperty("--cw", CW + "px");
   root.style.setProperty("--ch", CH + "px");
   root.style.setProperty("--gap", gap + "px");
@@ -889,7 +904,6 @@ function setSizes() {
 
 /* ---------- Opciones ---------- */
 function applySettings() {
-  document.body.classList.toggle("comfortable", settings.comfortable);
   setSizes();
   render();
   updateSettingsUI();
@@ -897,8 +911,6 @@ function applySettings() {
 function updateSettingsUI() {
   var a = document.querySelectorAll("[data-draw]");
   for (var i = 0; i < a.length; i++) a[i].classList.toggle("active", parseInt(a[i].dataset.draw, 10) === settings.draw);
-  var b = document.querySelectorAll("[data-comfort]");
-  for (var j = 0; j < b.length; j++) b[j].classList.toggle("active", (b[j].dataset.comfort === "1") === settings.comfortable);
 }
 
 /* ---------- Pistas ---------- */
@@ -1106,7 +1118,6 @@ function newGame() {
 }
 
 /* ---------- Inicio y eventos ---------- */
-document.body.classList.toggle("comfortable", settings.comfortable);
 setSizes();
 newGame();
 updateSettingsUI();
@@ -1127,10 +1138,6 @@ document.getElementById("btn-auto").onclick = startAutoComplete;
   for (var i = 0; i < draws.length; i++) (function (btn) {
     btn.onclick = function () { settings.draw = parseInt(btn.dataset.draw, 10); applySettings(); };
   })(draws[i]);
-  var comf = document.querySelectorAll("[data-comfort]");
-  for (var j = 0; j < comf.length; j++) (function (btn) {
-    btn.onclick = function () { settings.comfortable = btn.dataset.comfort === "1"; applySettings(); };
-  })(comf[j]);
 })();
 
 document.getElementById("board").addEventListener("click", function (e) {
