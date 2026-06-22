@@ -17,7 +17,7 @@
     overflow: hidden;
   }
 
-  #app { display: flex; flex-direction: column; height: 100dvh; }
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
   header {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -172,7 +172,7 @@
   /* Barra inferior de ayudas */
   #controls {
     display: flex; gap: 8px; justify-content: center; align-items: center;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
     background: rgba(0,0,0,0.18);
     border-top: 1px solid rgba(255,255,255,0.08);
   }
@@ -218,7 +218,7 @@
   /* Apaisado y poca altura: cabecera y controles más compactos */
   @media (max-height: 480px) {
     header { padding: 5px 12px; }
-    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom)); }
+    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px)); }
     .title { font-size: 16px; }
   }
 </style>
@@ -510,6 +510,7 @@ function afterMove() { startTimer(); render(); checkWin(); }
 /* ---------- Arrastre (drag) ---------- */
 function onPointerDown(e, src, elem) {
   if (autoTimer) return;
+  if (pending) return;   // ya hay un toque/arrastre en curso: ignorar dedos extra
   if (e.button != null && e.button > 0) return;
   e.preventDefault();
   try { elem.setPointerCapture(e.pointerId); } catch (_) {}
@@ -1128,7 +1129,8 @@ function loadGame() {
     var data = JSON.parse(localStorage.getItem(GAME_KEY));
     if (!data || !validState(data.state)) return false;
     state = data.state;
-    seconds = data.seconds || 0;
+    if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;
+    seconds = (typeof data.seconds === "number" && data.seconds >= 0) ? data.seconds : 0;
     started = false; selection = null; undoStack = [];
     stopTimer();
     render();
