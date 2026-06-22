@@ -860,6 +860,7 @@ function render() {
   document.getElementById("btn-undo").disabled = undoStack.length === 0;
   updateAutoButton();
   updateStuckState();
+  saveGame();
 }
 
 function updateHUD() {
@@ -898,6 +899,7 @@ function setSizes() {
 
 /* ---------- Opciones ---------- */
 function applySettings() {
+  savePrefs();
   setSizes();
   render();
   updateSettingsUI();
@@ -1096,6 +1098,44 @@ function toast(msg) {
   setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
 }
 
+/* ---------- Persistencia (preferencias y partida) ---------- */
+var PREFS_KEY = "solitario.prefs", GAME_KEY = "solitario.game";
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ draw: settings.draw })); } catch (e) {}
+}
+function loadPrefs() {
+  try {
+    var p = JSON.parse(localStorage.getItem(PREFS_KEY));
+    if (p && (p.draw === 1 || p.draw === 3)) settings.draw = p.draw;
+  } catch (e) {}
+}
+function validState(s) {
+  if (!s || !s.foundations || !s.tableau || !s.stock || !s.waste) return false;
+  if (s.foundations.length !== 4 || s.tableau.length !== 7) return false;
+  var n = s.stock.length + s.waste.length, i;
+  for (i = 0; i < 4; i++) n += s.foundations[i].length;
+  for (i = 0; i < 7; i++) n += s.tableau[i].length;
+  return n === 52;
+}
+function saveGame() {
+  try {
+    if (isWon()) { localStorage.removeItem(GAME_KEY); return; }
+    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds }));
+  } catch (e) {}
+}
+function loadGame() {
+  try {
+    var data = JSON.parse(localStorage.getItem(GAME_KEY));
+    if (!data || !validState(data.state)) return false;
+    state = data.state;
+    seconds = data.seconds || 0;
+    started = false; selection = null; undoStack = [];
+    stopTimer();
+    render();
+    return true;
+  } catch (e) { return false; }
+}
+
 /* ---------- Nueva partida ---------- */
 function newGame() {
   stopAutoComplete();
@@ -1111,9 +1151,14 @@ function newGame() {
 }
 
 /* ---------- Inicio y eventos ---------- */
+loadPrefs();
 setSizes();
-newGame();
+if (!loadGame()) newGame();   // continúa la partida guardada, o reparte una nueva
 updateSettingsUI();
+
+// Guardar al ocultar/cerrar para no perder el tiempo transcurrido
+window.addEventListener("pagehide", saveGame);
+document.addEventListener("visibilitychange", function () { if (document.hidden) saveGame(); });
 
 document.getElementById("btn-new").onclick = newGame;
 document.getElementById("btn-undo").onclick = undo;
