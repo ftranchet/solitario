@@ -456,6 +456,35 @@ function moveSelectionToFoundation() {
   state.moves++;
   return true;
 }
+/* Doble clic / doble toque: mandar la carta (o el grupo) a donde corresponda.
+   Igual que con los ases, primero intenta las pilas finales; si no, busca una
+   columna del tablero donde encaje. */
+function autoMoveSelection() {
+  if (moveSelectionToFoundation()) return true;
+  if (selection.pile === "foundation") return false; // no sacamos de las fundaciones
+  var cards = getSelectionCards();
+  if (!cards || !cards.length) return false;
+  var lead = cards[0];
+  var srcCol = selection.pile === "tableau" ? selection.col : -1;
+  var emptyDest = -1;
+  for (var dc = 0; dc < 7; dc++) {
+    if (dc === srcCol) continue;
+    if (!canPlaceOnTableau(lead, dc)) continue;
+    if (state.tableau[dc].length > 0) return moveSelectionToTableau(dc); // sobre otra carta
+    if (emptyDest < 0) emptyDest = dc;                                    // columna vacía (Rey)
+  }
+  // Una columna vacía sólo si el movimiento sirve: saca una carta del descarte
+  // o destapa una carta boca abajo en la columna de origen.
+  if (emptyDest >= 0) {
+    var useful = selection.pile === "waste";
+    if (!useful && selection.pile === "tableau" && selection.index > 0) {
+      var below = state.tableau[selection.col][selection.index - 1];
+      useful = !!below && !below.faceUp;
+    }
+    if (useful) return moveSelectionToTableau(emptyDest);
+  }
+  return false;
+}
 function dealStock() {
   if (autoTimer) return;
   if (state.stock.length === 0 && state.waste.length === 0) return;
@@ -481,7 +510,7 @@ function handleCardClick(pile, col, index, card) {
     var sameAnchor = selection.pile === pile && selection.col === col &&
       (pile === "tableau" ? selection.index === index : true);
     if (sameAnchor) {
-      if (moveSelectionToFoundation()) { selection = null; afterMove(); return; }
+      if (autoMoveSelection()) { selection = null; afterMove(); return; }
       selection = null; render(); return;
     }
     var moved = false;
