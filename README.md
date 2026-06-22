@@ -1,2 +1,2 @@
 # Solitario
-Salitario online
+Solitario online

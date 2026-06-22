@@ -41,7 +41,7 @@
   .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
 
   #board {
-    width: 100%; max-width: 480px; margin: 0 auto;
+    width: 100%; margin: 0 auto;
     padding: 10px 8px 4px; flex: 1;
     display: flex; flex-direction: column; min-height: 0;
   }
@@ -68,13 +68,10 @@
   }
   .col .card { position: absolute; left: 0; }
 
-  .card.up { background: linear-gradient(#fdfaf2, #f5efe0); border: 1px solid #e2d8c2; }
-  /* Dos colores (clásico) */
-  .card.up.hearts, .card.up.diamonds { color: #cc2f26; }
-  .card.up.spades, .card.up.clubs { color: #1f1f1c; }
-  /* Cuatro colores */
-  body.fourcolor .card.up.diamonds { color: #1f6fd0; }
-  body.fourcolor .card.up.clubs { color: #1c8a44; }
+  .card.up { background: linear-gradient(160deg, #ffffff, #f4eede); border: 1px solid #d9cdb4; }
+  /* Dos colores clásicos: rojo y negro */
+  .card.up.hearts, .card.up.diamonds { color: #c62828; }
+  .card.up.spades, .card.up.clubs { color: #1a1a1a; }
 
   .card.down {
     background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);
@@ -82,22 +79,28 @@
     box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
   }
 
+  /* Número + palo en las esquinas opuestas. En las columnas las cartas se
+     superponen y sólo se ve la franja superior, por eso el número y el palo
+     van en una misma línea: así ambos quedan siempre visibles. */
   .card .corner {
-    position: absolute; top: 3px; left: 5px;
-    font-weight: 800; line-height: 1; white-space: nowrap;
-    font-size: calc(var(--cw) * 0.40);
-    display: flex; align-items: baseline;
+    position: absolute; display: flex; align-items: center;
+    line-height: 1; font-weight: 800; white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
   }
-  .card .corner .cs { font-size: calc(var(--cw) * 0.30); margin-left: 1px; }
-  .card .center {
+  .card .corner.tl { top: 5%; left: 7%; }
+  .card .corner.br { bottom: 5%; right: 7%; transform: rotate(180deg); }
+  .card .corner .cr { font-size: calc(var(--cw) * 0.36); }
+  .card .corner .cs { font-size: calc(var(--cw) * 0.30); margin-left: 2px; }
+  .card .pip {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: calc(var(--cw) * 0.60); opacity: 0.16;
+    font-size: calc(var(--cw) * 0.6); opacity: 0.9; pointer-events: none;
   }
   /* Vista cómoda: números y palos más grandes */
-  body.comfortable .card .corner { font-size: calc(var(--cw) * 0.46); font-weight: 900; }
+  body.comfortable .card .corner { font-weight: 900; }
+  body.comfortable .card .corner .cr { font-size: calc(var(--cw) * 0.42); }
   body.comfortable .card .corner .cs { font-size: calc(var(--cw) * 0.34); }
-  body.comfortable .card .center { font-size: calc(var(--cw) * 0.70); opacity: 0.22; }
+  body.comfortable .card .pip { font-size: calc(var(--cw) * 0.7); }
 
   .card.sel {
     outline: 3px solid #e8b44a; outline-offset: -1px;
@@ -192,9 +195,29 @@
     opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 200; pointer-events: none;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Pantallas medianas y grandes (tablet / escritorio) */
+  @media (min-width: 700px) {
+    .title { font-size: 22px; }
+    .hud { font-size: 16px; gap: 18px; }
+    .btn { font-size: 14px; padding: 9px 14px; }
+    .btn.ghost { width: 42px; font-size: 17px; }
+    .pill { font-size: 16px; padding: 11px 22px; }
+    header, #controls { padding-left: 18px; padding-right: 18px; }
+  }
+  @media (min-width: 1100px) {
+    .title { font-size: 26px; }
+    #board { padding-left: 14px; padding-right: 14px; }
+  }
+  /* Apaisado y poca altura: cabecera y controles más compactos */
+  @media (max-height: 480px) {
+    header { padding: 5px 12px; }
+    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom)); }
+    .title { font-size: 16px; }
+  }
 </style>
 </head>
-<body class="comfortable fourcolor">
+<body class="comfortable">
 <div id="app">
   <header>
     <div class="title">Solitario</div>
@@ -260,15 +283,6 @@
       <div class="hint">Números y palos más grandes, con más separación.</div>
     </div>
 
-    <div class="opt">
-      <div class="opt-label">Naipes a 4 colores</div>
-      <div class="seg">
-        <button class="seg-btn" data-color="1">Sí</button>
-        <button class="seg-btn" data-color="0">No</button>
-      </div>
-      <div class="hint">Picas negro, corazones rojo, diamantes azul, tréboles verde.</div>
-    </div>
-
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
     </div>
@@ -305,7 +319,7 @@ var selection = null;      // { pile, col, index }
 var undoStack = [];
 var seconds = 0, timerId = null, started = false;
 var CW, CH, OFFSET_UP, OFFSET_DOWN;
-var settings = { draw: 1, comfortable: true, fourColor: true };
+var settings = { draw: 1, comfortable: true };
 
 /* ---------- Arrastre ---------- */
 var pending = null;        // { src, startX, startY, rect, pointerId, elem }
@@ -618,8 +632,10 @@ function el(tag, cls, html) {
 function cardFace(card) {
   var r = RANK_LABEL[card.rank];
   var s = SUIT[card.suit].symbol;
-  return '<div class="corner">' + r + '<span class="cs">' + s + '</span></div>' +
-         '<div class="center">' + s + '</div>';
+  var corner = '<span class="cr">' + r + '</span><span class="cs">' + s + '</span>';
+  return '<div class="corner tl">' + corner + '</div>' +
+         '<div class="corner br">' + corner + '</div>' +
+         '<div class="pip">' + s + '</div>';
 }
 function makeCardEl(card, selected) {
   var cls = "card " + (card.faceUp ? ("up " + card.suit) : "down") + (selected ? " sel" : "");
@@ -744,10 +760,20 @@ function setSizes() {
   var board = document.getElementById("board");
   var cs = getComputedStyle(board);
   var padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
-  var gap = settings.comfortable ? 4 : 5;
   var contentW = board.clientWidth - padL - padR;
-  CW = Math.floor((contentW - 6 * gap) / 7);
-  CW = Math.max(34, Math.min(CW, 86));
+  // Separación proporcional: densa en celular, más aireada en tablet/escritorio.
+  var gap = contentW < 460 ? 4 : (contentW < 760 ? 6 : 8);
+
+  // Límite por ancho: 7 columnas + 6 huecos deben entrar.
+  var cwByWidth = (contentW - 6 * gap) / 7;
+
+  // Límite por alto: que la fila superior y buena parte del tablero entren
+  // en pantallas anchas o de poca altura (evita cartas gigantes en apaisado).
+  var availH = board.clientHeight || window.innerHeight;
+  var cwByHeight = ((availH - 14) / 3.0) / 1.42;
+
+  CW = Math.floor(Math.min(cwByWidth, cwByHeight));
+  CW = Math.max(38, Math.min(CW, 132));
   CH = Math.round(CW * 1.42);
   OFFSET_DOWN = settings.comfortable ? Math.max(12, Math.round(CH * 0.18)) : Math.max(9, Math.round(CH * 0.16));
   OFFSET_UP = settings.comfortable ? Math.max(26, Math.round(CH * 0.36)) : Math.max(20, Math.round(CH * 0.30));
@@ -759,7 +785,6 @@ function setSizes() {
 /* ---------- Opciones ---------- */
 function applySettings() {
   document.body.classList.toggle("comfortable", settings.comfortable);
-  document.body.classList.toggle("fourcolor", settings.fourColor);
   setSizes();
   render();
   updateSettingsUI();
@@ -769,8 +794,6 @@ function updateSettingsUI() {
   for (var i = 0; i < a.length; i++) a[i].classList.toggle("active", parseInt(a[i].dataset.draw, 10) === settings.draw);
   var b = document.querySelectorAll("[data-comfort]");
   for (var j = 0; j < b.length; j++) b[j].classList.toggle("active", (b[j].dataset.comfort === "1") === settings.comfortable);
-  var c = document.querySelectorAll("[data-color]");
-  for (var k = 0; k < c.length; k++) c[k].classList.toggle("active", (c[k].dataset.color === "1") === settings.fourColor);
 }
 
 /* ---------- Pistas ---------- */
@@ -977,7 +1000,6 @@ function newGame() {
 
 /* ---------- Inicio y eventos ---------- */
 document.body.classList.toggle("comfortable", settings.comfortable);
-document.body.classList.toggle("fourcolor", settings.fourColor);
 setSizes();
 newGame();
 updateSettingsUI();
@@ -1002,10 +1024,6 @@ document.getElementById("btn-auto").onclick = startAutoComplete;
   for (var j = 0; j < comf.length; j++) (function (btn) {
     btn.onclick = function () { settings.comfortable = btn.dataset.comfort === "1"; applySettings(); };
   })(comf[j]);
-  var cols = document.querySelectorAll("[data-color]");
-  for (var k = 0; k < cols.length; k++) (function (btn) {
-    btn.onclick = function () { settings.fourColor = btn.dataset.color === "1"; applySettings(); };
-  })(cols[k]);
 })();
 
 document.getElementById("board").addEventListener("click", function (e) {
