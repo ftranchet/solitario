@@ -25,7 +25,12 @@
     background: rgba(0,0,0,0.18);
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
+  .brand { display: flex; flex-direction: column; line-height: 1.1; }
   .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
+  .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
+  /* Enlace del autor: en negrita y sin cambiar de color (hereda el del texto) */
+  .credit .author { color: inherit; font-weight: 700; text-decoration: none; }
+  .credit .author:hover, .credit .author:focus { text-decoration: underline; }
   .hud { display: flex; gap: 14px; margin-left: auto; font-size: 14px; opacity: 0.95; white-space: nowrap; }
   .hud b { font-variant-numeric: tabular-nums; }
   .actions { display: flex; gap: 6px; }
@@ -189,6 +194,7 @@
   /* Pantallas medianas y grandes (tablet / escritorio) */
   @media (min-width: 700px) {
     .title { font-size: 22px; }
+    .credit { font-size: 12px; }
     .hud { font-size: 16px; gap: 18px; }
     .btn { font-size: 14px; padding: 9px 14px; }
     .btn.ghost { width: 42px; font-size: 17px; }
@@ -197,6 +203,7 @@
   }
   @media (min-width: 1100px) {
     .title { font-size: 26px; }
+    .credit { font-size: 13px; }
     #board { padding-left: 14px; padding-right: 14px; }
   }
   /* Apaisado y poca altura: cabecera y controles más compactos */
@@ -210,7 +217,10 @@
 <body class="comfortable">
 <div id="app">
   <header>
-    <div class="title">Solitario</div>
+    <div class="brand">
+      <div class="title">Solitario</div>
+      <div class="credit">Por <a class="author" href="https://www.linkedin.com/in/ftranchet/" target="_blank" rel="noopener noreferrer">Francisco Tranchet</a> + IA</div>
+    </div>
     <div class="hud">
       <span>⏱ <b id="time">00:00</b></span>
       <span>🃏 <b id="moves">0</b></span>
