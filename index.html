@@ -674,7 +674,6 @@ function celebrate() {
 }
 
 /* ---------- Sin jugadas (derrota) ---------- */
-var stuckNotified = false;
 function canPlaceCardAnywhere(card) {
   if (canMoveToFoundation(card) >= 0) return true;
   for (var c = 0; c < 7; c++) if (canPlaceOnTableau(card, c)) return true;
@@ -733,14 +732,9 @@ function hasAnyMove() {
   return false;
 }
 function updateStuckState() {
-  var btnNew = document.getElementById("btn-new");
+  // Sin jugadas posibles: s\u00f3lo resaltamos el bot\u00f3n "Nueva" (sin aviso breve).
   var stuck = !isWon() && !autoTimer && !hasAnyMove();
-  btnNew.classList.toggle("attention", stuck);
-  if (stuck) {
-    if (!stuckNotified) { toast("No quedan jugadas. Toc\u00e1 \u00abNueva\u00bb para empezar otra."); stuckNotified = true; }
-  } else {
-    stuckNotified = false;
-  }
+  document.getElementById("btn-new").classList.toggle("attention", stuck);
 }
 
 /* ---------- Render ---------- */
@@ -1108,7 +1102,6 @@ function newGame() {
   stopConfetti();
   clearHintHighlights();
   hintMoves = null; hintStateMoves = -1;
-  stuckNotified = false;
   deal();
   selection = null;
   undoStack = [];
