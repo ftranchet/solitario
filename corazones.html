@@ -388,6 +388,7 @@ var humanPass = [];        // ids elegidos para pasar
 var busy = false;
 var target = 100;
 var hintTimer = null;
+var flowTimer = null;      // setTimeout del avance de IA / cierre de baza (cancelable)
 var CW, CH, OW;
 
 /* ---------- Mazo ---------- */
@@ -553,6 +554,7 @@ function confirmPass() {
 }
 
 /* ---------- Juego ---------- */
+function clearFlow() { if (flowTimer) { clearTimeout(flowTimer); flowTimer = null; } }
 function beginPlay() {
   phase = "play";
   tricksPlayed = 0; trick = []; heartsBroken = false;
@@ -567,8 +569,9 @@ function advance() {
   if (trick.length === 4) return;
   if (turn === HUMAN) { busy = false; setStatus("Te toca jugar."); render(); return; }
   busy = true; render();
-  setTimeout(function () {
-    if (phase !== "play" || turn === HUMAN) return;
+  flowTimer = setTimeout(function () {
+    flowTimer = null;
+    if (phase !== "play" || turn === HUMAN || trick.length >= 4) return;
     doPlay(turn, aiPlay(turn));
   }, AI_DELAY);
 }
@@ -578,7 +581,7 @@ function doPlay(seat, card) {
   if (card.suit === "hearts") heartsBroken = true;
   if (trick.length === 4) {
     busy = true; render();
-    setTimeout(resolveTrick, TRICK_HOLD);
+    flowTimer = setTimeout(resolveTrick, TRICK_HOLD);
   } else {
     turn = (turn + 3) % 4;
     render();
@@ -586,6 +589,8 @@ function doPlay(seat, card) {
   }
 }
 function resolveTrick() {
+  flowTimer = null;
+  if (phase !== "play" || trick.length !== 4) return;  // ignora timers obsoletos
   var w = trickWinner(), pts = trickPoints();
   players[w].roundPoints += pts;
   tricksPlayed++;
@@ -864,11 +869,6 @@ function loadPrefs() {
 
 /* ---------- Persistencia ---------- */
 var PREFS_KEY = "corazones.prefs", GAME_KEY = "corazones.game";
-function totalCards() {
-  var n = trick.length + tricksPlayed * 4;
-  for (var s = 0; s < 4; s++) n += players[s].hand.length;
-  return n;
-}
 function saveGame() {
   try {
     if (phase === "scoring") return;
@@ -900,7 +900,7 @@ function loadGame() {
     setSizes();
     render();
     if (phase === "play") {
-      if (trick.length === 4) { busy = true; setTimeout(resolveTrick, TRICK_HOLD); }
+      if (trick.length === 4) { busy = true; flowTimer = setTimeout(resolveTrick, TRICK_HOLD); }
       else advance();
     } else if (phase === "pass") {
       setStatus("Elegí 3 cartas para pasar " + DIR_TXT[passDir]);
@@ -913,6 +913,7 @@ function loadGame() {
 
 /* ---------- Nueva mano / partida ---------- */
 function nextHand() {
+  clearFlow();
   document.getElementById("round").hidden = true;
   handNumber++;
   passDir = DIRS[(handNumber - 1) % 4];
@@ -926,6 +927,7 @@ function nextHand() {
   }
 }
 function newMatch() {
+  clearFlow();
   stopConfetti();
   clearHint();
   document.getElementById("win").hidden = true;

@@ -445,9 +445,11 @@ function onPointerDown(e) {
   if (!rc) return;
   if (e.button === 2) { e.preventDefault(); onLong(rc[0], rc[1]); return; } // clic derecho = bandera
   if (e.button != null && e.button > 0) return;
+  if (press) return;                          // ya hay un toque en curso: ignorar dedos extra
   clearHint();
   press = { r: rc[0], c: rc[1], fired: false, sx: e.clientX, sy: e.clientY, id: e.pointerId };
-  press.timer = setTimeout(function () { if (press) { press.fired = true; onLong(press.r, press.c); } }, 380);
+  var pr = press;
+  press.timer = setTimeout(function () { if (press === pr) { press.fired = true; onLong(press.r, press.c); } }, 380);
 }
 function onPointerUp(e) {
   if (!press || e.pointerId !== press.id) return;
@@ -653,6 +655,7 @@ function loadGame() {
 /* ---------- Nueva partida ---------- */
 function newGame() {
   stopConfetti(); clearHint(); stopTimer();
+  if (press) { clearTimeout(press.timer); press = null; }  // cancela long-press pendiente
   var d = DIFFS[difficulty];
   rows = d.rows; cols = d.cols; mines = d.mines;
   makeGrid();
