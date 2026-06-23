@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e3a22">
+<title>Corazones</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(120% 90% at 50% -10%, #2a8a52 0%, #176039 45%, #0d3a23 100%);
+    color: #fff;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+    overflow: hidden;
+  }
+
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+  header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.18);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .brand { display: flex; flex-direction: column; line-height: 1.1; }
+  .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
+  .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
+  .credit .author { color: inherit; font-weight: 700; text-decoration: none; }
+  .credit .author:hover, .credit .author:focus { text-decoration: underline; }
+  .hud { display: flex; gap: 14px; margin-left: auto; font-size: 14px; opacity: 0.95; white-space: nowrap; }
+  .hud b { font-variant-numeric: tabular-nums; }
+  .actions { display: flex; gap: 6px; }
+  .btn {
+    background: rgba(255,255,255,0.12); color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 7px 11px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer; line-height: 1;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn:disabled { opacity: 0.4; }
+  .btn.ghost { width: 36px; padding: 7px 0; text-align: center; font-size: 15px; }
+  .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+
+  #board { width: 100%; margin: 0 auto; padding: 8px; flex: 1; min-height: 0; display: flex; }
+
+  /* Mesa de 4 jugadores */
+  #table {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "north north north"
+      "west  center east"
+      "south south south";
+    gap: 6px; align-items: center; justify-items: center;
+  }
+  .seat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .seat.north { grid-area: north; }
+  .seat.west  { grid-area: west; }
+  .seat.east  { grid-area: east; }
+  #trick { grid-area: center; position: relative; width: 100%; height: 100%; min-height: calc(var(--ch) + 30px); }
+  .hand-wrap { grid-area: south; width: 100%; }
+
+  /* Cartas */
+  .card {
+    width: var(--cw); height: var(--ch);
+    border-radius: calc(var(--cw) * 0.14);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .card.up { background: linear-gradient(160deg, #ffffff, #f4eede); border: 1px solid #d9cdb4; }
+  .card.up.hearts, .card.up.diamonds { color: #c62828; }
+  .card.up.spades, .card.up.clubs { color: #1a1a1a; }
+  .card.down {
+    background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .card .corner {
+    position: absolute; line-height: 1; font-weight: 900; white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+  }
+  .card .corner.tl { top: 5%; left: 9%; font-size: calc(var(--cw) * 0.42); }
+  .card .corner.br { bottom: 4%; right: 9%; font-size: calc(var(--cw) * 0.44); }
+
+  /* Oponentes: un dorso con efecto de pila + ficha con nombre y puntos */
+  .seat-cards { position: relative; width: var(--ow); height: calc(var(--ow) * 1.42); }
+  .seat-cards .card.down {
+    width: var(--ow); height: calc(var(--ow) * 1.42);
+    box-shadow: 2px 0 0 rgba(0,0,0,0.22), 4px 0 0 rgba(255,255,255,0.05),
+                inset 0 0 0 2px rgba(232,180,74,0.30), 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .count-badge {
+    position: absolute; bottom: -4px; right: -8px;
+    background: rgba(0,0,0,0.6); color: #fff;
+    font-size: 11px; padding: 1px 6px; border-radius: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.12);
+    padding: 3px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap;
+  }
+  .chip .sc { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .seat.active .chip {
+    background: #e8b44a; color: #2a1d05; border-color: #e8b44a;
+    box-shadow: 0 0 0 3px rgba(232,180,74,0.4);
+  }
+  .seat.active.thinking .chip::after { content: " …"; }
+
+  /* Cartas jugadas en el centro */
+  #trick .play {
+    position: absolute; left: 50%; top: 50%;
+    transition: transform 0.12s ease;
+  }
+  #trick .play.south { transform: translate(-50%, 8px); }
+  #trick .play.north { transform: translate(-50%, calc(-100% - 8px)); }
+  #trick .play.west  { transform: translate(calc(-100% - 8px), -50%); }
+  #trick .play.east  { transform: translate(8px, -50%); }
+  #trick .play .card { box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
+
+  /* Mano del jugador (abanico) */
+  #status {
+    text-align: center; min-height: 18px; font-size: 13px; opacity: 0.92;
+    margin-bottom: 4px; padding: 0 8px;
+  }
+  .hand { position: relative; height: calc(var(--ch) + 18px); }
+  .hand .card { position: absolute; bottom: 0; cursor: default; }
+  .hand .card.playable { cursor: pointer; }
+  .hand .card.playable:active { transform: translateY(-6px); }
+  .hand .card.dim { opacity: 0.4; }
+  .hand .card.picked { transform: translateY(-16px); outline: 3px solid #e8b44a; outline-offset: -1px; box-shadow: 0 0 0 3px #e8b44a, 0 8px 16px rgba(0,0,0,0.4); }
+  .hand .card.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 500 !important; }
+  @keyframes hintpulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0), 0 1px 2px rgba(0,0,0,0.25); }
+    50% { box-shadow: 0 0 0 4px rgba(232,180,74,0.95), 0 6px 14px rgba(0,0,0,0.4); }
+  }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.62);
+    display: flex; align-items: center; justify-content: center;
+    padding: 22px; z-index: 100;
+  }
+  .overlay[hidden] { display: none; }
+  .card-modal {
+    background: #fdfaf2; color: #2a2a26; border-radius: 18px;
+    padding: 22px; max-width: 360px; width: 100%;
+    box-shadow: 0 22px 55px rgba(0,0,0,0.5);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .win-modal { text-align: center; }
+  .win-emoji { font-size: 56px; animation: pop 0.6s ease, bob 1.6s ease-in-out 0.6s infinite; }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
+  .win-congrats { font-weight: 700; font-size: 16px; margin-top: 2px; }
+  .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
+  .card-modal h2 { margin: 4px 0 6px; }
+  .card-modal p { margin: 6px 0; line-height: 1.5; }
+  .card-modal ol { padding-left: 20px; line-height: 1.6; margin: 10px 0; }
+  .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .card-modal .btn { color: #2a2a26; background: #ece5d5; border-color: #ddd3bd; }
+  .card-modal .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+  .hint-txt { font-size: 12.5px; opacity: 0.65; margin-top: 4px; }
+
+  .score-table { width: 100%; border-collapse: collapse; margin: 12px 0 4px; }
+  .score-table th, .score-table td { padding: 7px 8px; border-bottom: 1px solid #e7dec9; }
+  .score-table th { text-align: left; font-size: 12px; opacity: 0.7; }
+  .score-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .score-table tr.me td { font-weight: 800; }
+  .score-table tr.lead td { color: #1f7a46; }
+
+  .opt { margin: 14px 0; }
+  .opt-label { font-weight: 700; margin-bottom: 6px; }
+  .seg { display: flex; gap: 6px; }
+  .seg-btn {
+    flex: 1; padding: 9px 6px; border-radius: 9px;
+    border: 1px solid #d9cfb8; background: #efe9da; color: #4a463c;
+    font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .seg-btn:active { transform: scale(0.97); }
+  .seg-btn.active { background: #1f7a46; color: #fff; border-color: #1f7a46; }
+
+  /* Menú de juegos (suite) */
+  .game-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+  .game-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px;
+    background: #efe9da; color: #2a2a26; border: 1px solid #ddd3bd;
+    font-weight: 700; font-size: 15px; text-decoration: none; cursor: pointer;
+  }
+  .game-link:active { transform: scale(0.98); }
+  .game-link .ico { font-size: 20px; line-height: 1; }
+  .game-link .soon { margin-left: auto; font-size: 12px; font-weight: 600; opacity: 0.75; }
+  .game-link.current { background: #1f7a46; color: #fff; border-color: #1f7a46; cursor: default; }
+  .game-link.disabled { opacity: 0.5; cursor: default; }
+
+  #controls {
+    display: flex; gap: 8px; justify-content: center; align-items: center;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(0,0,0,0.18);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .pill { border-radius: 999px; padding: 9px 18px; font-size: 14px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(10px);
+    background: rgba(20,20,20,0.92); color: #fff; padding: 10px 16px; border-radius: 12px;
+    font-size: 14px; max-width: 80%; text-align: center;
+    opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 200; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (min-width: 700px) {
+    .title { font-size: 22px; }
+    .credit { font-size: 12px; }
+    .hud { font-size: 16px; gap: 18px; }
+    .btn { font-size: 14px; padding: 9px 14px; }
+    .btn.ghost { width: 42px; font-size: 17px; }
+    .pill { font-size: 16px; padding: 11px 22px; }
+    header, #controls { padding-left: 18px; padding-right: 18px; }
+    #status { font-size: 15px; }
+  }
+  @media (min-width: 1100px) {
+    .title { font-size: 26px; }
+    #board { padding-left: 14px; padding-right: 14px; }
+  }
+  @media (max-height: 480px) {
+    header { padding: 5px 12px; }
+    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px)); }
+    .title { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="title">Corazones</div>
+      <div class="credit">Por <a class="author" href="https://www.linkedin.com/in/ftranchet/" target="_blank" rel="noopener noreferrer">Francisco Tranchet</a> + IA</div>
+    </div>
+    <div class="hud">
+      <span>Mano <b id="handno">1</b></span>
+      <span>a <b id="target">100</b></span>
+      <span id="hb">♥</span>
+    </div>
+    <div class="actions">
+      <button id="btn-new" class="btn">Nueva</button>
+      <button id="btn-menu" class="btn ghost" aria-label="Juegos">🎮</button>
+      <button id="btn-settings" class="btn ghost" aria-label="Opciones">⚙</button>
+      <button id="btn-help" class="btn ghost" aria-label="Cómo jugar">?</button>
+    </div>
+  </header>
+
+  <div id="board">
+    <div id="table">
+      <div class="seat north" id="seat-2"></div>
+      <div class="seat west" id="seat-3"></div>
+      <div id="trick"></div>
+      <div class="seat east" id="seat-1"></div>
+      <div class="hand-wrap">
+        <div id="status"></div>
+        <div id="hand" class="hand"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer id="controls">
+    <button id="btn-pass" class="btn pill primary" hidden>Pasar 3 cartas</button>
+    <button id="btn-hint" class="btn pill">💡 Pista</button>
+  </footer>
+</div>
+
+<!-- Menú de juegos (suite) -->
+<div id="menu" class="overlay" hidden>
+  <div class="card-modal">
+    <h2>Juegos</h2>
+    <div class="game-list">
+      <a class="game-link" href="index.html"><span class="ico">🃏</span> Solitario</a>
+      <a class="game-link" href="carta-blanca.html"><span class="ico">🆓</span> Carta Blanca</a>
+      <span class="game-link current"><span class="ico">❤️</span> Corazones</span>
+      <span class="game-link disabled"><span class="ico">💣</span> Buscaminas <span class="soon">próximamente</span></span>
+    </div>
+    <div class="modal-actions">
+      <button id="menu-close" class="btn primary">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cómo jugar -->
+<div id="help" class="overlay" hidden>
+  <div class="card-modal">
+    <h2>Cómo jugar</h2>
+    <ol>
+      <li>Antes de cada mano pasás 3 cartas (izquierda, derecha, enfrente y después ninguna).</li>
+      <li>Quien tiene el <b>2 de tréboles</b> arranca. Hay que <b>seguir el palo</b> si podés.</li>
+      <li>Si no tenés el palo, tirás lo que quieras (en la primera baza no podés tirar corazones ni la Q♠).</li>
+      <li>Gana la baza la carta más alta del palo de salida, y esa persona sale en la siguiente.</li>
+    </ol>
+    <p class="hint-txt">Objetivo: <b>menos puntos</b>. Cada ♥ suma 1 punto y la <b>Q♠ suma 13</b>. No se pueden liderar corazones hasta que alguien "rompa" tirando uno.</p>
+    <p class="hint-txt"><b>Disparar a la luna:</b> si te llevás <b>todos</b> los puntos (los 13 corazones y la Q♠), sumás 0 y los demás suman 26.</p>
+    <p class="hint-txt">La partida termina cuando alguien llega al puntaje límite; gana quien tenga <b>menos</b> puntos. Tocá <b>💡 Pista</b> para una sugerencia.</p>
+    <div class="modal-actions">
+      <button id="help-close" class="btn primary">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Opciones -->
+<div id="settings" class="overlay" hidden>
+  <div class="card-modal">
+    <h2>Opciones</h2>
+    <div class="opt">
+      <div class="opt-label">Puntaje límite</div>
+      <div class="seg">
+        <button class="seg-btn" data-target="50">Corta · 50</button>
+        <button class="seg-btn" data-target="100">Clásica · 100</button>
+      </div>
+      <div class="hint-txt">La partida termina cuando alguien alcanza ese puntaje.</div>
+    </div>
+    <div class="modal-actions">
+      <button id="settings-close" class="btn primary">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fin de mano -->
+<div id="round" class="overlay" hidden>
+  <div class="card-modal">
+    <h2 id="round-title">Fin de la mano</h2>
+    <p id="round-moon" class="win-congrats" hidden></p>
+    <table class="score-table"><thead><tr><th>Jugador</th><th class="num">Esta mano</th><th class="num">Total</th></tr></thead><tbody id="round-body"></tbody></table>
+    <div class="modal-actions">
+      <button id="round-next" class="btn primary">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fin del juego -->
+<div id="win" class="overlay" hidden>
+  <div class="card-modal win-modal">
+    <div class="win-emoji" id="win-emoji">🏆</div>
+    <h2 id="win-title">¡Fin del juego!</h2>
+    <p class="win-congrats" id="win-congrats"></p>
+    <table class="score-table"><thead><tr><th>Jugador</th><th class="num">Puntos</th></tr></thead><tbody id="win-body"></tbody></table>
+    <div class="modal-actions">
+      <button id="win-new" class="btn primary">Nueva partida</button>
+      <button id="win-close" class="btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Datos básicos ---------- */
+var SUIT = {
+  clubs:    { symbol: "♣", color: "black" },
+  diamonds: { symbol: "♦", color: "red" },
+  spades:   { symbol: "♠", color: "black" },
+  hearts:   { symbol: "♥", color: "red" }
+};
+var SUIT_ORDER = ["clubs", "diamonds", "spades", "hearts"];
+var SUIT_SORT = { clubs: 0, diamonds: 1, spades: 2, hearts: 3 };
+var RANK_LABEL = {2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K",14:"A"};
+/* Asientos: 0=Vos (abajo), 1=Este (der.), 2=Norte (arriba), 3=Oeste (izq.).
+   El juego avanza "a la izquierda" = sentido horario en pantalla = (i+3)%4. */
+var SEAT = [
+  { cls: "south", name: "Vos",   human: true },
+  { cls: "east",  name: "Este",  human: false },
+  { cls: "north", name: "Norte", human: false },
+  { cls: "west",  name: "Oeste", human: false }
+];
+var HUMAN = 0;
+var DIRS = ["left", "right", "across", "hold"];
+var DIR_TXT = { left: "a la izquierda ←", right: "a la derecha →", across: "de frente ↑", hold: "ninguna" };
+var AI_DELAY = 650, TRICK_HOLD = 1000;
+
+/* ---------- Estado ---------- */
+var players = null;        // [{ hand:[], score, roundPoints }]
+var phase = "play";        // "pass" | "play" | "scoring"
+var trick = [];            // [{ seat, card }]
+var leadSeat = 0, turn = 0;
+var heartsBroken = false, tricksPlayed = 0, handNumber = 0;
+var passDir = "left";
+var humanPass = [];        // ids elegidos para pasar
+var busy = false;
+var target = 100;
+var hintTimer = null;
+var CW, CH, OW;
+
+/* ---------- Mazo ---------- */
+function makeDeck() {
+  var d = [];
+  for (var si = 0; si < SUIT_ORDER.length; si++) {
+    var sk = SUIT_ORDER[si];
+    for (var r = 2; r <= 14; r++) d.push({ suit: sk, rank: r, color: SUIT[sk].color, id: sk + "-" + r });
+  }
+  return d;
+}
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function sortHand(h) {
+  h.sort(function (a, b) { return (SUIT_SORT[a.suit] - SUIT_SORT[b.suit]) || (a.rank - b.rank); });
+  return h;
+}
+function pointsOf(card) {
+  if (card.suit === "hearts") return 1;
+  if (card.suit === "spades" && card.rank === 12) return 13;
+  return 0;
+}
+function is2C(card) { return card.suit === "clubs" && card.rank === 2; }
+function holderOf2C() {
+  for (var s = 0; s < 4; s++)
+    for (var i = 0; i < players[s].hand.length; i++)
+      if (is2C(players[s].hand[i])) return s;
+  return 0;
+}
+
+/* ---------- Reglas: jugadas legales ---------- */
+function legalCards(seat) {
+  var hand = players[seat].hand;
+  var leading = trick.length === 0;
+  var i, c, out = [];
+  if (leading) {
+    if (tricksPlayed === 0) {
+      for (i = 0; i < hand.length; i++) if (is2C(hand[i])) return [hand[i]];
+    }
+    if (!heartsBroken) {
+      for (i = 0; i < hand.length; i++) if (hand[i].suit !== "hearts") out.push(hand[i]);
+      if (out.length) return out;
+    }
+    return hand.slice();
+  }
+  var led = trick[0].card.suit;
+  for (i = 0; i < hand.length; i++) if (hand[i].suit === led) out.push(hand[i]);
+  if (out.length) return out;
+  // Sin el palo: descarte libre, salvo en la primera baza (sin corazones ni Q♠)
+  if (tricksPlayed === 0) {
+    var safe = [];
+    for (i = 0; i < hand.length; i++) {
+      c = hand[i];
+      if (c.suit !== "hearts" && !(c.suit === "spades" && c.rank === 12)) safe.push(c);
+    }
+    if (safe.length) return safe;
+  }
+  return hand.slice();
+}
+function trickWinner() {
+  var led = trick[0].card.suit, best = trick[0];
+  for (var i = 1; i < trick.length; i++)
+    if (trick[i].card.suit === led && trick[i].card.rank > best.card.rank) best = trick[i];
+  return best.seat;
+}
+function trickPoints() {
+  var p = 0;
+  for (var i = 0; i < trick.length; i++) p += pointsOf(trick[i].card);
+  return p;
+}
+
+/* ---------- IA ---------- */
+function cardDanger(card) {
+  if (card.suit === "spades" && card.rank === 12) return 1000;          // Q♠
+  if (card.suit === "spades" && card.rank > 12) return 600 + card.rank; // A♠, K♠
+  if (card.suit === "hearts") return 200 + card.rank;
+  return card.rank;
+}
+function aiPass(seat) {
+  var hand = players[seat].hand.slice();
+  hand.sort(function (a, b) { return cardDanger(b) - cardDanger(a); });
+  return hand.slice(0, 3);
+}
+function lowestCard(cards) {
+  var best = cards[0];
+  for (var i = 1; i < cards.length; i++)
+    if (cards[i].rank < best.rank || (cards[i].rank === best.rank && SUIT_SORT[cards[i].suit] < SUIT_SORT[best.suit])) best = cards[i];
+  return best;
+}
+function highestCard(cards) {
+  var best = cards[0];
+  for (var i = 1; i < cards.length; i++) if (cards[i].rank > best.rank) best = cards[i];
+  return best;
+}
+function mostDangerous(cards) {
+  var best = cards[0];
+  for (var i = 1; i < cards.length; i++) if (cardDanger(cards[i]) > cardDanger(best)) best = cards[i];
+  return best;
+}
+function aiPlay(seat) {
+  var legal = legalCards(seat);
+  if (legal.length === 1) return legal[0];
+  if (trick.length === 0) {
+    // Liderar: la carta más baja (preferí palos que no sean corazones, ya filtrados)
+    return lowestCard(legal);
+  }
+  var led = trick[0].card.suit;
+  var inSuit = [], i;
+  for (i = 0; i < legal.length; i++) if (legal[i].suit === led) inSuit.push(legal[i]);
+  if (inSuit.length) {
+    var high = trick[0].card.rank;
+    for (i = 1; i < trick.length; i++) if (trick[i].card.suit === led && trick[i].card.rank > high) high = trick[i].card.rank;
+    var under = [];
+    for (i = 0; i < inSuit.length; i++) if (inSuit[i].rank < high) under.push(inSuit[i]);
+    if (under.length) return highestCard(under);            // descarga seguro por debajo
+    var isLast = trick.length === 3;
+    return isLast ? highestCard(inSuit) : lowestCard(inSuit); // forzado a ganar: si soy último suelto la alta
+  }
+  // Descarte: largá lo más peligroso (Q♠, espadas altas, corazones altos)
+  return mostDangerous(legal);
+}
+
+/* ---------- Reparto / pase ---------- */
+function dealHand() {
+  var deck = shuffle(makeDeck());
+  for (var s = 0; s < 4; s++) { players[s].hand = []; players[s].roundPoints = 0; }
+  for (var i = 0; i < deck.length; i++) players[i % 4].hand.push(deck[i]);
+  for (s = 0; s < 4; s++) sortHand(players[s].hand);
+  heartsBroken = false; tricksPlayed = 0; trick = [];
+}
+function passTarget(seat) {
+  if (passDir === "left") return (seat + 3) % 4;
+  if (passDir === "right") return (seat + 1) % 4;
+  return (seat + 2) % 4; // across
+}
+function removeCards(seat, cards) {
+  for (var i = 0; i < cards.length; i++) {
+    var hand = players[seat].hand;
+    for (var j = 0; j < hand.length; j++) if (hand[j].id === cards[i].id) { hand.splice(j, 1); break; }
+  }
+}
+function confirmPass() {
+  if (phase !== "pass" || humanPass.length !== 3) return;
+  var sel = [[], [], [], []];
+  for (var k = 0; k < humanPass.length; k++) {
+    var hand = players[HUMAN].hand;
+    for (var j = 0; j < hand.length; j++) if (hand[j].id === humanPass[k]) { sel[HUMAN].push(hand[j]); break; }
+  }
+  for (var s = 1; s < 4; s++) sel[s] = aiPass(s);
+  for (s = 0; s < 4; s++) removeCards(s, sel[s]);
+  for (s = 0; s < 4; s++) {
+    var tgt = passTarget(s);
+    for (var i = 0; i < sel[s].length; i++) players[tgt].hand.push(sel[s][i]);
+  }
+  for (s = 0; s < 4; s++) sortHand(players[s].hand);
+  humanPass = [];
+  beginPlay();
+}
+
+/* ---------- Juego ---------- */
+function beginPlay() {
+  phase = "play";
+  tricksPlayed = 0; trick = []; heartsBroken = false;
+  leadSeat = holderOf2C(); turn = leadSeat;
+  busy = false;
+  setStatus(turn === HUMAN ? "Salís vos: jugá el 2 de tréboles." : SEAT[turn].name + " sale.");
+  render();
+  advance();
+}
+function advance() {
+  if (phase !== "play") return;
+  if (trick.length === 4) return;
+  if (turn === HUMAN) { busy = false; setStatus("Te toca jugar."); render(); return; }
+  busy = true; render();
+  setTimeout(function () {
+    if (phase !== "play" || turn === HUMAN) return;
+    doPlay(turn, aiPlay(turn));
+  }, AI_DELAY);
+}
+function doPlay(seat, card) {
+  removeCards(seat, [card]);
+  trick.push({ seat: seat, card: card });
+  if (card.suit === "hearts") heartsBroken = true;
+  if (trick.length === 4) {
+    busy = true; render();
+    setTimeout(resolveTrick, TRICK_HOLD);
+  } else {
+    turn = (turn + 3) % 4;
+    render();
+    advance();
+  }
+}
+function resolveTrick() {
+  var w = trickWinner(), pts = trickPoints();
+  players[w].roundPoints += pts;
+  tricksPlayed++;
+  trick = [];
+  if (tricksPlayed === 13) { endHand(); return; }
+  leadSeat = w; turn = w;
+  setStatus(SEAT[w].name + " se llevó la baza" + (pts > 0 ? " (+" + pts + ")" : "") + ".");
+  render();
+  advance();
+}
+function endHand() {
+  var s, shooter = -1;
+  for (s = 0; s < 4; s++) if (players[s].roundPoints === 26) shooter = s;
+  var deltas = [0, 0, 0, 0];
+  if (shooter >= 0) { for (s = 0; s < 4; s++) deltas[s] = (s === shooter) ? 0 : 26; }
+  else { for (s = 0; s < 4; s++) deltas[s] = players[s].roundPoints; }
+  for (s = 0; s < 4; s++) players[s].score += deltas[s];
+  phase = "scoring";
+  busy = true;
+  render();
+  var over = false;
+  for (s = 0; s < 4; s++) if (players[s].score >= target) over = true;
+  if (over) showWin();
+  else showRound(deltas, shooter);
+}
+
+/* ---------- Render ---------- */
+function el(tag, cls, html) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+function cardFace(card) {
+  return '<div class="corner tl">' + RANK_LABEL[card.rank] + '</div>' +
+         '<div class="corner br">' + SUIT[card.suit].symbol + '</div>';
+}
+function makeCardEl(card) {
+  var e = el("div", "card up " + card.suit);
+  e.innerHTML = cardFace(card);
+  return e;
+}
+function setStatus(msg) { document.getElementById("status").textContent = msg || ""; }
+
+function renderOpp(seat) {
+  var box = document.getElementById("seat-" + seat);
+  var p = players[seat], n = p.hand.length;
+  box.className = "seat " + SEAT[seat].cls + ((turn === seat && phase === "play") ? " active thinking" : "");
+  var cards = n > 0 ? '<div class="seat-cards"><div class="card down"></div><span class="count-badge">' + n + '</span></div>' : '<div class="seat-cards"></div>';
+  box.innerHTML = cards + '<div class="chip"><span class="nm">' + SEAT[seat].name + '</span><span class="sc">' + p.score + '</span></div>';
+}
+function renderTrick() {
+  var t = document.getElementById("trick"); t.innerHTML = "";
+  for (var i = 0; i < trick.length; i++) {
+    var d = el("div", "play " + SEAT[trick[i].seat].cls);
+    d.appendChild(makeCardEl(trick[i].card));
+    t.appendChild(d);
+  }
+}
+function renderHand() {
+  var hand = document.getElementById("hand"); hand.innerHTML = "";
+  var cards = players[HUMAN].hand;
+  var n = cards.length;
+  if (!n) return;
+  var availW = hand.clientWidth || (document.getElementById("table").clientWidth - 8);
+  var step = n > 1 ? Math.min(CW * 0.62, (availW - CW) / (n - 1)) : 0;
+  var totalW = (n - 1) * step + CW;
+  var offset = Math.max(0, (availW - totalW) / 2);
+
+  var myTurn = phase === "play" && turn === HUMAN && !busy && trick.length < 4;
+  var legalSet = {};
+  if (myTurn) { var lg = legalCards(HUMAN); for (var k = 0; k < lg.length; k++) legalSet[lg[k].id] = 1; }
+
+  for (var i = 0; i < n; i++) {
+    var card = cards[i];
+    var ce = makeCardEl(card);
+    ce.style.left = (offset + i * step) + "px";
+    ce.style.zIndex = i;
+    ce.dataset.id = card.id;
+    if (phase === "pass") {
+      ce.classList.add("playable");
+      if (humanPass.indexOf(card.id) >= 0) ce.classList.add("picked");
+      (function (c) { ce.addEventListener("click", function () { togglePass(c); }); })(card);
+    } else if (myTurn) {
+      if (legalSet[card.id]) {
+        ce.classList.add("playable");
+        (function (c) { ce.addEventListener("click", function () { humanPlay(c); }); })(card);
+      } else { ce.classList.add("dim"); }
+    } else { ce.classList.add("dim"); }
+    hand.appendChild(ce);
+  }
+}
+function render() {
+  document.getElementById("handno").textContent = handNumber;
+  document.getElementById("target").textContent = target;
+  document.getElementById("hb").textContent = heartsBroken ? "💔 rotos" : "♥";
+  renderOpp(1); renderOpp(2); renderOpp(3);
+  renderTrick();
+  renderHand();
+  updateControls();
+  saveGame();
+}
+function updateControls() {
+  var passBtn = document.getElementById("btn-pass");
+  if (phase === "pass") {
+    passBtn.hidden = false;
+    passBtn.disabled = humanPass.length !== 3;
+    passBtn.textContent = "Pasar " + DIR_TXT[passDir];
+  } else {
+    passBtn.hidden = true;
+  }
+}
+
+/* ---------- Acciones del jugador ---------- */
+function togglePass(card) {
+  if (phase !== "pass") return;
+  var idx = humanPass.indexOf(card.id);
+  if (idx >= 0) humanPass.splice(idx, 1);
+  else { if (humanPass.length >= 3) return; humanPass.push(card.id); }
+  clearHint();
+  render();
+}
+function humanPlay(card) {
+  if (phase !== "play" || turn !== HUMAN || busy || trick.length >= 4) return;
+  var legal = legalCards(HUMAN), ok = false;
+  for (var i = 0; i < legal.length; i++) if (legal[i].id === card.id) { ok = true; break; }
+  if (!ok) return;
+  clearHint();
+  doPlay(HUMAN, card);
+}
+
+/* ---------- Pista ---------- */
+function clearHint() {
+  if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
+  var hs = document.querySelectorAll(".card.hint");
+  for (var i = 0; i < hs.length; i++) hs[i].classList.remove("hint");
+}
+function highlightCards(ids) {
+  clearHint();
+  for (var i = 0; i < ids.length; i++) {
+    var e = document.querySelector('.hand .card[data-id="' + ids[i] + '"]');
+    if (e) e.classList.add("hint");
+  }
+  hintTimer = setTimeout(clearHint, 1800);
+}
+function onHint() {
+  if (phase === "pass") {
+    var p = aiPass(HUMAN);
+    highlightCards([p[0].id, p[1].id, p[2].id]);
+  } else if (phase === "play" && turn === HUMAN && !busy && trick.length < 4) {
+    highlightCards([aiPlay(HUMAN).id]);
+  } else {
+    toast("Esperá tu turno.");
+  }
+}
+
+/* ---------- Modales de puntaje ---------- */
+function scoreRow(seat, mid, total, cls) {
+  var tr = "<tr class=\"" + (cls || "") + "\">";
+  tr += "<td>" + SEAT[seat].name + "</td>";
+  if (mid != null) tr += '<td class="num">' + (mid > 0 ? "+" + mid : "0") + "</td>";
+  tr += '<td class="num">' + total + "</td></tr>";
+  return tr;
+}
+function showRound(deltas, shooter) {
+  document.getElementById("round-title").textContent = "Fin de la mano " + handNumber;
+  var moon = document.getElementById("round-moon");
+  if (shooter >= 0) {
+    moon.hidden = false;
+    moon.textContent = "🌙 " + (shooter === HUMAN ? "¡Disparaste a la luna!" : SEAT[shooter].name + " disparó a la luna") + " — los demás +26.";
+  } else { moon.hidden = true; }
+  var leader = 0;
+  for (var s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  var body = "";
+  for (s = 0; s < 4; s++) body += scoreRow(s, deltas[s], players[s].score, (s === HUMAN ? "me " : "") + (s === leader ? "lead" : ""));
+  document.getElementById("round-body").innerHTML = body;
+  document.getElementById("round").hidden = false;
+}
+function showWin() {
+  var order = [0, 1, 2, 3].sort(function (a, b) { return players[a].score - players[b].score; });
+  var winner = order[0];
+  var body = "";
+  for (var i = 0; i < order.length; i++) {
+    var s = order[i];
+    body += scoreRow(s, null, players[s].score, (s === HUMAN ? "me " : "") + (i === 0 ? "lead" : ""));
+  }
+  document.getElementById("win-body").innerHTML = body;
+  document.getElementById("win-emoji").textContent = winner === HUMAN ? "🏆" : "🙂";
+  document.getElementById("win-title").textContent = winner === HUMAN ? "¡Ganaste!" : "Fin del juego";
+  document.getElementById("win-congrats").textContent =
+    winner === HUMAN ? "🎉 Terminaste con menos puntos. ¡Felicitaciones!" : "Ganó " + SEAT[winner].name + " con " + players[winner].score + " puntos.";
+  document.getElementById("win").hidden = false;
+  if (winner === HUMAN) celebrate();
+  try { localStorage.removeItem(GAME_KEY); } catch (e) {}
+}
+
+/* ---------- Festejo ---------- */
+var confettiRAF = null;
+function stopConfetti() {
+  if (confettiRAF) { cancelAnimationFrame(confettiRAF); confettiRAF = null; }
+  var c = document.querySelector(".confetti-canvas");
+  if (c) { if (c._onResize) window.removeEventListener("resize", c._onResize); c.remove(); }
+}
+function celebrate() {
+  stopConfetti();
+  var canvas = el("canvas", "confetti-canvas");
+  document.body.appendChild(canvas);
+  var ctx = canvas.getContext("2d");
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  canvas._onResize = resize;
+  window.addEventListener("resize", resize);
+  var colors = ["#e8b44a", "#c62828", "#1f7a46", "#1f6fd0", "#ffffff", "#ff7ab6"];
+  var N = Math.max(80, Math.min(200, Math.round(window.innerWidth / 4)));
+  var parts = [];
+  for (var i = 0; i < N; i++) {
+    parts.push({
+      x: Math.random() * canvas.width, y: -20 - Math.random() * canvas.height,
+      w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+      vx: -1.5 + Math.random() * 3, vy: 2 + Math.random() * 3.5,
+      rot: Math.random() * Math.PI, vr: -0.2 + Math.random() * 0.4,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+  var DURATION = 4500, start = Date.now();
+  function frame() {
+    var elapsed = Date.now() - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var fade = elapsed > DURATION - 900 ? Math.max(0, (DURATION - elapsed) / 900) : 1;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.rot += p.vr;
+      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = fade; ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    }
+    if (elapsed < DURATION) confettiRAF = requestAnimationFrame(frame);
+    else stopConfetti();
+  }
+  confettiRAF = requestAnimationFrame(frame);
+}
+
+/* ---------- Aviso breve ---------- */
+function toast(msg) {
+  var t = el("div", "toast", msg);
+  document.body.appendChild(t);
+  setTimeout(function () { t.classList.add("show"); }, 10);
+  setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
+}
+
+/* ---------- Tamaños ---------- */
+function setSizes() {
+  var board = document.getElementById("table");
+  var w = board.clientWidth || window.innerWidth;
+  var h = board.clientHeight || window.innerHeight;
+  var cw = Math.min(w / 6.2, h / 6.6);
+  CW = Math.round(Math.max(42, Math.min(cw, 92)));
+  CH = Math.round(CW * 1.42);
+  OW = Math.round(CW * 0.62);
+  var root = document.documentElement;
+  root.style.setProperty("--cw", CW + "px");
+  root.style.setProperty("--ch", CH + "px");
+  root.style.setProperty("--ow", OW + "px");
+}
+
+/* ---------- Opciones ---------- */
+function updateSettingsUI() {
+  var a = document.querySelectorAll("[data-target]");
+  for (var i = 0; i < a.length; i++) a[i].classList.toggle("active", parseInt(a[i].dataset.target, 10) === target);
+}
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ target: target })); } catch (e) {} }
+function loadPrefs() {
+  try { var p = JSON.parse(localStorage.getItem(PREFS_KEY)); if (p && (p.target === 50 || p.target === 100)) target = p.target; } catch (e) {}
+}
+
+/* ---------- Persistencia ---------- */
+var PREFS_KEY = "corazones.prefs", GAME_KEY = "corazones.game";
+function totalCards() {
+  var n = trick.length + tricksPlayed * 4;
+  for (var s = 0; s < 4; s++) n += players[s].hand.length;
+  return n;
+}
+function saveGame() {
+  try {
+    if (phase === "scoring") return;
+    var p = [];
+    for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints });
+    localStorage.setItem(GAME_KEY, JSON.stringify({
+      players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
+      heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target
+    }));
+  } catch (e) {}
+}
+function validSaved(d) {
+  if (!d || !d.players || d.players.length !== 4) return false;
+  var n = (d.trick ? d.trick.length : 0) + (d.tricksPlayed || 0) * 4;
+  for (var s = 0; s < 4; s++) { if (!d.players[s].hand) return false; n += d.players[s].hand.length; }
+  return n === 52;
+}
+function loadGame() {
+  try {
+    var d = JSON.parse(localStorage.getItem(GAME_KEY));
+    if (!validSaved(d)) return false;
+    players = [];
+    for (var s = 0; s < 4; s++) players.push({ hand: d.players[s].hand, score: d.players[s].score || 0, roundPoints: d.players[s].roundPoints || 0 });
+    phase = d.phase; trick = d.trick || []; leadSeat = d.leadSeat || 0; turn = d.turn || 0;
+    heartsBroken = !!d.heartsBroken; tricksPlayed = d.tricksPlayed || 0;
+    handNumber = d.handNumber || 1; passDir = d.passDir || "left";
+    if (d.target === 50 || d.target === 100) target = d.target;
+    busy = false; humanPass = [];
+    setSizes();
+    render();
+    if (phase === "play") {
+      if (trick.length === 4) { busy = true; setTimeout(resolveTrick, TRICK_HOLD); }
+      else advance();
+    } else if (phase === "pass") {
+      setStatus("Elegí 3 cartas para pasar " + DIR_TXT[passDir]);
+    } else {
+      nextHand();
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ---------- Nueva mano / partida ---------- */
+function nextHand() {
+  document.getElementById("round").hidden = true;
+  handNumber++;
+  passDir = DIRS[(handNumber - 1) % 4];
+  dealHand();
+  if (passDir === "hold") {
+    beginPlay();
+  } else {
+    phase = "pass"; humanPass = []; busy = false;
+    setStatus("Elegí 3 cartas para pasar " + DIR_TXT[passDir]);
+    render();
+  }
+}
+function newMatch() {
+  stopConfetti();
+  clearHint();
+  document.getElementById("win").hidden = true;
+  document.getElementById("round").hidden = true;
+  players = [
+    { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 },
+    { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 }
+  ];
+  handNumber = 0; trick = []; busy = false;
+  nextHand();
+}
+
+/* ---------- Inicio y eventos ---------- */
+loadPrefs();
+setSizes();
+if (!loadGame()) newMatch();
+updateSettingsUI();
+
+window.addEventListener("pagehide", saveGame);
+document.addEventListener("visibilitychange", function () { if (document.hidden) saveGame(); });
+
+document.getElementById("btn-new").onclick = function () { newMatch(); };
+document.getElementById("btn-pass").onclick = confirmPass;
+document.getElementById("btn-hint").onclick = onHint;
+document.getElementById("btn-help").onclick = function () { document.getElementById("help").hidden = false; };
+document.getElementById("help-close").onclick = function () { document.getElementById("help").hidden = true; };
+document.getElementById("btn-menu").onclick = function () { document.getElementById("menu").hidden = false; };
+document.getElementById("menu-close").onclick = function () { document.getElementById("menu").hidden = true; };
+document.getElementById("btn-settings").onclick = function () { updateSettingsUI(); document.getElementById("settings").hidden = false; };
+document.getElementById("settings-close").onclick = function () { document.getElementById("settings").hidden = true; };
+document.getElementById("round-next").onclick = function () { document.getElementById("round").hidden = true; nextHand(); };
+document.getElementById("win-new").onclick = function () { newMatch(); };
+document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; stopConfetti(); };
+
+(function () {
+  var tg = document.querySelectorAll("[data-target]");
+  for (var i = 0; i < tg.length; i++) (function (btn) {
+    btn.onclick = function () { target = parseInt(btn.dataset.target, 10); savePrefs(); updateSettingsUI(); render(); };
+  })(tg[i]);
+})();
+
+window.addEventListener("resize", function () { setSizes(); render(); });
+</script>
+</body>
+</html>
