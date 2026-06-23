@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
-<title>Carta Blanca</title>
+<title>Solitario</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -60,19 +60,18 @@
     display: flex; flex-direction: column; min-height: 0;
   }
 
-  /* Fila superior: 4 pozos libres (izq) + 4 pilas finales (der) = 8 columnas,
-     alineadas con las 8 columnas del tablero. */
   #top {
-    display: grid; grid-template-columns: repeat(8, var(--cw)); gap: var(--gap);
+    display: grid; grid-template-columns: repeat(7, var(--cw)); gap: var(--gap);
     justify-content: center; margin-bottom: 10px;
   }
   #tableauWrap { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 28px; touch-action: pan-y; }
   #tableau {
-    display: grid; grid-template-columns: repeat(8, var(--cw)); gap: var(--gap);
+    display: grid; grid-template-columns: repeat(7, var(--cw)); gap: var(--gap);
     justify-content: center; align-items: start;
   }
 
   .slot { width: var(--cw); height: var(--ch); position: relative; }
+  .spacer { background: transparent; }
   .col { position: relative; min-height: var(--ch); }
 
   .card {
@@ -81,14 +80,20 @@
     box-shadow: 0 1px 2px rgba(0,0,0,0.25);
     overflow: hidden; cursor: pointer;
   }
-  .col .card, .slot .card { position: absolute; left: 0; }
+  .col .card { position: absolute; left: 0; }
 
   .card.up { background: linear-gradient(160deg, #ffffff, #f4eede); border: 1px solid #d9cdb4; }
   /* Dos colores clásicos: rojo y negro */
   .card.up.hearts, .card.up.diamonds { color: #c62828; }
   .card.up.spades, .card.up.clubs { color: #1a1a1a; }
 
-  /* La letra arriba-izquierda y el palo abajo-derecha: grandes y claros.
+  .card.down {
+    background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* La letra arriba-izquierda y el palo abajo-derecha: grandes, claros y nada más.
      La letra va en color del palo, así al apilarse en las columnas (sólo se ve
      la franja superior) se distingue número y color de un vistazo. */
   .card .corner {
@@ -105,7 +110,7 @@
   }
   .card.dragging { opacity: 0.28; }
 
-  .slot-ph, .placeholder, .foundation-ph, .free-ph {
+  .slot-ph, .placeholder, .foundation-ph, .recycle {
     width: var(--cw); height: var(--ch);
     border-radius: calc(var(--cw) * 0.14);
     border: 2px dashed rgba(255,255,255,0.30);
@@ -113,11 +118,14 @@
     color: rgba(255,255,255,0.35);
     font-size: calc(var(--cw) * 0.5);
   }
-  .foundation-ph, .placeholder, .free-ph { cursor: pointer; }
-  /* Los pozos libres llevan un marco apenas más cálido para distinguirlos
-     de las pilas finales (que muestran una "A"). */
-  .free-ph { border-color: rgba(232,180,74,0.45); }
-  .free-ph::after { content: "\2022"; opacity: 0.5; font-size: calc(var(--cw) * 0.35); }
+  .recycle, .foundation-ph, .placeholder { cursor: pointer; }
+
+  .badge {
+    position: absolute; bottom: -3px; right: -3px;
+    background: rgba(0,0,0,0.55); color: #fff;
+    font-size: 11px; padding: 1px 6px; border-radius: 10px;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* Capa flotante para arrastrar */
   .drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
@@ -152,12 +160,14 @@
 
   .opt { margin: 14px 0; }
   .opt-label { font-weight: 700; margin-bottom: 6px; }
-  .game-row { display: flex; gap: 8px; }
-  .num-input {
-    flex: 1; min-width: 0; padding: 9px 10px; border-radius: 9px;
-    border: 1px solid #d9cfb8; background: #fff; color: #2a2a26;
-    font-size: 14px; font-weight: 600;
+  .seg { display: flex; gap: 6px; }
+  .seg-btn {
+    flex: 1; padding: 9px 6px; border-radius: 9px;
+    border: 1px solid #d9cfb8; background: #efe9da; color: #4a463c;
+    font-weight: 600; font-size: 13px; cursor: pointer;
   }
+  .seg-btn:active { transform: scale(0.97); }
+  .seg-btn.active { background: #1f7a46; color: #fff; border-color: #1f7a46; }
 
   /* Menú de juegos (suite) */
   .game-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
@@ -231,13 +241,12 @@
 <div id="app">
   <header>
     <div class="brand">
-      <div class="title">Carta Blanca</div>
+      <div class="title">Solitario</div>
       <div class="credit">Por <a class="author" href="https://www.linkedin.com/in/ftranchet/" target="_blank" rel="noopener noreferrer">Francisco Tranchet</a> + IA</div>
     </div>
     <div class="hud">
       <span>⏱ <b id="time">00:00</b></span>
       <span>🃏 <b id="moves">0</b></span>
-      <span>N.º <b id="gameno">1</b></span>
     </div>
     <div class="actions">
       <button id="btn-undo" class="btn">↶ Deshacer</button>
@@ -264,8 +273,8 @@
     <h2>Juegos</h2>
     <div class="game-list">
       <a class="game-link" href="index.html"><span class="ico">🏠</span> Inicio</a>
-      <a class="game-link" href="solitario.html"><span class="ico">🃏</span> Solitario</a>
-      <span class="game-link current"><span class="ico">🆓</span> Carta Blanca</span>
+      <span class="game-link current"><span class="ico">🃏</span> Solitario</span>
+      <a class="game-link" href="carta-blanca.html"><span class="ico">🆓</span> Carta Blanca</a>
       <a class="game-link" href="corazones.html"><span class="ico">❤️</span> Corazones</a>
       <a class="game-link" href="buscaminas.html"><span class="ico">💣</span> Buscaminas</a>
     </div>
@@ -280,14 +289,12 @@
   <div class="card-modal">
     <h2>Cómo jugar</h2>
     <ol>
+      <li>Tocá el mazo (arriba a la izquierda) para dar vuelta cartas.</li>
       <li>Arrastrá una carta hasta donde va, o tocala para tomarla y después tocá el destino.</li>
-      <li>Arriba a la izquierda hay 4 <b>pozos libres</b>: cada uno guarda una sola carta para usarla después.</li>
-      <li>En las columnas se baja alternando colores (una roja, una negra).</li>
-      <li>Para mandar una carta a las pilas de arriba (derecha), tocala dos veces.</li>
+      <li>Para mandar una carta a las pilas de arriba, tocala dos veces.</li>
     </ol>
-    <p class="hint">Objetivo: armar las cuatro pilas de arriba a la derecha desde el As hasta el Rey, una por palo.</p>
-    <p class="hint">Podés mover <b>varias cartas juntas</b> si forman una escalera (bajando y alternando color). Cuantos más pozos y columnas vacías tengas, más cartas podés mover de una vez.</p>
-    <p class="hint">Si te trabás, tocá <b>💡 Pista</b> abajo (de nuevo para ver otra jugada). Cuando todo quede ordenado aparece <b>✓ Autocompletar</b> para terminar la partida sola.</p>
+    <p class="hint">Objetivo: ordenar las cuatro pilas de arriba desde el As hasta el Rey, una por palo. En las columnas se baja alternando colores (una roja, una negra).</p>
+    <p class="hint">Si te trabás, tocá <b>💡 Pista</b> abajo (tocala de nuevo para ver otra jugada). Cuando ya no queden cartas tapadas aparece <b>✓ Autocompletar</b> para terminar la partida sola.</p>
     <div class="modal-actions">
       <button id="help-close" class="btn primary">Entendido</button>
     </div>
@@ -300,12 +307,12 @@
     <h2>Opciones</h2>
 
     <div class="opt">
-      <div class="opt-label">Elegir partida</div>
-      <div class="game-row">
-        <input id="game-input" class="num-input" type="number" min="1" inputmode="numeric" placeholder="Número de partida">
-        <button id="game-go" class="btn primary">Jugar</button>
+      <div class="opt-label">Dificultad</div>
+      <div class="seg">
+        <button class="seg-btn" data-draw="1">Fácil · 1 carta</button>
+        <button class="seg-btn" data-draw="3">Difícil · 3 cartas</button>
       </div>
-      <div class="hint">Cada número da siempre el mismo reparto (igual que en el FreeCell de Windows). Empezar una partida nueva acá descarta la actual.</div>
+      <div class="hint">Cuántas cartas se dan vuelta del mazo cada vez.</div>
     </div>
 
     <div class="modal-actions">
@@ -319,7 +326,7 @@
   <div class="card-modal win-modal">
     <div class="win-emoji">🎉</div>
     <h2>¡Ganaste!</h2>
-    <p class="win-congrats">🎊 ¡Felicitaciones! Resolviste la Carta Blanca 🥳</p>
+    <p class="win-congrats">🎊 ¡Felicitaciones! Completaste el solitario 🥳</p>
     <p id="win-stats"></p>
     <div class="modal-actions">
       <button id="win-new" class="btn primary">Nueva partida</button>
@@ -331,62 +338,60 @@
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
-  spades:   { symbol: "♠", color: "black" },
-  hearts:   { symbol: "♥", color: "red" },
-  diamonds: { symbol: "♦", color: "red" },
-  clubs:    { symbol: "♣", color: "black" }
+  spades:   { symbol: "\u2660", color: "black" },
+  hearts:   { symbol: "\u2665", color: "red" },
+  diamonds: { symbol: "\u2666", color: "red" },
+  clubs:    { symbol: "\u2663", color: "black" }
 };
+var SUIT_ORDER = ["spades", "hearts", "diamonds", "clubs"];
 var RANK_LABEL = {1:"A",2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K"};
-var MAX_GAME = 2147483647;
 
 /* ---------- Estado ---------- */
 var state = null;
-var gameNumber = 1;
-var selection = null;      // { pile, col, index }  pile: "tableau" | "free" | "foundation"
+var selection = null;      // { pile, col, index }
 var undoStack = [];
 var seconds = 0, timerId = null, started = false;
-var CW, CH, OFFSET;
+var CW, CH, OFFSET_UP, OFFSET_DOWN;
+var settings = { draw: 1 };
 
 /* ---------- Arrastre ---------- */
-var pending = null;        // { src, startX, startY, rect, pointerId, elem, canDrag }
+var pending = null;        // { src, startX, startY, rect, pointerId, elem }
 var drag = null;           // { layer, inner, grabDX, grabDY }
 
 /* ---------- Pistas y autocompletar ---------- */
 var hintMoves = null, hintIndex = 0, hintStateMoves = -1, hintTimer = null;
-var autoTimer = null;
+var autoTimer = null, autoNoProgress = 0;
 
-/* ---------- Reparto (numerado, estilo FreeCell de Windows) ----------
-   Generador lineal congruente de Microsoft: cada número de partida produce
-   siempre el mismo reparto. */
-function msDeal(seed) {
-  var s = seed >>> 0;
-  function rnd() {
-    s = (s * 214013 + 2531011) >>> 0;
-    return (s >>> 16) & 0x7fff;
+/* ---------- Mazo ---------- */
+function makeDeck() {
+  var d = [], id = 0;
+  for (var si = 0; si < SUIT_ORDER.length; si++) {
+    var sk = SUIT_ORDER[si];
+    for (var r = 1; r <= 13; r++) {
+      d.push({ suit: sk, rank: r, color: SUIT[sk].color, faceUp: false, id: id++ });
+    }
   }
-  var deck = [];
-  for (var i = 0; i < 52; i++) deck.push(i);
-  var out = [], n = 52;
-  for (var k = 0; k < 52; k++) {
-    var j = rnd() % n;
-    out.push(deck[j]);
-    deck[j] = deck[n - 1];
-    n--;
+  return d;
+}
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
   }
-  return out;
+  return a;
 }
-function msCardToObj(c) {
-  var rank = Math.floor(c / 4) + 1;                       // 1..13
-  var suit = ["clubs", "diamonds", "hearts", "spades"][c % 4];
-  return { suit: suit, rank: rank, color: SUIT[suit].color, faceUp: true, id: c };
-}
-function randomGameNumber() { return Math.floor(Math.random() * 1000000) + 1; }
-function deal(number) {
-  gameNumber = number;
-  var order = msDeal(number);
-  state = { free: [null, null, null, null], foundations: [[],[],[],[]],
-            tableau: [[],[],[],[],[],[],[],[]], moves: 0 };
-  for (var k = 0; k < 52; k++) state.tableau[k % 8].push(msCardToObj(order[k]));
+function deal() {
+  var deck = shuffle(makeDeck());
+  state = { stock: [], waste: [], foundations: [[],[],[],[]], tableau: [[],[],[],[],[],[],[]], moves: 0 };
+  var di = 0;
+  for (var col = 0; col < 7; col++) {
+    for (var r = 0; r <= col; r++) {
+      var card = deck[di++];
+      card.faceUp = (r === col);
+      state.tableau[col].push(card);
+    }
+  }
+  while (di < deck.length) { var c = deck[di++]; c.faceUp = false; state.stock.push(c); }
 }
 
 /* ---------- Deshacer ---------- */
@@ -404,108 +409,70 @@ function undo() {
 }
 
 /* ---------- Reglas ---------- */
-function foundationSlotFor(foundations, card) {
+function foundationIndexFor(card) {
   for (var i = 0; i < 4; i++) {
-    var f = foundations[i];
+    var f = state.foundations[i];
     if (f.length && f[f.length - 1].suit === card.suit) return i;
   }
   if (card.rank === 1) {
-    for (var k = 0; k < 4; k++) if (foundations[k].length === 0) return k;
+    for (var k = 0; k < 4; k++) if (state.foundations[k].length === 0) return k;
   }
   return -1;
 }
-function canFoundIn(foundations, card) {
-  var i = foundationSlotFor(foundations, card);
+function canMoveToFoundation(card) {
+  var i = foundationIndexFor(card);
   if (i < 0) return -1;
-  var f = foundations[i];
+  var f = state.foundations[i];
   if (f.length === 0) return card.rank === 1 ? i : -1;
-  return card.rank === f[f.length - 1].rank + 1 ? i : -1;
+  var t = f[f.length - 1];
+  return card.rank === t.rank + 1 ? i : -1;
 }
-function canMoveToFoundation(card) { return canFoundIn(state.foundations, card); }
-
 function canPlaceOnTableau(card, col) {
   var t = state.tableau[col];
-  if (t.length === 0) return true;                        // cualquier carta a una columna vacía
+  if (t.length === 0) return card.rank === 13;
   var top = t[t.length - 1];
+  if (!top.faceUp) return false;
   return top.color !== card.color && top.rank === card.rank + 1;
-}
-/* ¿Las cartas de t[index..fin] forman una escalera válida (baja y alterna color)? */
-function isValidRun(cards) {
-  for (var i = 1; i < cards.length; i++) {
-    var a = cards[i - 1], b = cards[i];
-    if (!(a.color !== b.color && a.rank === b.rank + 1)) return false;
-  }
-  return true;
-}
-function canSelectTableau(col, index) {
-  var t = state.tableau[col];
-  if (index < 0 || index >= t.length) return false;
-  if (index === t.length - 1) return true;
-  return isValidRun(t.slice(index));
-}
-/* Cuántas cartas se pueden mover juntas a "destCol":
-   (pozos libres + 1) * 2 ^ (columnas vacías). La columna de destino, si está
-   vacía, no se cuenta. */
-function countEmptyFree() {
-  var n = 0;
-  for (var i = 0; i < 4; i++) if (!state.free[i]) n++;
-  return n;
-}
-function countEmptyCols(exclude) {
-  var n = 0;
-  for (var c = 0; c < 8; c++) {
-    if (c === exclude) continue;
-    if (state.tableau[c].length === 0) n++;
-  }
-  return n;
-}
-function maxMovable(destCol) {
-  return (countEmptyFree() + 1) * Math.pow(2, countEmptyCols(destCol));
 }
 
 /* ---------- Selección ---------- */
 function getSelectionCards() {
   if (!selection) return null;
   if (selection.pile === "tableau") return state.tableau[selection.col].slice(selection.index);
-  if (selection.pile === "free") return [state.free[selection.col]];
+  if (selection.pile === "waste") return [state.waste[state.waste.length - 1]];
   if (selection.pile === "foundation") {
     var f = state.foundations[selection.col]; return [f[f.length - 1]];
   }
   return null;
 }
+function flipTop(pile) {
+  if (pile.length && !pile[pile.length - 1].faceUp) pile[pile.length - 1].faceUp = true;
+}
 function removeSelected() {
-  if (selection.pile === "tableau") return state.tableau[selection.col].splice(selection.index);
-  if (selection.pile === "free") { var c = state.free[selection.col]; state.free[selection.col] = null; return [c]; }
+  if (selection.pile === "tableau") {
+    var t = state.tableau[selection.col];
+    var moved = t.splice(selection.index);
+    flipTop(t);
+    return moved;
+  }
+  if (selection.pile === "waste") return [state.waste.pop()];
   if (selection.pile === "foundation") return [state.foundations[selection.col].pop()];
   return [];
 }
-function selectCard(pile, col, index) {
-  if (pile === "tableau") { if (!canSelectTableau(col, index)) return false; selection = { pile: "tableau", col: col, index: index }; return true; }
-  if (pile === "free") { if (state.free[col] == null) return false; selection = { pile: "free", col: col, index: 0 }; return true; }
-  if (pile === "foundation") { var f = state.foundations[col]; if (!f.length) return false; selection = { pile: "foundation", col: col, index: f.length - 1 }; return true; }
-  return false;
+function selectCard(pile, col, index, card) {
+  if (pile === "tableau") { if (!card.faceUp) return; selection = { pile: pile, col: col, index: index }; }
+  else if (pile === "waste") selection = { pile: "waste", col: 0, index: index };
+  else if (pile === "foundation") selection = { pile: "foundation", col: col, index: index };
 }
 
 /* ---------- Movimientos ---------- */
 function moveSelectionToTableau(col) {
-  if (selection.pile === "tableau" && selection.col === col) return false;
   var cards = getSelectionCards();
+  if (selection.pile === "tableau" && selection.col === col) return false;
   if (!canPlaceOnTableau(cards[0], col)) return false;
-  if (cards.length > maxMovable(col)) return false;
   snapshot();
   var moved = removeSelected();
   for (var i = 0; i < moved.length; i++) state.tableau[col].push(moved[i]);
-  state.moves++;
-  return true;
-}
-function moveSelectionToFree(col) {
-  if (selection.pile === "free" && selection.col === col) return false;
-  var cards = getSelectionCards();
-  if (cards.length !== 1) return false;
-  if (state.free[col] != null) return false;
-  snapshot();
-  var moved = removeSelected();
-  state.free[col] = moved[0];
   state.moves++;
   return true;
 }
@@ -521,32 +488,56 @@ function moveSelectionToFoundation() {
   state.moves++;
   return true;
 }
-/* Doble clic / doble toque: mandar la carta (o la escalera) a donde corresponda.
-   Prioridad: pila final > otra columna del tablero > pozo libre. */
+/* Doble clic / doble toque: mandar la carta (o el grupo) a donde corresponda.
+   Igual que con los ases, primero intenta las pilas finales; si no, busca una
+   columna del tablero donde encaje. */
 function autoMoveSelection() {
   if (moveSelectionToFoundation()) return true;
-  if (selection.pile === "foundation") return false;
+  if (selection.pile === "foundation") return false; // no sacamos de las fundaciones
   var cards = getSelectionCards();
   if (!cards || !cards.length) return false;
   var lead = cards[0];
   var srcCol = selection.pile === "tableau" ? selection.col : -1;
   var emptyDest = -1;
-  for (var dc = 0; dc < 8; dc++) {
+  for (var dc = 0; dc < 7; dc++) {
     if (dc === srcCol) continue;
     if (!canPlaceOnTableau(lead, dc)) continue;
-    if (cards.length > maxMovable(dc)) continue;
-    if (state.tableau[dc].length > 0) return moveSelectionToTableau(dc);  // sobre otra carta
-    if (emptyDest < 0) emptyDest = dc;                                    // columna vacía
+    if (state.tableau[dc].length > 0) return moveSelectionToTableau(dc); // sobre otra carta
+    if (emptyDest < 0) emptyDest = dc;                                    // columna vacía (Rey)
   }
-  if (cards.length === 1 && selection.pile !== "free") {
-    for (var fc = 0; fc < 4; fc++) if (state.free[fc] == null) return moveSelectionToFree(fc);
+  // Una columna vacía sólo si el movimiento sirve: saca una carta del descarte
+  // o destapa una carta boca abajo en la columna de origen.
+  if (emptyDest >= 0) {
+    var useful = selection.pile === "waste";
+    if (!useful && selection.pile === "tableau" && selection.index > 0) {
+      var below = state.tableau[selection.col][selection.index - 1];
+      useful = !!below && !below.faceUp;
+    }
+    if (useful) return moveSelectionToTableau(emptyDest);
   }
-  if (emptyDest >= 0) return moveSelectionToTableau(emptyDest);
   return false;
+}
+function dealStock() {
+  if (autoTimer) return;
+  if (state.stock.length === 0 && state.waste.length === 0) return;
+  snapshot();
+  if (state.stock.length === 0) {
+    while (state.waste.length) { var c = state.waste.pop(); c.faceUp = false; state.stock.push(c); }
+  } else {
+    var n = settings.draw;
+    for (var k = 0; k < n && state.stock.length; k++) {
+      var cc = state.stock.pop(); cc.faceUp = true; state.waste.push(cc);
+    }
+  }
+  state.moves++;
+  selection = null;
+  startTimer();
+  render();
 }
 
 /* ---------- Toques (tap) ---------- */
-function handleCardClick(pile, col, index) {
+function handleCardClick(pile, col, index, card) {
+  if (pile === "tableau" && !card.faceUp) return;
   if (selection) {
     var sameAnchor = selection.pile === pile && selection.col === col &&
       (pile === "tableau" ? selection.index === index : true);
@@ -557,24 +548,22 @@ function handleCardClick(pile, col, index) {
     var moved = false;
     if (pile === "tableau") moved = moveSelectionToTableau(col);
     else if (pile === "foundation") moved = moveSelectionToFoundation();
-    else if (pile === "free") moved = moveSelectionToFree(col);
     if (moved) { selection = null; afterMove(); return; }
-    if (selectCard(pile, col, index)) render();
-    else { selection = null; render(); }
+    selectCard(pile, col, index, card);
+    render();
     return;
   }
-  if (selectCard(pile, col, index)) render();
+  selectCard(pile, col, index, card);
+  render();
 }
 function handleEmptyColumn(col) {
-  if (autoTimer || !selection) return;
+  if (autoTimer) return;
+  if (!selection) return;
   if (moveSelectionToTableau(col)) { selection = null; afterMove(); }
 }
-function handleFreeClick(col) {
-  if (autoTimer || !selection) return;
-  if (moveSelectionToFree(col)) { selection = null; afterMove(); }
-}
 function handleFoundationClick() {
-  if (autoTimer || !selection) return;
+  if (autoTimer) return;
+  if (!selection) return;
   if (moveSelectionToFoundation()) { selection = null; afterMove(); }
 }
 function afterMove() { startTimer(); render(); checkWin(); }
@@ -582,14 +571,13 @@ function afterMove() { startTimer(); render(); checkWin(); }
 /* ---------- Arrastre (drag) ---------- */
 function onPointerDown(e, src, elem) {
   if (autoTimer) return;
-  if (pending) return;
+  if (pending) return;   // ya hay un toque/arrastre en curso: ignorar dedos extra
   if (e.button != null && e.button > 0) return;
   e.preventDefault();
   try { elem.setPointerCapture(e.pointerId); } catch (_) {}
-  var canDrag = src.pile !== "tableau" || canSelectTableau(src.col, src.index);
   pending = {
     src: src, startX: e.clientX, startY: e.clientY,
-    rect: elem.getBoundingClientRect(), pointerId: e.pointerId, elem: elem, canDrag: canDrag
+    rect: elem.getBoundingClientRect(), pointerId: e.pointerId, elem: elem
   };
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
@@ -598,7 +586,6 @@ function onPointerDown(e, src, elem) {
 function onPointerMove(e) {
   if (!pending || e.pointerId !== pending.pointerId) return;
   if (!drag) {
-    if (!pending.canDrag) return;
     var dx = e.clientX - pending.startX, dy = e.clientY - pending.startY;
     if (Math.sqrt(dx * dx + dy * dy) < 8) return;
     beginDrag();
@@ -612,7 +599,7 @@ function onPointerUp(e) {
   var s = pending.src;
   if (wasDrag) finishDrag(e);
   pending = null;
-  if (!wasDrag) handleCardClick(s.pile, s.col, s.index);
+  if (!wasDrag) handleCardClick(s.pile, s.col, s.index, s.card);
 }
 function onPointerCancel(e) {
   if (!pending || e.pointerId !== pending.pointerId) return;
@@ -633,13 +620,12 @@ function getRunElements(sel) {
     for (var i = 0; i < nodes.length; i++) if (parseInt(nodes[i].dataset.index, 10) >= sel.index) arr.push(nodes[i]);
     return arr;
   }
-  if (sel.pile === "free") nodes = document.querySelectorAll('.card[data-pile="free"][data-col="' + sel.col + '"]');
+  if (sel.pile === "waste") nodes = document.querySelectorAll('.card[data-pile="waste"]');
   else nodes = document.querySelectorAll('.card[data-pile="foundation"][data-col="' + sel.col + '"]');
   return Array.prototype.slice.call(nodes);
 }
 function beginDrag() {
-  var src = pending.src;
-  selection = { pile: src.pile, col: src.col, index: src.pile === "tableau" ? src.index : (src.pile === "foundation" ? src.index : 0) };
+  selection = { pile: pending.src.pile, col: pending.src.col, index: pending.src.index };
   var cards = getSelectionCards();
   var originals = getRunElements(selection);
   for (var i = 0; i < originals.length; i++) originals[i].classList.add("dragging");
@@ -648,7 +634,7 @@ function beginDrag() {
   var inner = el("div", "drag-inner");
   for (var j = 0; j < cards.length; j++) {
     var c = makeCardEl(cards[j], false);
-    c.style.position = "absolute"; c.style.left = "0"; c.style.top = (j * OFFSET) + "px";
+    c.style.position = "absolute"; c.style.left = "0"; c.style.top = (j * OFFSET_UP) + "px";
     inner.appendChild(c);
   }
   layer.appendChild(inner);
@@ -670,7 +656,6 @@ function finishDrag(e) {
   if (target) {
     var d = target.getAttribute("data-drop");
     if (d.indexOf("foundation") === 0) moved = moveSelectionToFoundation();
-    else if (d.indexOf("free") === 0) moved = moveSelectionToFree(parseInt(d.split(":")[1], 10));
     else if (d.indexOf("tableau") === 0) moved = moveSelectionToTableau(parseInt(d.split(":")[1], 10));
   }
   selection = null;
@@ -689,21 +674,17 @@ function resetTimer() { stopTimer(); seconds = 0; started = false; updateHUD(); 
 
 /* ---------- Victoria + festejo ---------- */
 var confettiRAF = null;
-function totalFoundation() {
+function checkWin() {
   var total = 0;
   for (var i = 0; i < 4; i++) total += state.foundations[i].length;
-  return total;
-}
-function isWon() { return totalFoundation() === 52; }
-function checkWin() {
-  if (!isWon()) return;
-  stopTimer();
-  var m = Math.floor(seconds / 60), s = seconds % 60;
-  var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
-  document.getElementById("win-stats").textContent =
-    "Tiempo " + t + " · " + state.moves + " movimientos · Partida n.º " + gameNumber;
-  document.getElementById("win").hidden = false;
-  celebrate();
+  if (total === 52) {
+    stopTimer();
+    var m = Math.floor(seconds / 60), s = seconds % 60;
+    var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+    document.getElementById("win-stats").textContent = "Tiempo " + t + " \u00b7 " + state.moves + " movimientos";
+    document.getElementById("win").hidden = false;
+    celebrate();
+  }
 }
 function stopConfetti() {
   if (confettiRAF) { cancelAnimationFrame(confettiRAF); confettiRAF = null; }
@@ -755,50 +736,65 @@ function celebrate() {
 }
 
 /* ---------- Sin jugadas (derrota) ---------- */
-function bottomRunStart(col) {
-  var t = state.tableau[col];
-  if (!t.length) return -1;
-  var i = t.length - 1;
-  while (i > 0 && t[i - 1].color !== t[i].color && t[i - 1].rank === t[i].rank + 1) i--;
-  return i;
+function canPlaceCardAnywhere(card) {
+  if (canMoveToFoundation(card) >= 0) return true;
+  for (var c = 0; c < 7; c++) if (canPlaceOnTableau(card, c)) return true;
+  return false;
+}
+/* Cartas que pueden llegar a quedar arriba del descarte dando vuelta el mazo y
+   reciclando, SIN hacer otros movimientos. Simula el ciclo completo, por lo que
+   funciona tanto en reparto de 1 como de 3 (en 3 no todas las cartas son
+   alcanzables). Como nada se quita, el ciclo es finito: paramos al repetirse. */
+function reachableStockWasteCards() {
+  var stock = state.stock.slice();
+  var waste = state.waste.slice();
+  var draw = settings.draw;
+  var tops = [];
+  if (waste.length) tops.push(waste[waste.length - 1]);
+  if (stock.length === 0 && waste.length === 0) return tops;
+  var seen = {}, guard = 0;
+  while (guard++ < 4000) {
+    if (stock.length === 0 && waste.length === 0) break;
+    var key = "";
+    for (var a = 0; a < stock.length; a++) key += stock[a].id + ",";
+    key += "|";
+    for (var b = 0; b < waste.length; b++) key += waste[b].id + ",";
+    if (seen[key]) break;
+    seen[key] = 1;
+    if (stock.length === 0) {
+      while (waste.length) stock.push(waste.pop());
+    } else {
+      for (var k = 0; k < draw && stock.length; k++) waste.push(stock.pop());
+      if (waste.length) tops.push(waste[waste.length - 1]);
+    }
+  }
+  return tops;
 }
 function hasAnyMove() {
-  var col, dc, i;
-  // 1) A las pilas finales
-  for (i = 0; i < 4; i++) if (state.free[i] && canMoveToFoundation(state.free[i]) >= 0) return true;
-  for (col = 0; col < 8; col++) {
+  // Movimientos directos desde las columnas
+  for (var col = 0; col < 7; col++) {
     var t = state.tableau[col];
-    if (t.length && canMoveToFoundation(t[t.length - 1]) >= 0) return true;
-  }
-  // 2) Mandar una carta a un pozo libre vacío (siempre que haya alguna carta)
-  if (countEmptyFree() > 0) {
-    for (col = 0; col < 8; col++) if (state.tableau[col].length) return true;
-  }
-  // 3) Escaleras (o cartas) de una columna a otra
-  for (col = 0; col < 8; col++) {
-    var start = bottomRunStart(col);
-    if (start < 0) continue;
-    var len = state.tableau[col].length;
-    for (i = start; i < len; i++) {
-      var lead = state.tableau[col][i];
-      var runLen = len - i;
-      for (dc = 0; dc < 8; dc++) {
+    if (!t.length) continue;
+    if (canMoveToFoundation(t[t.length - 1]) >= 0) return true;
+    var fu = firstFaceUpIndex(t);
+    if (fu >= 0) {
+      var lead = t[fu];
+      for (var dc = 0; dc < 7; dc++) {
         if (dc === col) continue;
         if (!canPlaceOnTableau(lead, dc)) continue;
-        if (runLen > maxMovable(dc)) continue;
-        if (i === 0 && state.tableau[dc].length === 0) continue; // mover columna entera a otra vacía no aporta
+        // mover un Rey solo a otra columna vac\u00eda no aporta nada
+        if (lead.rank === 13 && fu === 0 && state.tableau[dc].length === 0) continue;
         return true;
       }
     }
   }
-  // 4) De un pozo libre a una columna
-  for (i = 0; i < 4; i++) {
-    if (!state.free[i]) continue;
-    for (dc = 0; dc < 8; dc++) if (canPlaceOnTableau(state.free[i], dc)) return true;
-  }
+  // Cartas alcanzables del mazo/descarte dando vuelta y reciclando
+  var reach = reachableStockWasteCards();
+  for (var i = 0; i < reach.length; i++) if (canPlaceCardAnywhere(reach[i])) return true;
   return false;
 }
 function updateStuckState() {
+  // Sin jugadas posibles: s\u00f3lo resaltamos el bot\u00f3n "Nueva" (sin aviso breve).
   var stuck = !isWon() && !autoTimer && !hasAnyMove();
   document.getElementById("btn-new").classList.toggle("attention", stuck);
 }
@@ -811,12 +807,15 @@ function el(tag, cls, html) {
   return e;
 }
 function cardFace(card) {
-  return '<div class="corner tl">' + RANK_LABEL[card.rank] + '</div>' +
-         '<div class="corner br">' + SUIT[card.suit].symbol + '</div>';
+  var r = RANK_LABEL[card.rank];
+  var s = SUIT[card.suit].symbol;
+  return '<div class="corner tl">' + r + '</div>' +
+         '<div class="corner br">' + s + '</div>';
 }
 function makeCardEl(card, selected) {
-  var e = el("div", "card up " + card.suit + (selected ? " sel" : ""));
-  e.innerHTML = cardFace(card);
+  var cls = "card " + (card.faceUp ? ("up " + card.suit) : "down") + (selected ? " sel" : "");
+  var e = el("div", cls);
+  if (card.faceUp) e.innerHTML = cardFace(card);
   return e;
 }
 function attachDrag(elem, src) {
@@ -828,47 +827,70 @@ function render() {
   var top = document.getElementById("top"); top.innerHTML = "";
   var tableau = document.getElementById("tableau"); tableau.innerHTML = "";
 
-  /* Pozos libres (4, a la izquierda) */
-  for (var fc = 0; fc < 4; fc++) {
-    var cell = el("div", "slot");
-    cell.setAttribute("data-drop", "free:" + fc);
-    var card = state.free[fc];
-    if (card) {
-      var fsel = selection && selection.pile === "free" && selection.col === fc;
-      var ce = makeCardEl(card, fsel);
-      ce.dataset.pile = "free"; ce.dataset.col = String(fc); ce.dataset.index = "0";
-      attachDrag(ce, { pile: "free", col: fc, index: 0, card: card });
-      cell.appendChild(ce);
-    } else {
-      var fph = el("div", "free-ph");
-      (function (c) { fph.onclick = function () { handleFreeClick(c); }; })(fc);
-      cell.appendChild(fph);
-    }
-    top.appendChild(cell);
+  /* Mazo */
+  var stockSlot = el("div", "slot");
+  if (state.stock.length) {
+    var sc = el("div", "card down stock-card");
+    sc.onclick = dealStock;
+    stockSlot.appendChild(sc);
+    stockSlot.appendChild(el("div", "badge", String(state.stock.length)));
+  } else {
+    var rec = el("div", "recycle stock-card", "\u21bb");
+    rec.onclick = dealStock;
+    stockSlot.appendChild(rec);
   }
+  top.appendChild(stockSlot);
 
-  /* Pilas finales (4, a la derecha) */
+  /* Descarte (con abanico en modo difícil) */
+  var wasteSlot = el("div", "slot");
+  if (state.waste.length) {
+    var show = settings.draw === 3 ? Math.min(3, state.waste.length) : 1;
+    var startIdx = state.waste.length - show;
+    var fan = Math.round(CW * 0.30);
+    for (var w = 0; w < show; w++) {
+      var idx = startIdx + w;
+      var card = state.waste[idx];
+      var isTop = idx === state.waste.length - 1;
+      var ce = makeCardEl(card, isTop && selection && selection.pile === "waste");
+      ce.style.position = "absolute"; ce.style.left = (w * fan) + "px"; ce.style.top = "0"; ce.style.zIndex = w;
+      if (isTop) {
+        ce.dataset.pile = "waste"; ce.dataset.col = "0"; ce.dataset.index = String(state.waste.length - 1);
+        attachDrag(ce, { pile: "waste", col: 0, index: state.waste.length - 1, card: card });
+      } else {
+        ce.style.pointerEvents = "none";
+      }
+      wasteSlot.appendChild(ce);
+    }
+  } else {
+    wasteSlot.appendChild(el("div", "slot-ph"));
+  }
+  top.appendChild(wasteSlot);
+
+  /* Espacio */
+  top.appendChild(el("div", "slot spacer"));
+
+  /* Pilas finales */
   for (var fi = 0; fi < 4; fi++) {
     var fslot = el("div", "slot");
     fslot.setAttribute("data-drop", "foundation:" + fi);
     var f = state.foundations[fi];
     if (f.length) {
       var fcard = f[f.length - 1];
-      var sel = selection && selection.pile === "foundation" && selection.col === fi;
-      var fe = makeCardEl(fcard, sel);
+      var fsel = selection && selection.pile === "foundation" && selection.col === fi;
+      var fe = makeCardEl(fcard, fsel);
       fe.dataset.pile = "foundation"; fe.dataset.col = String(fi); fe.dataset.index = String(f.length - 1);
       attachDrag(fe, { pile: "foundation", col: fi, index: f.length - 1, card: fcard });
       fslot.appendChild(fe);
     } else {
-      var fph2 = el("div", "foundation-ph", "A");
-      fph2.onclick = handleFoundationClick;
-      fslot.appendChild(fph2);
+      var fph = el("div", "foundation-ph", "A");
+      fph.onclick = handleFoundationClick;
+      fslot.appendChild(fph);
     }
     top.appendChild(fslot);
   }
 
-  /* Columnas (8) */
-  for (var col = 0; col < 8; col++) {
+  /* Columnas */
+  for (var col = 0; col < 7; col++) {
     var colEl = el("div", "col");
     colEl.setAttribute("data-drop", "tableau:" + col);
     var pile = state.tableau[col];
@@ -877,18 +899,21 @@ function render() {
       (function (cc) { ph.onclick = function () { handleEmptyColumn(cc); }; })(col);
       colEl.appendChild(ph);
     } else {
-      var y = 0;
+      var y = 0, lastOff = OFFSET_UP;
       for (var i = 0; i < pile.length; i++) {
         var tcard = pile[i];
         var tsel = selection && selection.pile === "tableau" && selection.col === col && i >= selection.index;
         var te = makeCardEl(tcard, tsel);
         te.style.top = y + "px"; te.style.zIndex = i;
-        te.dataset.pile = "tableau"; te.dataset.col = String(col); te.dataset.index = String(i);
-        attachDrag(te, { pile: "tableau", col: col, index: i, card: tcard });
+        if (tcard.faceUp) {
+          te.dataset.pile = "tableau"; te.dataset.col = String(col); te.dataset.index = String(i);
+          attachDrag(te, { pile: "tableau", col: col, index: i, card: tcard });
+        }
         colEl.appendChild(te);
-        y += OFFSET;
+        lastOff = tcard.faceUp ? OFFSET_UP : OFFSET_DOWN;
+        y += lastOff;
       }
-      colEl.style.minHeight = (y - OFFSET + CH) + "px";
+      colEl.style.minHeight = (y - lastOff + CH) + "px";
     }
     tableau.appendChild(colEl);
   }
@@ -902,7 +927,6 @@ function render() {
 
 function updateHUD() {
   document.getElementById("moves").textContent = state.moves;
-  document.getElementById("gameno").textContent = gameNumber;
   var m = Math.floor(seconds / 60), s = seconds % 60;
   document.getElementById("time").textContent = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
 }
@@ -914,72 +938,97 @@ function setSizes() {
   var cs = getComputedStyle(board);
   var padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
   var contentW = board.clientWidth - padL - padR;
-  var gap = contentW < 520 ? 4 : (contentW < 820 ? 6 : 8);
+  // Separación proporcional: densa en celular, más aireada en tablet/escritorio.
+  var gap = contentW < 460 ? 4 : (contentW < 760 ? 6 : 8);
 
-  // Límite por ancho: 8 columnas + 7 huecos deben entrar.
-  var cwByWidth = (contentW - 7 * gap) / 8;
-  // Límite por alto: que la fila superior y parte del tablero entren.
+  // Límite por ancho: 7 columnas + 6 huecos deben entrar.
+  var cwByWidth = (contentW - 6 * gap) / 7;
+
+  // Límite por alto: que la fila superior y buena parte del tablero entren
+  // en pantallas anchas o de poca altura (evita cartas gigantes en apaisado).
   var availH = board.clientHeight || window.innerHeight;
   var cwByHeight = ((availH - 14) / 3.0) / 1.42;
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
-  CW = Math.max(30, Math.min(CW, 104));
+  CW = Math.max(36, Math.min(CW, 110));
   CH = Math.round(CW * 1.42);
-  OFFSET = Math.max(22, Math.round(CH * 0.32));
+  OFFSET_DOWN = Math.max(10, Math.round(CH * 0.16));
+  OFFSET_UP = Math.max(24, Math.round(CH * 0.34));
   root.style.setProperty("--cw", CW + "px");
   root.style.setProperty("--ch", CH + "px");
   root.style.setProperty("--gap", gap + "px");
 }
 
+/* ---------- Opciones ---------- */
+function applySettings() {
+  savePrefs();
+  setSizes();
+  render();
+  updateSettingsUI();
+}
+function updateSettingsUI() {
+  var a = document.querySelectorAll("[data-draw]");
+  for (var i = 0; i < a.length; i++) a[i].classList.toggle("active", parseInt(a[i].dataset.draw, 10) === settings.draw);
+}
+
 /* ---------- Pistas ---------- */
+function noFaceDownInTableau() {
+  for (var col = 0; col < 7; col++) {
+    var t = state.tableau[col];
+    for (var i = 0; i < t.length; i++) if (!t[i].faceUp) return false;
+  }
+  return true;
+}
+function isWon() {
+  var total = 0;
+  for (var i = 0; i < 4; i++) total += state.foundations[i].length;
+  return total === 52;
+}
+function firstFaceUpIndex(t) {
+  for (var i = 0; i < t.length; i++) if (t[i].faceUp) return i;
+  return -1;
+}
 function generateHints() {
   var moves = [];
-  var col, dc, i;
-  // 1) A las pilas finales (prioridad alta)
-  for (i = 0; i < 4; i++) {
-    if (state.free[i] && canMoveToFoundation(state.free[i]) >= 0)
-      moves.push({ kind: "foundation", from: { pile: "free", col: i, index: 0 }, fi: canMoveToFoundation(state.free[i]), prio: 1 });
+  // 1) A las pilas finales
+  if (state.waste.length) {
+    var wc = state.waste[state.waste.length - 1];
+    if (canMoveToFoundation(wc) >= 0)
+      moves.push({ kind: "foundation", from: { pile: "waste", col: 0, index: state.waste.length - 1 }, fi: canMoveToFoundation(wc), prio: 1 });
   }
-  for (col = 0; col < 8; col++) {
+  for (var col = 0; col < 7; col++) {
     var t = state.tableau[col];
-    if (t.length && canMoveToFoundation(t[t.length - 1]) >= 0)
-      moves.push({ kind: "foundation", from: { pile: "tableau", col: col, index: t.length - 1 }, fi: canMoveToFoundation(t[t.length - 1]), prio: 1 });
-  }
-  // 2) Escaleras de una columna a otra (prioriza vaciar una columna)
-  for (col = 0; col < 8; col++) {
-    var start = bottomRunStart(col);
-    if (start < 0) continue;
-    var len = state.tableau[col].length;
-    for (i = start; i < len; i++) {
-      var lead = state.tableau[col][i];
-      var runLen = len - i;
-      for (dc = 0; dc < 8; dc++) {
-        if (dc === col) continue;
-        if (!canPlaceOnTableau(lead, dc)) continue;
-        if (runLen > maxMovable(dc)) continue;
-        if (i === 0 && state.tableau[dc].length === 0) continue;
-        var emptiesCol = (i === 0);
-        moves.push({ kind: "tableau", from: { pile: "tableau", col: col, index: i }, toCol: dc, prio: emptiesCol ? 2 : 4 });
-      }
+    if (t.length) {
+      var c = t[t.length - 1];
+      if (c.faceUp && canMoveToFoundation(c) >= 0)
+        moves.push({ kind: "foundation", from: { pile: "tableau", col: col, index: t.length - 1 }, fi: canMoveToFoundation(c), prio: 1 });
     }
   }
-  // 3) De un pozo libre a una columna
-  for (i = 0; i < 4; i++) {
-    if (!state.free[i]) continue;
-    for (dc = 0; dc < 8; dc++)
-      if (canPlaceOnTableau(state.free[i], dc))
-        moves.push({ kind: "tableau", from: { pile: "free", col: i, index: 0 }, toCol: dc, prio: 3 });
+  // 2) Mover columnas (prioriza destapar una carta tapada)
+  for (var col2 = 0; col2 < 7; col2++) {
+    var tt = state.tableau[col2];
+    var fu = firstFaceUpIndex(tt);
+    if (fu < 0) continue;
+    var lead = tt[fu];
+    for (var dc = 0; dc < 7; dc++) {
+      if (dc === col2) continue;
+      if (!canPlaceOnTableau(lead, dc)) continue;
+      var reveals = fu > 0;
+      var pointlessKing = lead.rank === 13 && fu === 0 && state.tableau[dc].length === 0;
+      if (pointlessKing) continue;
+      moves.push({ kind: "tableau", from: { pile: "tableau", col: col2, index: fu }, toCol: dc, prio: reveals ? 2 : 5 });
+    }
+  }
+  // 3) Del descarte a una columna
+  if (state.waste.length) {
+    var wc2 = state.waste[state.waste.length - 1];
+    for (var dc2 = 0; dc2 < 7; dc2++)
+      if (canPlaceOnTableau(wc2, dc2))
+        moves.push({ kind: "tableau", from: { pile: "waste", col: 0, index: state.waste.length - 1 }, toCol: dc2, prio: 3 });
   }
   moves.sort(function (a, b) { return a.prio - b.prio; });
-  // 4) Como último recurso, guardar una carta en un pozo libre
-  var emptyFree = -1;
-  for (i = 0; i < 4; i++) if (!state.free[i]) { emptyFree = i; break; }
-  if (emptyFree >= 0) {
-    for (col = 0; col < 8; col++) {
-      var tt = state.tableau[col];
-      if (tt.length) { moves.push({ kind: "free", from: { pile: "tableau", col: col, index: tt.length - 1 }, toFree: emptyFree, prio: 8 }); break; }
-    }
-  }
+  // 4) Dar vuelta cartas del mazo (última opción del ciclo)
+  if (state.stock.length > 0 || state.waste.length > 0) moves.push({ kind: "stock", prio: 9 });
   return moves;
 }
 function clearHintHighlights() {
@@ -991,20 +1040,24 @@ function clearHintHighlights() {
 }
 function showHint(move) {
   clearHintHighlights();
-  var fp = move.from;
-  var sel = '.card[data-pile="' + fp.pile + '"][data-col="' + fp.col + '"][data-index="' + fp.index + '"]';
-  var srcEl = document.querySelector(sel);
-  if (srcEl) srcEl.classList.add("hint");
-  if (fp.pile === "tableau") {
-    var run = document.querySelectorAll('.card[data-pile="tableau"][data-col="' + fp.col + '"]');
-    for (var i = 0; i < run.length; i++)
-      if (parseInt(run[i].dataset.index, 10) >= fp.index) run[i].classList.add("hint");
+  if (move.kind === "stock") {
+    var sc = document.querySelector(".stock-card");
+    if (sc) sc.classList.add("hint");
+  } else {
+    var sel = '.card[data-pile="' + move.from.pile + '"][data-col="' + move.from.col + '"][data-index="' + move.from.index + '"]';
+    var srcEl = document.querySelector(sel);
+    if (srcEl) srcEl.classList.add("hint");
+    if (move.from.pile === "tableau") {
+      var run = document.querySelectorAll('.card[data-pile="tableau"][data-col="' + move.from.col + '"]');
+      for (var i = 0; i < run.length; i++)
+        if (parseInt(run[i].dataset.index, 10) >= move.from.index) run[i].classList.add("hint");
+    }
+    var dropSel = move.kind === "foundation"
+      ? '[data-drop="foundation:' + move.fi + '"]'
+      : '[data-drop="tableau:' + move.toCol + '"]';
+    var dst = document.querySelector(dropSel);
+    if (dst) dst.classList.add("hint-target");
   }
-  var dropSel = move.kind === "foundation" ? '[data-drop="foundation:' + move.fi + '"]'
-    : move.kind === "free" ? '[data-drop="free:' + move.toFree + '"]'
-    : '[data-drop="tableau:' + move.toCol + '"]';
-  var dst = document.querySelector(dropSel);
-  if (dst) dst.classList.add("hint-target");
   hintTimer = setTimeout(clearHintHighlights, 2000);
 }
 function onHint() {
@@ -1020,48 +1073,33 @@ function onHint() {
   showHint(hintMoves[hintIndex]);
 }
 
-/* ---------- Autocompletar ----------
-   Aparece sólo cuando llevando cartas a las pilas finales (sin más movimientos)
-   se puede ganar la partida. */
-function autoWinnable() {
-  var foundations = JSON.parse(JSON.stringify(state.foundations));
-  var free = JSON.parse(JSON.stringify(state.free));
-  var tableau = JSON.parse(JSON.stringify(state.tableau));
-  var progress = true;
-  while (progress) {
-    progress = false;
-    for (var i = 0; i < 4; i++) {
-      if (free[i]) { var fi = canFoundIn(foundations, free[i]); if (fi >= 0) { foundations[fi].push(free[i]); free[i] = null; progress = true; } }
-    }
-    for (var col = 0; col < 8; col++) {
-      var t = tableau[col];
-      if (t.length) { var fj = canFoundIn(foundations, t[t.length - 1]); if (fj >= 0) { foundations[fj].push(t.pop()); progress = true; } }
-    }
-  }
-  var total = 0;
-  for (var k = 0; k < 4; k++) total += foundations[k].length;
-  return total === 52;
-}
+/* ---------- Autocompletar ---------- */
 function updateAutoButton() {
   var btn = document.getElementById("btn-auto");
   if (!btn) return;
-  btn.hidden = !(!isWon() && !autoTimer && autoWinnable());
+  btn.hidden = !(noFaceDownInTableau() && !isWon() && !autoTimer);
 }
 function findFoundationMove() {
-  for (var i = 0; i < 4; i++) if (state.free[i] && canMoveToFoundation(state.free[i]) >= 0) return { from: "free", col: i };
-  for (var col = 0; col < 8; col++) {
+  if (state.waste.length) {
+    var wc = state.waste[state.waste.length - 1];
+    if (canMoveToFoundation(wc) >= 0) return { from: "waste" };
+  }
+  for (var col = 0; col < 7; col++) {
     var t = state.tableau[col];
-    if (t.length && canMoveToFoundation(t[t.length - 1]) >= 0) return { from: "tableau", col: col };
+    if (t.length) {
+      var c = t[t.length - 1];
+      if (c.faceUp && canMoveToFoundation(c) >= 0) return { from: "tableau", col: col };
+    }
   }
   return null;
 }
 function autoFoundationMove(mv) {
   var card, fi;
-  if (mv.from === "free") {
-    card = state.free[mv.col];
+  if (mv.from === "waste") {
+    card = state.waste[state.waste.length - 1];
     fi = canMoveToFoundation(card);
     if (fi < 0) return false;
-    state.free[mv.col] = null;
+    state.waste.pop();
     state.foundations[fi].push(card);
   } else {
     var t = state.tableau[mv.col];
@@ -1069,6 +1107,7 @@ function autoFoundationMove(mv) {
     fi = canMoveToFoundation(card);
     if (fi < 0) return false;
     t.pop();
+    flipTop(t);
     state.foundations[fi].push(card);
   }
   state.moves++;
@@ -1079,7 +1118,7 @@ function startAutoComplete() {
   clearHintHighlights();
   selection = null;
   snapshot();
-  startTimer();
+  autoNoProgress = 0;
   updateAutoButton();
   autoTimer = setInterval(autoTick, 130);
 }
@@ -1092,13 +1131,25 @@ function autoTick() {
   var mv = findFoundationMove();
   if (mv) {
     autoFoundationMove(mv);
+    autoNoProgress = 0;
     render();
     if (isWon()) { stopAutoComplete(); checkWin(); }
     return;
   }
-  stopAutoComplete();
+  if (state.stock.length === 0 && state.waste.length === 0) {
+    stopAutoComplete(); render(); if (isWon()) checkWin();
+    return;
+  }
+  if (state.stock.length === 0) {
+    while (state.waste.length) { var c = state.waste.pop(); c.faceUp = false; state.stock.push(c); }
+  } else {
+    for (var k = 0; k < settings.draw && state.stock.length; k++) {
+      var cc = state.stock.pop(); cc.faceUp = true; state.waste.push(cc);
+    }
+  }
+  autoNoProgress++;
+  if (autoNoProgress > 80) { stopAutoComplete(); }
   render();
-  if (isWon()) checkWin();
 }
 
 /* ---------- Aviso breve ---------- */
@@ -1109,20 +1160,29 @@ function toast(msg) {
   setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
 }
 
-/* ---------- Persistencia (partida en curso) ---------- */
-var GAME_KEY = "cartablanca.game";
+/* ---------- Persistencia (preferencias y partida) ---------- */
+var PREFS_KEY = "solitario.prefs", GAME_KEY = "solitario.game";
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ draw: settings.draw })); } catch (e) {}
+}
+function loadPrefs() {
+  try {
+    var p = JSON.parse(localStorage.getItem(PREFS_KEY));
+    if (p && (p.draw === 1 || p.draw === 3)) settings.draw = p.draw;
+  } catch (e) {}
+}
 function validState(s) {
-  if (!s || !s.foundations || !s.tableau || !s.free) return false;
-  if (s.foundations.length !== 4 || s.tableau.length !== 8 || s.free.length !== 4) return false;
-  var n = 0, i;
-  for (i = 0; i < 4; i++) { if (s.free[i]) n++; n += s.foundations[i].length; }
-  for (i = 0; i < 8; i++) n += s.tableau[i].length;
+  if (!s || !s.foundations || !s.tableau || !s.stock || !s.waste) return false;
+  if (s.foundations.length !== 4 || s.tableau.length !== 7) return false;
+  var n = s.stock.length + s.waste.length, i;
+  for (i = 0; i < 4; i++) n += s.foundations[i].length;
+  for (i = 0; i < 7; i++) n += s.tableau[i].length;
   return n === 52;
 }
 function saveGame() {
   try {
     if (isWon()) { localStorage.removeItem(GAME_KEY); return; }
-    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds, gameNumber: gameNumber }));
+    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds }));
   } catch (e) {}
 }
 function loadGame() {
@@ -1132,7 +1192,6 @@ function loadGame() {
     state = data.state;
     if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;
     seconds = (typeof data.seconds === "number" && data.seconds >= 0) ? data.seconds : 0;
-    gameNumber = (typeof data.gameNumber === "number" && data.gameNumber >= 1) ? data.gameNumber : 1;
     started = false; selection = null; undoStack = [];
     stopTimer();
     render();
@@ -1141,14 +1200,12 @@ function loadGame() {
 }
 
 /* ---------- Nueva partida ---------- */
-function newGame(number) {
+function newGame() {
   stopAutoComplete();
   stopConfetti();
   clearHintHighlights();
   hintMoves = null; hintStateMoves = -1;
-  if (typeof number !== "number" || !isFinite(number)) number = randomGameNumber();
-  number = Math.max(1, Math.min(MAX_GAME, Math.floor(number)));
-  deal(number);
+  deal();
   selection = null;
   undoStack = [];
   resetTimer();
@@ -1157,37 +1214,37 @@ function newGame(number) {
 }
 
 /* ---------- Inicio y eventos ---------- */
+loadPrefs();
 setSizes();
 if (!loadGame()) newGame();   // continúa la partida guardada, o reparte una nueva
+updateSettingsUI();
 
 // Guardar al ocultar/cerrar para no perder el tiempo transcurrido
 window.addEventListener("pagehide", saveGame);
 document.addEventListener("visibilitychange", function () { if (document.hidden) saveGame(); });
 
-document.getElementById("btn-new").onclick = function () { newGame(); };
+document.getElementById("btn-new").onclick = newGame;
 document.getElementById("btn-undo").onclick = undo;
 document.getElementById("btn-help").onclick = function () { document.getElementById("help").hidden = false; };
 document.getElementById("help-close").onclick = function () { document.getElementById("help").hidden = true; };
 document.getElementById("btn-menu").onclick = function () { document.getElementById("menu").hidden = false; };
 document.getElementById("menu-close").onclick = function () { document.getElementById("menu").hidden = true; };
-document.getElementById("btn-settings").onclick = function () {
-  document.getElementById("game-input").value = gameNumber;
-  document.getElementById("settings").hidden = false;
-};
+document.getElementById("btn-settings").onclick = function () { updateSettingsUI(); document.getElementById("settings").hidden = false; };
 document.getElementById("settings-close").onclick = function () { document.getElementById("settings").hidden = true; };
-document.getElementById("game-go").onclick = function () {
-  var v = parseInt(document.getElementById("game-input").value, 10);
-  if (!isFinite(v) || v < 1) { toast("Escribí un número de partida válido."); return; }
-  document.getElementById("settings").hidden = true;
-  newGame(v);
-};
-document.getElementById("win-new").onclick = function () { newGame(); };
+document.getElementById("win-new").onclick = newGame;
 document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; stopConfetti(); };
 document.getElementById("btn-hint").onclick = onHint;
 document.getElementById("btn-auto").onclick = startAutoComplete;
 
+(function () {
+  var draws = document.querySelectorAll("[data-draw]");
+  for (var i = 0; i < draws.length; i++) (function (btn) {
+    btn.onclick = function () { settings.draw = parseInt(btn.dataset.draw, 10); applySettings(); };
+  })(draws[i]);
+})();
+
 document.getElementById("board").addEventListener("click", function (e) {
-  if (e.target.closest(".card, .slot-ph, .placeholder, .foundation-ph, .free-ph, button")) return;
+  if (e.target.closest(".card, .slot-ph, .placeholder, .foundation-ph, .recycle, .badge, button")) return;
   if (selection) { selection = null; render(); }
 });
 window.addEventListener("resize", function () { setSizes(); render(); });
