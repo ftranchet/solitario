@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e3a22">
+<link rel="icon" href="favicon.svg">
+<title>Estadísticas</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(120% 90% at 50% -10%, #2a8a52 0%, #176039 45%, #0d3a23 100%);
+    color: #fff; -webkit-tap-highlight-color: transparent;
+    min-height: 100vh; min-height: 100dvh;
+  }
+  #wrap {
+    max-width: 640px; margin: 0 auto;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .top { display: flex; align-items: center; gap: 10px; }
+  .top h1 { font-size: 24px; margin: 0; font-weight: 800; flex: 1; }
+  .btn {
+    background: rgba(255,255,255,0.12); color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 8px 12px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    cursor: pointer; text-decoration: none; line-height: 1; display: inline-block;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+
+  .card {
+    background: #fdfaf2; color: #2a2a26; border-radius: 16px;
+    padding: 16px 18px; box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+  }
+  .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .ico { font-size: 20px; }
+  .sub { font-size: 12px; opacity: 0.6; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 6px 4px; border-bottom: 1px solid #ece3cf; text-align: left; font-size: 14px; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.55; font-weight: 700; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #ece3cf; font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row b { font-variant-numeric: tabular-nums; }
+  .empty { opacity: 0.6; font-size: 13px; padding: 4px 0; }
+  .foot { text-align: center; }
+  .danger { color: #b71c1c; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="top">
+    <h1>📊 Estadísticas</h1>
+    <a class="btn primary" href="index.html">🏠 Inicio</a>
+  </div>
+  <div id="cards"></div>
+  <div class="foot"><button id="reset" class="btn">Reiniciar estadísticas</button></div>
+</div>
+
+<script>
+function g(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
+function n(v) { return (typeof v === "number" && isFinite(v)) ? v : 0; }
+function fmtTime(s) {
+  if (s == null || !isFinite(s)) return "—";
+  var m = Math.floor(s / 60), x = s % 60;
+  return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x;
+}
+function rate(won, played) { return played > 0 ? Math.round(won / played * 100) + "%" : "—"; }
+function row(label, value) { return '<div class="row"><span>' + label + '</span><b>' + value + '</b></div>'; }
+
+function cardCommon(title, ico, st, extra) {
+  var played = n(st.played), won = n(st.won);
+  var html = '<div class="card"><h2><span class="ico">' + ico + '</span> ' + title + '</h2>';
+  if (!played) { html += '<div class="empty">Todavía no jugaste ninguna partida.</div>'; }
+  else {
+    html += row("Partidas jugadas", played);
+    html += row("Ganadas", won + " (" + rate(won, played) + ")");
+    if (extra) html += extra(st);
+  }
+  return html + '</div>';
+}
+
+function render() {
+  var sol = g("solitario.stats"), cb = g("cartablanca.stats"), cor = g("corazones.stats"), bm = g("buscaminas.stats");
+  var out = "";
+
+  out += cardCommon("Solitario", "🃏", sol, function (s) {
+    return row("Mejor tiempo", fmtTime(s.bestTime)) +
+           (s.bestMoves ? row("Menos movimientos", s.bestMoves) : "");
+  });
+
+  out += cardCommon("Carta Blanca", "🆓", cb, function (s) {
+    return row("Mejor tiempo", fmtTime(s.bestTime));
+  });
+
+  out += cardCommon("Corazones", "❤️", cor, function (s) {
+    return row("Menor puntaje final", (s.bestScore != null ? s.bestScore : "—")) +
+           row("Lunas disparadas", n(s.moons));
+  });
+
+  // Buscaminas: por dificultad
+  var diffs = [["beginner", "Principiante"], ["intermediate", "Intermedio"], ["expert", "Experto"]];
+  var anyBm = diffs.some(function (d) { return bm[d[0]] && n(bm[d[0]].played); });
+  var h = '<div class="card"><h2><span class="ico">💣</span> Buscaminas</h2>';
+  if (!anyBm) { h += '<div class="empty">Todavía no jugaste ninguna partida.</div>'; }
+  else {
+    h += '<table><thead><tr><th>Nivel</th><th class="num">Jugadas</th><th class="num">Ganadas</th><th class="num">Mejor</th></tr></thead><tbody>';
+    for (var i = 0; i < diffs.length; i++) {
+      var d = bm[diffs[i][0]] || {};
+      h += '<tr><td>' + diffs[i][1] + '</td><td class="num">' + n(d.played) + '</td><td class="num">' +
+           n(d.won) + " (" + rate(n(d.won), n(d.played)) + ')</td><td class="num">' + fmtTime(d.best) + '</td></tr>';
+    }
+    h += '</tbody></table>';
+  }
+  out += h + '</div>';
+
+  document.getElementById("cards").innerHTML = out;
+}
+
+document.getElementById("reset").onclick = function () {
+  if (!confirm("¿Borrar todas las estadísticas? No se puede deshacer.")) return;
+  ["solitario.stats", "cartablanca.stats", "corazones.stats", "buscaminas.stats"].forEach(function (k) {
+    try { localStorage.removeItem(k); } catch (e) {}
+  });
+  render();
+};
+
+render();
+</script>
+</body>
+</html>

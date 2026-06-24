@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
+<link rel="icon" href="favicon.svg">
 <title>Juegos clásicos</title>
 <style>
   * { box-sizing: border-box; }
@@ -50,6 +51,14 @@
   .tile .tname { font-weight: 800; font-size: 17px; }
   .tile .tdesc { font-size: 12.5px; opacity: 0.7; line-height: 1.3; }
 
+  .stats-link {
+    align-self: center; display: inline-flex; align-items: center; gap: 8px;
+    color: #fff; text-decoration: none; font-weight: 600; font-size: 14px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+    padding: 9px 16px; border-radius: 999px;
+  }
+  .stats-link:active { transform: scale(0.97); }
+
   .credit-foot { font-size: 12px; opacity: 0.85; text-align: center; margin: 0; }
   .credit-foot .author { color: inherit; font-weight: 700; text-decoration: none; }
   .credit-foot .author:hover, .credit-foot .author:focus { text-decoration: underline; }
@@ -92,6 +101,8 @@
       <span class="tdesc">Encontrá las minas</span>
     </a>
   </nav>
+
+  <a class="stats-link" href="estadisticas.html">📊 Estadísticas</a>
 
   <p class="credit-foot">Por <a class="author" href="https://www.linkedin.com/in/ftranchet/" target="_blank" rel="noopener noreferrer">Francisco Tranchet</a> + IA</p>
 </main>

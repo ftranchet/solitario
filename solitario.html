@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
+<link rel="icon" href="favicon.svg">
 <title>Solitario</title>
 <style>
   * { box-sizing: border-box; }
@@ -109,6 +110,12 @@
     transform: translateY(-2px);
   }
   .card.dragging { opacity: 0.28; }
+  .card.land { animation: land 0.3s ease; }
+  @keyframes land {
+    0% { transform: scale(1.3); box-shadow: 0 0 0 3px rgba(232,180,74,0.9), 0 6px 14px rgba(0,0,0,0.4); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) { .card.land { animation: none; } }
 
   .slot-ph, .placeholder, .foundation-ph, .recycle {
     width: var(--cw); height: var(--ch);
@@ -277,6 +284,7 @@
       <a class="game-link" href="carta-blanca.html"><span class="ico">🆓</span> Carta Blanca</a>
       <a class="game-link" href="corazones.html"><span class="ico">❤️</span> Corazones</a>
       <a class="game-link" href="buscaminas.html"><span class="ico">💣</span> Buscaminas</a>
+      <a class="game-link" href="estadisticas.html"><span class="ico">📊</span> Estadísticas</a>
     </div>
     <div class="modal-actions">
       <button id="menu-close" class="btn primary">Cerrar</button>
@@ -353,6 +361,21 @@ var undoStack = [];
 var seconds = 0, timerId = null, started = false;
 var CW, CH, OFFSET_UP, OFFSET_DOWN;
 var settings = { draw: 1 };
+var animFoundation = -1;   // pila final que acaba de recibir una carta (para animarla)
+var counted = false;       // ¿ya se contó esta partida en las estadísticas?
+
+/* ---------- Estadísticas ---------- */
+var STATS_KEY = "solitario.stats";
+function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
+function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
+function bumpStat(key) { var s = loadStats(); s[key] = (s[key] || 0) + 1; saveStats(s); }
+function recordWin() {
+  var s = loadStats();
+  s.won = (s.won || 0) + 1;
+  if (s.bestTime == null || seconds < s.bestTime) s.bestTime = seconds;
+  if (s.bestMoves == null || state.moves < s.bestMoves) s.bestMoves = state.moves;
+  saveStats(s);
+}
 
 /* ---------- Arrastre ---------- */
 var pending = null;        // { src, startX, startY, rect, pointerId, elem }
@@ -485,6 +508,7 @@ function moveSelectionToFoundation() {
   snapshot();
   var moved = removeSelected();
   state.foundations[fi].push(moved[0]);
+  animFoundation = fi;
   state.moves++;
   return true;
 }
@@ -667,6 +691,7 @@ function finishDrag(e) {
 function startTimer() {
   if (started) return;
   started = true;
+  if (!counted) { counted = true; bumpStat("played"); }
   timerId = setInterval(function () { seconds++; updateHUD(); }, 1000);
 }
 function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
@@ -679,6 +704,7 @@ function checkWin() {
   for (var i = 0; i < 4; i++) total += state.foundations[i].length;
   if (total === 52) {
     stopTimer();
+    recordWin();
     var m = Math.floor(seconds / 60), s = seconds % 60;
     var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
     document.getElementById("win-stats").textContent = "Tiempo " + t + " \u00b7 " + state.moves + " movimientos";
@@ -824,6 +850,7 @@ function attachDrag(elem, src) {
 }
 
 function render() {
+  var landFi = animFoundation; animFoundation = -1;   // animar el aterrizaje una sola vez
   var top = document.getElementById("top"); top.innerHTML = "";
   var tableau = document.getElementById("tableau"); tableau.innerHTML = "";
 
@@ -879,6 +906,7 @@ function render() {
       var fsel = selection && selection.pile === "foundation" && selection.col === fi;
       var fe = makeCardEl(fcard, fsel);
       fe.dataset.pile = "foundation"; fe.dataset.col = String(fi); fe.dataset.index = String(f.length - 1);
+      if (fi === landFi) fe.classList.add("land");
       attachDrag(fe, { pile: "foundation", col: fi, index: f.length - 1, card: fcard });
       fslot.appendChild(fe);
     } else {
@@ -1110,6 +1138,7 @@ function autoFoundationMove(mv) {
     flipTop(t);
     state.foundations[fi].push(card);
   }
+  animFoundation = fi;
   state.moves++;
   return true;
 }
@@ -1182,7 +1211,7 @@ function validState(s) {
 function saveGame() {
   try {
     if (isWon()) { localStorage.removeItem(GAME_KEY); return; }
-    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds }));
+    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds, counted: counted }));
   } catch (e) {}
 }
 function loadGame() {
@@ -1192,6 +1221,7 @@ function loadGame() {
     state = data.state;
     if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;
     seconds = (typeof data.seconds === "number" && data.seconds >= 0) ? data.seconds : 0;
+    counted = !!data.counted;
     started = false; selection = null; undoStack = [];
     stopTimer();
     render();
@@ -1208,6 +1238,7 @@ function newGame() {
   deal();
   selection = null;
   undoStack = [];
+  counted = false;
   resetTimer();
   document.getElementById("win").hidden = true;
   render();

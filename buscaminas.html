@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
+<link rel="icon" href="favicon.svg">
 <title>Buscaminas</title>
 <style>
   * { box-sizing: border-box; }
@@ -230,6 +231,7 @@
       <a class="game-link" href="carta-blanca.html"><span class="ico">🆓</span> Carta Blanca</a>
       <a class="game-link" href="corazones.html"><span class="ico">❤️</span> Corazones</a>
       <span class="game-link current"><span class="ico">💣</span> Buscaminas</span>
+      <a class="game-link" href="estadisticas.html"><span class="ico">📊</span> Estadísticas</a>
     </div>
     <div class="modal-actions">
       <button id="menu-close" class="btn primary">Cerrar</button>
@@ -370,7 +372,7 @@ function digCell(r, c) {
   if (dead || won) return;
   var cell = grid[r][c];
   if (cell.revealed || cell.flagged) return;
-  if (!started) { placeMines(r, c); started = true; startTimer(); }
+  if (!started) { placeMines(r, c); started = true; startTimer(); recordPlayed(); }
   if (cell.mine) { cell.revealed = true; cell.exploded = true; loseGame(); return; }
   floodReveal(r, c);
   if (checkWin()) winGame();
@@ -412,6 +414,7 @@ function winGame() {
       if (grid[r][c].mine && !grid[r][c].flagged) { grid[r][c].flagged = true; flags++; }
   var record = false;
   if (bestTimes[difficulty] == null || seconds < bestTimes[difficulty]) { bestTimes[difficulty] = seconds; record = true; savePrefs(); }
+  recordWin();
   try { localStorage.removeItem(GAME_KEY); } catch (e) {}
   document.getElementById("win-stats").textContent = DIFFS[difficulty].label + " · " + fmtTime(seconds);
   document.getElementById("win-record").hidden = !record;
@@ -609,7 +612,17 @@ function toast(msg) {
 }
 
 /* ---------- Persistencia ---------- */
-var PREFS_KEY = "buscaminas.prefs", GAME_KEY = "buscaminas.game";
+var PREFS_KEY = "buscaminas.prefs", GAME_KEY = "buscaminas.game", STATS_KEY = "buscaminas.stats";
+function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
+function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
+function statFor(s, d) { if (!s[d]) s[d] = { played: 0, won: 0 }; return s[d]; }
+function recordPlayed() { var s = loadStats(); statFor(s, difficulty).played++; saveStats(s); }
+function recordWin() {
+  var s = loadStats(), d = statFor(s, difficulty);
+  d.won++;
+  if (d.best == null || seconds < d.best) d.best = seconds;
+  saveStats(s);
+}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ difficulty: difficulty, bestTimes: bestTimes })); } catch (e) {} }
 function loadPrefs() {
   try {
