@@ -742,6 +742,11 @@ function el(tag, cls, html) {
   if (html != null) e.innerHTML = html;
   return e;
 }
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+  });
+}
 function cardFace(card) {
   var s = SUIT[card.suit].symbol;
   return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
@@ -759,7 +764,7 @@ function renderOpp(seat) {
   var p = players[seat], n = p.hand.length;
   box.className = "seat " + SEAT[seat].cls + ((turn === seat && phase === "play") ? " active thinking" : "");
   var cards = n > 0 ? '<div class="seat-cards"><div class="card down"></div><span class="count-badge">' + n + '</span></div>' : '<div class="seat-cards"></div>';
-  box.innerHTML = cards + '<div class="chip"><span class="nm">' + playerName(seat) + '</span><span class="sc">' + p.score + '</span></div>';
+  box.innerHTML = cards + '<div class="chip"><span class="nm">' + esc(playerName(seat)) + '</span><span class="sc">' + p.score + '</span></div>';
 }
 function renderTrick() {
   var t = document.getElementById("trick");
@@ -877,14 +882,15 @@ function onHint() {
 /* ---------- Modales de puntaje ---------- */
 function scoreRow(seat, mid, total, cls) {
   var tr = "<tr class=\"" + (cls || "") + "\">";
-  tr += "<td>" + playerName(seat) + "</td>";
+  tr += "<td>" + esc(playerName(seat)) + "</td>";
   if (mid != null) tr += '<td class="num">' + (mid > 0 ? "+" + mid : "0") + "</td>";
   tr += '<td class="num">' + total + "</td></tr>";
   return tr;
 }
+function validCard(c) { return c && SUIT[c.suit] && RANK_LABEL[c.rank] != null; }
 function pointCardsHtml(cards) {
-  if (!cards || !cards.length) return '<span class="none">sin cartas con puntos</span>';
-  var arr = cards.slice().sort(function (a, b) { return (SUIT_SORT[a.suit] - SUIT_SORT[b.suit]) || (a.rank - b.rank); });
+  var arr = (cards || []).filter(validCard).sort(function (a, b) { return (SUIT_SORT[a.suit] - SUIT_SORT[b.suit]) || (a.rank - b.rank); });
+  if (!arr.length) return '<span class="none">sin cartas con puntos</span>';
   var h = "";
   for (var i = 0; i < arr.length; i++)
     h += '<span class="minicard ' + arr[i].suit + '">' + RANK_LABEL[arr[i].rank] + SUIT[arr[i].suit].symbol + '</span>';
@@ -905,7 +911,7 @@ function showRound(deltas, shooter) {
   for (s = 0; s < 4; s++) {
     var cls = "taken-row" + (s === HUMAN ? " me" : "") + (s === leader ? " lead" : "");
     body += '<div class="' + cls + '">' +
-      '<div class="taken-head"><span class="nm">' + playerName(s) + '</span>' +
+      '<div class="taken-head"><span class="nm">' + esc(playerName(s)) + '</span>' +
       '<span class="pts">' + (deltas[s] > 0 ? "+" + deltas[s] : "" + deltas[s]) + ' · total ' + players[s].score + '</span></div>' +
       '<div class="taken-cards">' + pointCardsHtml(players[s].taken) + '</div></div>';
   }
@@ -940,11 +946,12 @@ function buildScoresTable() {
   var leader = 0;
   for (s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
   var html = '<thead><tr><th>Mano</th>';
-  for (s = 0; s < 4; s++) html += '<th class="num' + (s === HUMAN ? ' col-me' : '') + '">' + playerName(s) + '</th>';
+  for (s = 0; s < 4; s++) html += '<th class="num' + (s === HUMAN ? ' col-me' : '') + '">' + esc(playerName(s)) + '</th>';
   html += '</tr></thead><tbody>';
   for (h = 0; h < history.length; h++) {
+    var row = history[h] || [];
     html += '<tr><td>' + (h + 1) + '</td>';
-    for (s = 0; s < 4; s++) html += '<td class="num' + (s === HUMAN ? ' col-me' : '') + '">' + history[h][s] + '</td>';
+    for (s = 0; s < 4; s++) html += '<td class="num' + (s === HUMAN ? ' col-me' : '') + '">' + (row[s] != null ? row[s] : 0) + '</td>';
     html += '</tr>';
   }
   html += '</tbody><tfoot><tr><td><b>Total</b></td>';
@@ -1077,8 +1084,22 @@ function saveGame() {
 }
 function validSaved(d) {
   if (!d || !d.players || d.players.length !== 4) return false;
-  var n = (d.trick ? d.trick.length : 0) + (d.tricksPlayed || 0) * 4;
-  for (var s = 0; s < 4; s++) { if (!d.players[s].hand) return false; n += d.players[s].hand.length; }
+  if (d.phase !== "play" && d.phase !== "pass") return false;   // sólo estados jugables
+  var n = 0, i, s;
+  if (d.trick != null) {
+    if (!Array.isArray(d.trick)) return false;
+    for (i = 0; i < d.trick.length; i++) if (!d.trick[i] || !validCard(d.trick[i].card)) return false;
+    n += d.trick.length;
+  }
+  n += (d.tricksPlayed || 0) * 4;
+  for (s = 0; s < 4; s++) {
+    var p = d.players[s];
+    if (!p || !Array.isArray(p.hand)) return false;
+    for (i = 0; i < p.hand.length; i++) if (!validCard(p.hand[i])) return false;
+    if (p.taken != null && !Array.isArray(p.taken)) return false;
+    n += p.hand.length;
+  }
+  if (d.history != null && !Array.isArray(d.history)) return false;
   return n === 52;
 }
 function loadGame() {
