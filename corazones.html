@@ -195,6 +195,25 @@
   .score-table .col-me { background: rgba(31,122,70,0.08); }
   .score-table tfoot td { border-top: 2px solid #ddd3bd; }
 
+  /* Fin de mano: cartas con puntos que se llevó cada uno */
+  .taken-list { margin: 10px 0 4px; }
+  .taken-row { padding: 8px 0; border-bottom: 1px solid #ece3cf; }
+  .taken-row:last-child { border-bottom: none; }
+  .taken-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .taken-head .nm { font-weight: 800; }
+  .taken-head .pts { font-size: 13px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .taken-row.me .nm { color: #1f7a46; }
+  .taken-row.lead .pts { color: #1f7a46; font-weight: 700; }
+  .taken-cards { margin-top: 5px; line-height: 1.9; }
+  .taken-cards .none { font-size: 12px; opacity: 0.5; }
+  .minicard {
+    display: inline-block; background: #fff; border: 1px solid #d9cdb4;
+    border-radius: 6px; padding: 2px 6px; margin: 0 4px 2px 0;
+    font-weight: 800; font-size: 13px; white-space: nowrap;
+  }
+  .minicard.hearts, .minicard.diamonds { color: #c62828; }
+  .minicard.spades, .minicard.clubs { color: #1a1a1a; }
+
   .opt { margin: 14px 0; }
   .opt-label { font-weight: 700; margin-bottom: 6px; }
   .seg { display: flex; gap: 6px; }
@@ -386,7 +405,7 @@
   <div class="card-modal">
     <h2 id="round-title">Fin de la mano</h2>
     <p id="round-moon" class="win-congrats" hidden></p>
-    <table class="score-table"><thead><tr><th>Jugador</th><th class="num">Esta mano</th><th class="num">Total</th></tr></thead><tbody id="round-body"></tbody></table>
+    <div id="round-body" class="taken-list"></div>
     <div class="modal-actions">
       <button id="round-next" class="btn primary">Continuar</button>
     </div>
@@ -462,6 +481,7 @@ var hintTimer = null;
 var flowTimer = null;      // setTimeout del avance de IA / cierre de baza (cancelable)
 var lastTrickCardId = null; // para animar sólo la carta recién jugada
 var history = [];          // puntos por mano: [ [p0,p1,p2,p3], ... ]
+var pendingOver = false;   // la mano que se está mostrando terminó la partida
 var CW, CH, OW;
 
 /* ---------- Mazo ---------- */
@@ -613,7 +633,7 @@ function aiPlay(seat) {
 /* ---------- Reparto / pase ---------- */
 function dealHand() {
   var deck = shuffle(makeDeck());
-  for (var s = 0; s < 4; s++) { players[s].hand = []; players[s].roundPoints = 0; }
+  for (var s = 0; s < 4; s++) { players[s].hand = []; players[s].roundPoints = 0; players[s].taken = []; }
   for (var i = 0; i < deck.length; i++) players[i % 4].hand.push(deck[i]);
   for (s = 0; s < 4; s++) sortHand(players[s].hand);
   heartsBroken = false; tricksPlayed = 0; trick = [];
@@ -655,13 +675,12 @@ function beginPlay() {
   leadSeat = holderOf2C(); turn = leadSeat;
   busy = false;
   setStatus(turn === HUMAN ? "Salís vos: jugá el 2 de tréboles." : playerName(turn) + " sale.");
-  render();
   advance();
 }
 function advance() {
   if (phase !== "play") return;
   if (trick.length === 4) return;
-  if (turn === HUMAN) { busy = false; setStatus("Te toca jugar."); render(); return; }
+  if (turn === HUMAN) { busy = false; if (trick.length > 0) setStatus("Te toca jugar."); render(); return; }
   busy = true; render();
   flowTimer = setTimeout(function () {
     flowTimer = null;
@@ -681,21 +700,20 @@ function doPlay(seat, card) {
     flowTimer = setTimeout(resolveTrick, TRICK_HOLD);
   } else {
     turn = (turn + 3) % 4;
-    render();
     advance();
   }
 }
 function resolveTrick() {
   flowTimer = null;
   if (phase !== "play" || trick.length !== 4) return;  // ignora timers obsoletos
-  var w = trickWinner(), pts = trickPoints();
+  var w = trickWinner(), pts = trickPoints(), i;
   players[w].roundPoints += pts;
+  for (i = 0; i < trick.length; i++) if (pointsOf(trick[i].card) > 0) players[w].taken.push(trick[i].card);
   tricksPlayed++;
   trick = [];
   if (tricksPlayed === 13) { endHand(); return; }
   leadSeat = w; turn = w;
-  setStatus(playerName(w) + " se llevó la baza" + (pts > 0 ? " (+" + pts + ")" : "") + ".");
-  render();
+  setStatus((w === HUMAN ? "Te llevaste la baza" : playerName(w) + " se llevó la baza") + (pts > 0 ? " (+" + pts + ")" : "") + ".");
   advance();
 }
 function endHand() {
@@ -712,10 +730,9 @@ function endHand() {
   phase = "scoring";
   busy = true;
   render();
-  var over = false;
-  for (s = 0; s < 4; s++) if (players[s].score >= target) over = true;
-  if (over) showWin();
-  else showRound(deltas, shooter);
+  pendingOver = false;
+  for (s = 0; s < 4; s++) if (players[s].score >= target) pendingOver = true;
+  showRound(deltas, shooter);   // muestra siempre las cartas de la mano (aun si terminó el juego)
 }
 
 /* ---------- Render ---------- */
@@ -865,6 +882,14 @@ function scoreRow(seat, mid, total, cls) {
   tr += '<td class="num">' + total + "</td></tr>";
   return tr;
 }
+function pointCardsHtml(cards) {
+  if (!cards || !cards.length) return '<span class="none">sin cartas con puntos</span>';
+  var arr = cards.slice().sort(function (a, b) { return (SUIT_SORT[a.suit] - SUIT_SORT[b.suit]) || (a.rank - b.rank); });
+  var h = "";
+  for (var i = 0; i < arr.length; i++)
+    h += '<span class="minicard ' + arr[i].suit + '">' + RANK_LABEL[arr[i].rank] + SUIT[arr[i].suit].symbol + '</span>';
+  return h;
+}
 function showRound(deltas, shooter) {
   document.getElementById("round-title").textContent = "Fin de la mano " + handNumber;
   var moon = document.getElementById("round-moon");
@@ -874,11 +899,18 @@ function showRound(deltas, shooter) {
     var eff = moonMode === "tirador" ? (shooter === HUMAN ? " — restás 26." : " — resta 26.") : " — los demás +26.";
     moon.textContent = "🌙 " + who + eff;
   } else { moon.hidden = true; }
-  var leader = 0;
-  for (var s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  var leader = 0, s;
+  for (s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
   var body = "";
-  for (s = 0; s < 4; s++) body += scoreRow(s, deltas[s], players[s].score, (s === HUMAN ? "me " : "") + (s === leader ? "lead" : ""));
+  for (s = 0; s < 4; s++) {
+    var cls = "taken-row" + (s === HUMAN ? " me" : "") + (s === leader ? " lead" : "");
+    body += '<div class="' + cls + '">' +
+      '<div class="taken-head"><span class="nm">' + playerName(s) + '</span>' +
+      '<span class="pts">' + (deltas[s] > 0 ? "+" + deltas[s] : "" + deltas[s]) + ' · total ' + players[s].score + '</span></div>' +
+      '<div class="taken-cards">' + pointCardsHtml(players[s].taken) + '</div></div>';
+  }
   document.getElementById("round-body").innerHTML = body;
+  document.getElementById("round-next").textContent = pendingOver ? "Ver resultado final" : "Continuar";
   document.getElementById("round").hidden = false;
 }
 function showWin() {
@@ -1035,7 +1067,7 @@ function saveGame() {
   try {
     if (phase === "scoring") return;
     var p = [];
-    for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints });
+    for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints, taken: players[s].taken });
     localStorage.setItem(GAME_KEY, JSON.stringify({
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
       heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
@@ -1054,7 +1086,7 @@ function loadGame() {
     var d = JSON.parse(localStorage.getItem(GAME_KEY));
     if (!validSaved(d)) return false;
     players = [];
-    for (var s = 0; s < 4; s++) players.push({ hand: d.players[s].hand, score: d.players[s].score || 0, roundPoints: d.players[s].roundPoints || 0 });
+    for (var s = 0; s < 4; s++) players.push({ hand: d.players[s].hand, score: d.players[s].score || 0, roundPoints: d.players[s].roundPoints || 0, taken: d.players[s].taken || [] });
     phase = d.phase; trick = d.trick || []; leadSeat = d.leadSeat || 0; turn = d.turn || 0;
     heartsBroken = !!d.heartsBroken; tricksPlayed = d.tricksPlayed || 0;
     handNumber = d.handNumber || 1; passDir = d.passDir || "left";
@@ -1097,8 +1129,8 @@ function newMatch() {
   document.getElementById("win").hidden = true;
   document.getElementById("round").hidden = true;
   players = [
-    { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 },
-    { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 }
+    { hand: [], score: 0, roundPoints: 0, taken: [] }, { hand: [], score: 0, roundPoints: 0, taken: [] },
+    { hand: [], score: 0, roundPoints: 0, taken: [] }, { hand: [], score: 0, roundPoints: 0, taken: [] }
   ];
   handNumber = 0; trick = []; busy = false; history = [];
   nextHand();
@@ -1124,7 +1156,10 @@ document.getElementById("btn-menu").onclick = function () { document.getElementB
 document.getElementById("menu-close").onclick = function () { document.getElementById("menu").hidden = true; };
 document.getElementById("btn-settings").onclick = function () { updateSettingsUI(); document.getElementById("settings").hidden = false; };
 document.getElementById("settings-close").onclick = function () { document.getElementById("settings").hidden = true; };
-document.getElementById("round-next").onclick = function () { document.getElementById("round").hidden = true; nextHand(); };
+document.getElementById("round-next").onclick = function () {
+  document.getElementById("round").hidden = true;
+  if (pendingOver) showWin(); else nextHand();
+};
 document.getElementById("win-new").onclick = function () { newMatch(); };
 document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; stopConfetti(); };
 
