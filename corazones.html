@@ -191,6 +191,9 @@
   .score-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .score-table tr.me td { font-weight: 800; }
   .score-table tr.lead td { color: #1f7a46; }
+  .score-table td.lead, .score-table th.lead { color: #1f7a46; }
+  .score-table .col-me { background: rgba(31,122,70,0.08); }
+  .score-table tfoot td { border-top: 2px solid #ddd3bd; }
 
   .opt { margin: 14px 0; }
   .opt-label { font-weight: 700; margin-bottom: 6px; }
@@ -202,6 +205,13 @@
   }
   .seg-btn:active { transform: scale(0.97); }
   .seg-btn.active { background: #1f7a46; color: #fff; border-color: #1f7a46; }
+  .name-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .name-row label { width: 72px; font-size: 13px; opacity: 0.75; }
+  .name-input {
+    flex: 1; min-width: 0; padding: 8px 10px; border-radius: 9px;
+    border: 1px solid #d9cfb8; background: #fff; color: #2a2a26;
+    font-size: 14px; font-weight: 600;
+  }
 
   /* Menú de juegos (suite) */
   .game-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
@@ -289,6 +299,7 @@
 
   <footer id="controls">
     <button id="btn-pass" class="btn pill primary" hidden>Pasar 3 cartas</button>
+    <button id="btn-scores" class="btn pill">📋 Puntajes</button>
     <button id="btn-hint" class="btn pill">💡 Pista</button>
   </footer>
 </div>
@@ -358,6 +369,12 @@
       </div>
       <div class="hint-txt">Cómo se reparten los puntos cuando alguien se lleva todo.</div>
     </div>
+    <div class="opt">
+      <div class="opt-label">Nombres de los rivales</div>
+      <div class="name-row"><label>Izquierda</label><input class="name-input" data-seat="3" maxlength="12" placeholder="Ana"></div>
+      <div class="name-row"><label>Enfrente</label><input class="name-input" data-seat="2" maxlength="12" placeholder="Beto"></div>
+      <div class="name-row"><label>Derecha</label><input class="name-input" data-seat="1" maxlength="12" placeholder="Carla"></div>
+    </div>
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
     </div>
@@ -372,6 +389,17 @@
     <table class="score-table"><thead><tr><th>Jugador</th><th class="num">Esta mano</th><th class="num">Total</th></tr></thead><tbody id="round-body"></tbody></table>
     <div class="modal-actions">
       <button id="round-next" class="btn primary">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de puntajes -->
+<div id="scores" class="overlay" hidden>
+  <div class="card-modal">
+    <h2>Puntajes</h2>
+    <div id="scores-wrap" style="overflow-x:auto"><table class="score-table" id="scores-table"></table></div>
+    <div class="modal-actions">
+      <button id="scores-close" class="btn primary">Cerrar</button>
     </div>
   </div>
 </div>
@@ -410,6 +438,10 @@ var SEAT = [
   { cls: "west",  name: "Oeste", human: false }
 ];
 var HUMAN = 0;
+/* Nombres (0=vos; 1=Este, 2=Norte, 3=Oeste). Los rivales son editables. */
+var DEFAULT_NAMES = ["Vos", "Carla", "Beto", "Ana"];
+var names = DEFAULT_NAMES.slice();
+function playerName(i) { return (names[i] && names[i].length) ? names[i] : DEFAULT_NAMES[i]; }
 var DIRS = ["left", "right", "across", "hold"];
 var DIR_TXT = { left: "a la izquierda ←", right: "a la derecha →", across: "de frente ↑", hold: "ninguna" };
 var AI_DELAY = 650, TRICK_HOLD = 1000;
@@ -429,6 +461,7 @@ var moonMode = "demas";    // "demas" (los demás +26) | "tirador" (el tirador �
 var hintTimer = null;
 var flowTimer = null;      // setTimeout del avance de IA / cierre de baza (cancelable)
 var lastTrickCardId = null; // para animar sólo la carta recién jugada
+var history = [];          // puntos por mano: [ [p0,p1,p2,p3], ... ]
 var CW, CH, OW;
 
 /* ---------- Mazo ---------- */
@@ -621,7 +654,7 @@ function beginPlay() {
   tricksPlayed = 0; trick = []; heartsBroken = false;
   leadSeat = holderOf2C(); turn = leadSeat;
   busy = false;
-  setStatus(turn === HUMAN ? "Salís vos: jugá el 2 de tréboles." : SEAT[turn].name + " sale.");
+  setStatus(turn === HUMAN ? "Salís vos: jugá el 2 de tréboles." : playerName(turn) + " sale.");
   render();
   advance();
 }
@@ -661,7 +694,7 @@ function resolveTrick() {
   trick = [];
   if (tricksPlayed === 13) { endHand(); return; }
   leadSeat = w; turn = w;
-  setStatus(SEAT[w].name + " se llevó la baza" + (pts > 0 ? " (+" + pts + ")" : "") + ".");
+  setStatus(playerName(w) + " se llevó la baza" + (pts > 0 ? " (+" + pts + ")" : "") + ".");
   render();
   advance();
 }
@@ -675,6 +708,7 @@ function endHand() {
     if (shooter === HUMAN) bumpStat("moons");
   } else { for (s = 0; s < 4; s++) deltas[s] = players[s].roundPoints; }
   for (s = 0; s < 4; s++) players[s].score += deltas[s];
+  history.push(deltas.slice());
   phase = "scoring";
   busy = true;
   render();
@@ -708,7 +742,7 @@ function renderOpp(seat) {
   var p = players[seat], n = p.hand.length;
   box.className = "seat " + SEAT[seat].cls + ((turn === seat && phase === "play") ? " active thinking" : "");
   var cards = n > 0 ? '<div class="seat-cards"><div class="card down"></div><span class="count-badge">' + n + '</span></div>' : '<div class="seat-cards"></div>';
-  box.innerHTML = cards + '<div class="chip"><span class="nm">' + SEAT[seat].name + '</span><span class="sc">' + p.score + '</span></div>';
+  box.innerHTML = cards + '<div class="chip"><span class="nm">' + playerName(seat) + '</span><span class="sc">' + p.score + '</span></div>';
 }
 function renderTrick() {
   var t = document.getElementById("trick");
@@ -826,7 +860,7 @@ function onHint() {
 /* ---------- Modales de puntaje ---------- */
 function scoreRow(seat, mid, total, cls) {
   var tr = "<tr class=\"" + (cls || "") + "\">";
-  tr += "<td>" + SEAT[seat].name + "</td>";
+  tr += "<td>" + playerName(seat) + "</td>";
   if (mid != null) tr += '<td class="num">' + (mid > 0 ? "+" + mid : "0") + "</td>";
   tr += '<td class="num">' + total + "</td></tr>";
   return tr;
@@ -836,7 +870,7 @@ function showRound(deltas, shooter) {
   var moon = document.getElementById("round-moon");
   if (shooter >= 0) {
     moon.hidden = false;
-    var who = shooter === HUMAN ? "¡Disparaste a la luna!" : SEAT[shooter].name + " disparó a la luna";
+    var who = shooter === HUMAN ? "¡Disparaste a la luna!" : playerName(shooter) + " disparó a la luna";
     var eff = moonMode === "tirador" ? (shooter === HUMAN ? " — restás 26." : " — resta 26.") : " — los demás +26.";
     moon.textContent = "🌙 " + who + eff;
   } else { moon.hidden = true; }
@@ -860,11 +894,33 @@ function showWin() {
   document.getElementById("win-emoji").textContent = winner === HUMAN ? "🏆" : "🙂";
   document.getElementById("win-title").textContent = winner === HUMAN ? "¡Ganaste!" : "Fin del juego";
   document.getElementById("win-congrats").textContent =
-    winner === HUMAN ? "🎉 Terminaste con menos puntos. ¡Felicitaciones!" : "Ganó " + SEAT[winner].name + " con " + players[winner].score + " puntos.";
+    winner === HUMAN ? "🎉 Terminaste con menos puntos. ¡Felicitaciones!" : "Ganó " + playerName(winner) + " con " + players[winner].score + " puntos.";
   document.getElementById("win").hidden = false;
   if (winner === HUMAN) celebrate();
   try { localStorage.removeItem(GAME_KEY); } catch (e) {}
 }
+function buildScoresTable() {
+  var t = document.getElementById("scores-table"), s, h;
+  if (!history.length) {
+    t.innerHTML = '<tbody><tr><td style="border:none;opacity:.6;padding:10px 2px">Todavía no terminó ninguna mano.</td></tr></tbody>';
+    return;
+  }
+  var leader = 0;
+  for (s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  var html = '<thead><tr><th>Mano</th>';
+  for (s = 0; s < 4; s++) html += '<th class="num' + (s === HUMAN ? ' col-me' : '') + '">' + playerName(s) + '</th>';
+  html += '</tr></thead><tbody>';
+  for (h = 0; h < history.length; h++) {
+    html += '<tr><td>' + (h + 1) + '</td>';
+    for (s = 0; s < 4; s++) html += '<td class="num' + (s === HUMAN ? ' col-me' : '') + '">' + history[h][s] + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody><tfoot><tr><td><b>Total</b></td>';
+  for (s = 0; s < 4; s++) html += '<td class="num' + (s === HUMAN ? ' col-me' : '') + (s === leader ? ' lead' : '') + '"><b>' + players[s].score + '</b></td>';
+  html += '</tr></tfoot>';
+  t.innerHTML = html;
+}
+function openScores() { buildScoresTable(); document.getElementById("scores").hidden = false; }
 
 /* ---------- Festejo ---------- */
 var confettiRAF = null;
@@ -944,8 +1000,10 @@ function updateSettingsUI() {
   for (i = 0; i < b.length; i++) b[i].classList.toggle("active", b[i].dataset.ai === aiLevel);
   var c = document.querySelectorAll("[data-moon]");
   for (i = 0; i < c.length; i++) c[i].classList.toggle("active", c[i].dataset.moon === moonMode);
+  var ni = document.querySelectorAll(".name-input");
+  for (i = 0; i < ni.length; i++) { var seat = parseInt(ni[i].dataset.seat, 10); ni[i].value = names[seat] || ""; }
 }
-function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ target: target, aiLevel: aiLevel, moonMode: moonMode })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ target: target, aiLevel: aiLevel, moonMode: moonMode, names: names })); } catch (e) {} }
 function loadPrefs() {
   try {
     var p = JSON.parse(localStorage.getItem(PREFS_KEY));
@@ -953,6 +1011,8 @@ function loadPrefs() {
     if (p.target === 50 || p.target === 100) target = p.target;
     if (p.aiLevel === "facil" || p.aiLevel === "normal" || p.aiLevel === "dificil") aiLevel = p.aiLevel;
     if (p.moonMode === "demas" || p.moonMode === "tirador") moonMode = p.moonMode;
+    if (p.names && p.names.length === 4)
+      for (var i = 1; i < 4; i++) if (typeof p.names[i] === "string") names[i] = p.names[i].slice(0, 12);
   } catch (e) {}
 }
 
@@ -978,7 +1038,8 @@ function saveGame() {
     for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints });
     localStorage.setItem(GAME_KEY, JSON.stringify({
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
-      heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target
+      heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
+      history: history
     }));
   } catch (e) {}
 }
@@ -998,6 +1059,7 @@ function loadGame() {
     heartsBroken = !!d.heartsBroken; tricksPlayed = d.tricksPlayed || 0;
     handNumber = d.handNumber || 1; passDir = d.passDir || "left";
     if (d.target === 50 || d.target === 100) target = d.target;
+    history = (d.history && d.history.length != null) ? d.history : [];
     busy = false; humanPass = [];
     setSizes();
     render();
@@ -1038,7 +1100,7 @@ function newMatch() {
     { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 },
     { hand: [], score: 0, roundPoints: 0 }, { hand: [], score: 0, roundPoints: 0 }
   ];
-  handNumber = 0; trick = []; busy = false;
+  handNumber = 0; trick = []; busy = false; history = [];
   nextHand();
 }
 
@@ -1054,6 +1116,8 @@ document.addEventListener("visibilitychange", function () { if (document.hidden)
 document.getElementById("btn-new").onclick = function () { newMatch(); };
 document.getElementById("btn-pass").onclick = confirmPass;
 document.getElementById("btn-hint").onclick = onHint;
+document.getElementById("btn-scores").onclick = openScores;
+document.getElementById("scores-close").onclick = function () { document.getElementById("scores").hidden = true; };
 document.getElementById("btn-help").onclick = function () { document.getElementById("help").hidden = false; };
 document.getElementById("help-close").onclick = function () { document.getElementById("help").hidden = true; };
 document.getElementById("btn-menu").onclick = function () { document.getElementById("menu").hidden = false; };
@@ -1077,6 +1141,11 @@ document.getElementById("win-close").onclick = function () { document.getElement
   for (i = 0; i < mn.length; i++) (function (btn) {
     btn.onclick = function () { moonMode = btn.dataset.moon; savePrefs(); updateSettingsUI(); };
   })(mn[i]);
+  var ni = document.querySelectorAll(".name-input");
+  for (i = 0; i < ni.length; i++) (function (inp) {
+    var seat = parseInt(inp.dataset.seat, 10);
+    inp.oninput = function () { names[seat] = inp.value.trim().slice(0, 12); savePrefs(); render(); };
+  })(ni[i]);
 })();
 
 window.addEventListener("resize", function () { setSizes(); render(); });

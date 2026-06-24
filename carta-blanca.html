@@ -89,15 +89,20 @@
   .card.up.hearts, .card.up.diamonds { color: #c62828; }
   .card.up.spades, .card.up.clubs { color: #1a1a1a; }
 
-  /* La letra arriba-izquierda y el palo abajo-derecha: grandes y claros.
-     La letra va en color del palo, así al apilarse en las columnas (sólo se ve
-     la franja superior) se distingue número y color de un vistazo. */
-  .card .corner {
-    position: absolute; line-height: 1; font-weight: 900; white-space: nowrap;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+  /* Índice arriba-izquierda con número + palo juntos (visibles aunque las cartas
+     estén apiladas) y pip grande del palo abajo a la derecha, en color del palo. */
+  .card .idx {
+    position: absolute; top: 6%; left: 9%;
+    display: flex; align-items: center; gap: 1px; line-height: 1;
+    font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.65);
   }
-  .card .corner.tl { top: 5%; left: 9%; font-size: calc(var(--cw) * 0.48); }
-  .card .corner.br { bottom: 4%; right: 9%; font-size: calc(var(--cw) * 0.50); }
+  .card .idx .r { font-size: calc(var(--cw) * 0.44); }
+  .card .idx .s { font-size: calc(var(--cw) * 0.40); }
+  .card .pip {
+    position: absolute; right: 8%; bottom: 4%;
+    font-size: calc(var(--cw) * 0.52); font-weight: 900; line-height: 1;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+  }
 
   .card.sel {
     outline: 3px solid #e8b44a; outline-offset: -1px;
@@ -837,8 +842,9 @@ function el(tag, cls, html) {
   return e;
 }
 function cardFace(card) {
-  return '<div class="corner tl">' + RANK_LABEL[card.rank] + '</div>' +
-         '<div class="corner br">' + SUIT[card.suit].symbol + '</div>';
+  var s = SUIT[card.suit].symbol;
+  return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
+         '<div class="pip">' + s + '</div>';
 }
 function makeCardEl(card, selected) {
   var e = el("div", "card up " + card.suit + (selected ? " sel" : ""));
