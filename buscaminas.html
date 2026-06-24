@@ -250,6 +250,7 @@
       <li>Si tocás una casilla con número y ya marcaste todas sus minas alrededor, se abren solas las vecinas (acorde).</li>
     </ol>
     <p class="hint-txt">Objetivo: destapar todas las casillas que <b>no</b> tienen mina. La primera nunca es mina. Si tocás una mina, perdés.</p>
+    <p class="hint-txt">Por defecto los tableros son <b>sin adivinanzas</b>: siempre se pueden resolver con lógica, sin tener que arriesgar. Se puede desactivar en Opciones ⚙.</p>
     <p class="hint-txt">La carita 🙂 reinicia. Tocá <b>💡 Pista</b> para que te marque una casilla segura.</p>
     <div class="modal-actions">
       <button id="help-close" class="btn primary">Entendido</button>
@@ -269,6 +270,14 @@
         <button class="seg-btn" data-diff="expert">Experto</button>
       </div>
       <div class="hint-txt">9×9 · 10 minas, 16×16 · 40 minas o 16×30 · 99 minas. Cambiar arranca una partida nueva.</div>
+    </div>
+    <div class="opt">
+      <div class="opt-label">Sin adivinanzas</div>
+      <div class="seg">
+        <button class="seg-btn" data-noguess="1">Sí</button>
+        <button class="seg-btn" data-noguess="0">No</button>
+      </div>
+      <div class="hint-txt">Garantiza que el tablero se puede resolver con pura lógica, sin tener que adivinar. En Experto puede tardar un instante al primer toque.</div>
     </div>
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
@@ -306,6 +315,7 @@ var started = false, dead = false, won = false;
 var flags = 0, revealedCount = 0;
 var seconds = 0, timerId = null;
 var flagMode = false;
+var noGuess = true;        // generar tableros resolubles por lógica (sin adivinar)
 var bestTimes = {};
 var hintTimer = null;
 
@@ -328,14 +338,16 @@ function neighbors(r, c) {
     }
   return out;
 }
-function placeMines(sr, sc) {
+function placeMinesAt(sr, sc) {
+  var r, c, i;
+  for (r = 0; r < rows; r++) for (c = 0; c < cols; c++) { grid[r][c].mine = false; grid[r][c].count = 0; }
   var forbidden = {};
   forbidden[sr + "," + sc] = 1;
   var safe = neighbors(sr, sc);
-  for (var i = 0; i < safe.length; i++) forbidden[safe[i][0] + "," + safe[i][1]] = 1;
+  for (i = 0; i < safe.length; i++) forbidden[safe[i][0] + "," + safe[i][1]] = 1;
   var spots = [];
-  for (var r = 0; r < rows; r++)
-    for (var c = 0; c < cols; c++)
+  for (r = 0; r < rows; r++)
+    for (c = 0; c < cols; c++)
       if (!forbidden[r + "," + c]) spots.push([r, c]);
   // mezcla parcial (Fisher-Yates) y tomamos las primeras "mines"
   var m = Math.min(mines, spots.length);
@@ -351,6 +363,81 @@ function placeMines(sr, sc) {
       for (i = 0; i < nb.length; i++) if (grid[nb[i][0]][nb[i][1]].mine) k++;
       grid[r][c].count = k;
     }
+}
+/* ¿El tablero actual se puede resolver con pura lógica (sin adivinar) arrancando
+   en (sr,sc)? Usa reglas básicas, subconjuntos (1-2) y recuento global de minas. */
+function solvableNoGuess(sr, sc) {
+  var R = rows, C = cols, total = R * C - mines, revealedSafe = 0, r, c, k;
+  var rev = [], flag = [];
+  for (r = 0; r < R; r++) { rev[r] = []; flag[r] = []; for (c = 0; c < C; c++) { rev[r][c] = false; flag[r][c] = false; } }
+  function reveal(r0, c0) {
+    var st = [[r0, c0]];
+    while (st.length) {
+      var p = st.pop(), cr = p[0], cc = p[1];
+      if (rev[cr][cc] || flag[cr][cc] || grid[cr][cc].mine) continue;
+      rev[cr][cc] = true; revealedSafe++;
+      if (grid[cr][cc].count === 0) {
+        var nb = neighbors(cr, cc);
+        for (var i = 0; i < nb.length; i++) if (!rev[nb[i][0]][nb[i][1]] && !flag[nb[i][0]][nb[i][1]]) st.push(nb[i]);
+      }
+    }
+  }
+  reveal(sr, sc);
+  var changed = true, guard = 0, lim = R * C * 4;
+  while (changed && revealedSafe < total && guard++ < lim) {
+    changed = false;
+    // Reglas básicas (1 y 2)
+    for (r = 0; r < R; r++) for (c = 0; c < C; c++) {
+      if (!rev[r][c] || grid[r][c].count === 0) continue;
+      var nb = neighbors(r, c), cov = [], fl = 0;
+      for (k = 0; k < nb.length; k++) { if (flag[nb[k][0]][nb[k][1]]) fl++; else if (!rev[nb[k][0]][nb[k][1]]) cov.push(nb[k]); }
+      if (!cov.length) continue;
+      var rem = grid[r][c].count - fl;
+      if (rem === 0) { for (k = 0; k < cov.length; k++) reveal(cov[k][0], cov[k][1]); changed = true; }
+      else if (rem === cov.length) { for (k = 0; k < cov.length; k++) flag[cov[k][0]][cov[k][1]] = true; changed = true; }
+    }
+    if (changed) continue;
+    // Regla 3: subconjuntos (1-2). Aplica el primer hallazgo y recalcula.
+    var cons = [];
+    for (r = 0; r < R; r++) for (c = 0; c < C; c++) {
+      if (!rev[r][c] || grid[r][c].count === 0) continue;
+      var nb2 = neighbors(r, c), cov2 = [], fl2 = 0;
+      for (k = 0; k < nb2.length; k++) { if (flag[nb2[k][0]][nb2[k][1]]) fl2++; else if (!rev[nb2[k][0]][nb2[k][1]]) cov2.push(nb2[k][0] * C + nb2[k][1]); }
+      if (cov2.length) cons.push({ cells: cov2, rem: grid[r][c].count - fl2 });
+    }
+    var done = false, i2, j2, x, y;
+    for (i2 = 0; i2 < cons.length && !done; i2++) for (j2 = 0; j2 < cons.length && !done; j2++) {
+      if (i2 === j2) continue;
+      var A = cons[i2], B = cons[j2];
+      if (A.cells.length >= B.cells.length) continue;
+      var sub = true;
+      for (x = 0; x < A.cells.length; x++) if (B.cells.indexOf(A.cells[x]) < 0) { sub = false; break; }
+      if (!sub) continue;
+      var diff = [];
+      for (y = 0; y < B.cells.length; y++) if (A.cells.indexOf(B.cells[y]) < 0) diff.push(B.cells[y]);
+      var rd = B.rem - A.rem;
+      if (rd === 0) { for (y = 0; y < diff.length; y++) reveal((diff[y] / C) | 0, diff[y] % C); changed = true; done = true; }
+      else if (rd === diff.length) { for (y = 0; y < diff.length; y++) flag[(diff[y] / C) | 0][diff[y] % C] = true; changed = true; done = true; }
+    }
+    if (changed) continue;
+    // Regla 4: recuento global de minas
+    var flagged = 0, unk = [], u;
+    for (r = 0; r < R; r++) for (c = 0; c < C; c++) { if (flag[r][c]) flagged++; else if (!rev[r][c]) unk.push([r, c]); }
+    var remM = mines - flagged;
+    if (remM === 0 && unk.length) { for (u = 0; u < unk.length; u++) reveal(unk[u][0], unk[u][1]); changed = true; }
+    else if (remM === unk.length && unk.length) { for (u = 0; u < unk.length; u++) flag[unk[u][0]][unk[u][1]] = true; changed = true; }
+  }
+  return revealedSafe === total;
+}
+function placeMines(sr, sc) {
+  if (!noGuess) { placeMinesAt(sr, sc); return; }
+  var t0 = Date.now(), budget = (rows * cols >= 400 ? 1800 : 900), attempts = 0;
+  while (attempts < 6000 && (Date.now() - t0) < budget) {
+    attempts++;
+    placeMinesAt(sr, sc);
+    if (solvableNoGuess(sr, sc)) return;   // tablero garantizado por lógica
+  }
+  // No se encontró dentro del presupuesto: queda el último tablero (válido; podría requerir suerte).
 }
 
 /* ---------- Acciones ---------- */
@@ -624,13 +711,14 @@ function recordWin() {
   if (d.best == null || seconds < d.best) d.best = seconds;
   saveStats(s);
 }
-function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ difficulty: difficulty, bestTimes: bestTimes })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ difficulty: difficulty, bestTimes: bestTimes, noGuess: noGuess })); } catch (e) {} }
 function loadPrefs() {
   try {
     var p = JSON.parse(localStorage.getItem(PREFS_KEY));
     if (p) {
       if (DIFFS[p.difficulty]) difficulty = p.difficulty;
       if (p.bestTimes && typeof p.bestTimes === "object") bestTimes = p.bestTimes;
+      if (typeof p.noGuess === "boolean") noGuess = p.noGuess;
     }
   } catch (e) {}
 }
@@ -682,9 +770,15 @@ function setDifficulty(diff) {
   if (!DIFFS[diff]) return;
   difficulty = diff; savePrefs(); updateSettingsUI(); newGame();
 }
+function setNoGuess(v) {
+  noGuess = v; savePrefs(); updateSettingsUI();
+  if (started) newGame();   // si ya empezaste, re-reparte para aplicar el modo
+}
 function updateSettingsUI() {
-  var a = document.querySelectorAll("[data-diff]");
-  for (var i = 0; i < a.length; i++) a[i].classList.toggle("active", a[i].dataset.diff === difficulty);
+  var i, a = document.querySelectorAll("[data-diff]");
+  for (i = 0; i < a.length; i++) a[i].classList.toggle("active", a[i].dataset.diff === difficulty);
+  var b = document.querySelectorAll("[data-noguess]");
+  for (i = 0; i < b.length; i++) b[i].classList.toggle("active", (b[i].dataset.noguess === "1") === noGuess);
 }
 
 /* ---------- Inicio y eventos ---------- */
@@ -716,10 +810,14 @@ document.getElementById("win-new").onclick = newGame;
 document.getElementById("win-close").onclick = function () { document.getElementById("win").hidden = true; stopConfetti(); };
 
 (function () {
-  var ds = document.querySelectorAll("[data-diff]");
-  for (var i = 0; i < ds.length; i++) (function (btn) {
+  var i, ds = document.querySelectorAll("[data-diff]");
+  for (i = 0; i < ds.length; i++) (function (btn) {
     btn.onclick = function () { setDifficulty(btn.dataset.diff); };
   })(ds[i]);
+  var ng = document.querySelectorAll("[data-noguess]");
+  for (i = 0; i < ng.length; i++) (function (btn) {
+    btn.onclick = function () { setNoGuess(btn.dataset.noguess === "1"); };
+  })(ng[i]);
 })();
 
 window.addEventListener("resize", function () { setSizes(); });

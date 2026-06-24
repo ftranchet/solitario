@@ -14,6 +14,8 @@ La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos.
 - **Corazones** (`corazones.html`) — Hearts contra 3 oponentes, con pase de
   cartas, disparo a la luna y puntaje a 50 o 100. ✅
 - **Buscaminas** (`buscaminas.html`) — Minesweeper con 3 dificultades, modo
-  bandera, acorde, pista y mejores tiempos. ✅
+  bandera, acorde, pista, mejores tiempos y tableros **sin adivinanzas**
+  (resolubles con pura lógica). ✅
 
-Desde cualquier juego se puede saltar a otro con el botón 🎮.
+Desde cualquier juego se puede saltar a otro con el botón 🎮, y hay una pantalla
+de **Estadísticas** (`estadisticas.html`).
