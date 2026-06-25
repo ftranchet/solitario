@@ -481,7 +481,7 @@ var moonMode = "demas";    // "demas" (los demás +26) | "tirador" (el tirador �
 var hintTimer = null;
 var flowTimer = null;      // setTimeout del avance de IA / cierre de baza (cancelable)
 var lastTrickCardId = null; // para animar sólo la carta recién jugada
-var history = [];          // puntos por mano: [ [p0,p1,p2,p3], ... ]
+var handHistory = [];      // puntos por mano: [ [p0,p1,p2,p3], ... ]  (no usar "history": choca con window.history)
 var pendingOver = false;   // la mano que se está mostrando terminó la partida
 var CW, CH, OW;
 
@@ -727,7 +727,7 @@ function endHand() {
     if (shooter === HUMAN) bumpStat("moons");
   } else { for (s = 0; s < 4; s++) deltas[s] = players[s].roundPoints; }
   for (s = 0; s < 4; s++) players[s].score += deltas[s];
-  history.push(deltas.slice());
+  handHistory.push(deltas.slice());
   phase = "scoring";
   busy = true;
   render();
@@ -940,7 +940,7 @@ function showWin() {
 }
 function buildScoresTable() {
   var t = document.getElementById("scores-table"), s, h;
-  if (!history.length) {
+  if (!handHistory.length) {
     t.innerHTML = '<tbody><tr><td style="border:none;opacity:.6;padding:10px 2px">Todavía no terminó ninguna mano.</td></tr></tbody>';
     return;
   }
@@ -949,8 +949,8 @@ function buildScoresTable() {
   var html = '<thead><tr><th>Mano</th>';
   for (s = 0; s < 4; s++) html += '<th class="num' + (s === HUMAN ? ' col-me' : '') + '">' + esc(playerName(s)) + '</th>';
   html += '</tr></thead><tbody>';
-  for (h = 0; h < history.length; h++) {
-    var row = history[h] || [];
+  for (h = 0; h < handHistory.length; h++) {
+    var row = handHistory[h] || [];
     html += '<tr><td>' + (h + 1) + '</td>';
     for (s = 0; s < 4; s++) html += '<td class="num' + (s === HUMAN ? ' col-me' : '') + '">' + (row[s] != null ? row[s] : 0) + '</td>';
     html += '</tr>';
@@ -1102,7 +1102,7 @@ function saveGame() {
     gameSet(JSON.stringify({
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
       heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
-      history: history
+      history: handHistory
     }));
   } catch (e) {}
 }
@@ -1136,7 +1136,7 @@ function loadGame() {
     heartsBroken = !!d.heartsBroken; tricksPlayed = d.tricksPlayed || 0;
     handNumber = d.handNumber || 1; passDir = d.passDir || "left";
     if (d.target === 50 || d.target === 100) target = d.target;
-    history = (d.history && d.history.length != null) ? d.history : [];
+    handHistory = (d.history && d.history.length != null) ? d.history : [];
     busy = false; humanPass = [];
     setSizes();
     render();
@@ -1177,7 +1177,7 @@ function newMatch() {
     { hand: [], score: 0, roundPoints: 0, taken: [] }, { hand: [], score: 0, roundPoints: 0, taken: [] },
     { hand: [], score: 0, roundPoints: 0, taken: [] }, { hand: [], score: 0, roundPoints: 0, taken: [] }
   ];
-  handNumber = 0; trick = []; busy = false; history = [];
+  handNumber = 0; trick = []; busy = false; handHistory = [];
   nextHand();
 }
 
