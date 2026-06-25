@@ -312,6 +312,7 @@ var DIFFS = {
 var difficulty = "beginner";
 var rows, cols, mines, grid;
 var started = false, dead = false, won = false;
+var generating = false, genToken = 0;   // generación "sin adivinanzas" en curso (asíncrona)
 var flags = 0, revealedCount = 0;
 var seconds = 0, timerId = null;
 var flagMode = false;
@@ -429,15 +430,23 @@ function solvableNoGuess(sr, sc) {
   }
   return revealedSafe === total;
 }
-function placeMines(sr, sc) {
-  if (!noGuess) { placeMinesAt(sr, sc); return; }
+/* "Sin adivinanzas": probar tableros hasta hallar uno resoluble por pura lógica.
+   El trabajo (hasta ~1.8s en Experto) se trocea en tandas cortas que ceden el hilo
+   entre sí, de modo que el navegador nunca se congela: sigue repintando y respondiendo. */
+function generateNoGuess(sr, sc, done) {
+  var token = ++genToken;
   var t0 = Date.now(), budget = (rows * cols >= 400 ? 1800 : 900), attempts = 0;
-  while (attempts < 6000 && (Date.now() - t0) < budget) {
-    attempts++;
-    placeMinesAt(sr, sc);
-    if (solvableNoGuess(sr, sc)) return;   // tablero garantizado por lógica
-  }
-  // No se encontró dentro del presupuesto: queda el último tablero (válido; podría requerir suerte).
+  (function slice() {
+    if (token !== genToken) return;        // cancelado (p. ej. "Nueva partida" o cambio de opciones)
+    var s0 = Date.now();
+    while (attempts < 6000 && (Date.now() - t0) < budget) {
+      attempts++;
+      placeMinesAt(sr, sc);
+      if (solvableNoGuess(sr, sc)) { done(); return; }   // tablero garantizado por lógica
+      if (Date.now() - s0 >= 12) { setTimeout(slice, 0); return; }   // cede el hilo y deja repintar
+    }
+    done();   // sin suerte dentro del presupuesto: queda el último tablero (válido; podría requerir suerte)
+  })();
 }
 
 /* ---------- Acciones ---------- */
@@ -457,10 +466,26 @@ function floodReveal(r, c) {
   }
 }
 function digCell(r, c) {
-  if (dead || won) return;
+  if (dead || won || generating) return;
   var cell = grid[r][c];
   if (cell.revealed || cell.flagged) return;
-  if (!started) { placeMines(r, c); started = true; startTimer(); recordPlayed(); }
+  if (!started) {
+    if (noGuess) {
+      // Generación troceada: no congela la UI. La carita muestra ⏳ mientras tanto.
+      generating = true;
+      generateNoGuess(r, c, function () {
+        generating = false;
+        started = true; startTimer(); recordPlayed();
+        finishDig(r, c); render();
+      });
+      return;   // onTap llamará a render() y mostrará el estado "generando"
+    }
+    placeMinesAt(r, c); started = true; startTimer(); recordPlayed();
+  }
+  finishDig(r, c);
+}
+function finishDig(r, c) {
+  var cell = grid[r][c];
   if (cell.mine) { cell.revealed = true; cell.exploded = true; loseGame(); return; }
   floodReveal(r, c);
   if (checkWin()) winGame();
@@ -493,7 +518,7 @@ function loseGame() {
       if (cell.mine && !cell.flagged) cell.revealed = true;
       if (cell.flagged && !cell.mine) cell.wrong = true;
     }
-  try { localStorage.removeItem(GAME_KEY); } catch (e) {}
+  gameDel();
 }
 function winGame() {
   won = true; stopTimer();
@@ -503,7 +528,7 @@ function winGame() {
   var record = false;
   if (bestTimes[difficulty] == null || seconds < bestTimes[difficulty]) { bestTimes[difficulty] = seconds; record = true; savePrefs(); }
   recordWin();
-  try { localStorage.removeItem(GAME_KEY); } catch (e) {}
+  gameDel();
   document.getElementById("win-stats").textContent = DIFFS[difficulty].label + " · " + fmtTime(seconds);
   document.getElementById("win-record").hidden = !record;
   document.getElementById("win").hidden = false;
@@ -526,12 +551,14 @@ function onLong(r, c) {
 }
 
 var press = null;
+var MOVE_TOL = 18;   // tolerancia de movimiento del toque largo (px): los dedos "tiemblan" al apretar
 function cellOf(target) {
   var t = target && target.closest ? target.closest(".cell") : null;
   if (!t || t.dataset.r == null) return null;
   return [parseInt(t.dataset.r, 10), parseInt(t.dataset.c, 10)];
 }
 function onPointerDown(e) {
+  if (generating) return;                     // ignora toques mientras se genera el tablero
   var rc = cellOf(e.target);
   if (!rc) return;
   if (e.button === 2) { e.preventDefault(); onLong(rc[0], rc[1]); return; } // clic derecho = bandera
@@ -550,7 +577,7 @@ function onPointerUp(e) {
 }
 function onPointerMoveDoc(e) {
   if (!press || e.pointerId !== press.id) return;
-  if (Math.abs(e.clientX - press.sx) > 12 || Math.abs(e.clientY - press.sy) > 12) {
+  if (Math.abs(e.clientX - press.sx) > MOVE_TOL || Math.abs(e.clientY - press.sy) > MOVE_TOL) {
     clearTimeout(press.timer); press = null;
   }
 }
@@ -583,7 +610,7 @@ function render() {
   board.innerHTML = html.join("");
   document.documentElement.style.setProperty("--cols", cols);
   updateHUD();
-  document.getElementById("smiley").textContent = won ? "😎" : (dead ? "😵" : "🙂");
+  document.getElementById("smiley").textContent = generating ? "⏳" : (won ? "😎" : (dead ? "😵" : "🙂"));
   var mode = document.getElementById("btn-mode");
   mode.textContent = flagMode ? "🚩 Bandera" : "⛏ Cavar";
   mode.classList.toggle("active", flagMode);
@@ -701,6 +728,29 @@ function toast(msg) {
 
 /* ---------- Persistencia ---------- */
 var PREFS_KEY = "buscaminas.prefs", GAME_KEY = "buscaminas.game", STATS_KEY = "buscaminas.stats";
+
+/* Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la "dueña"
+   persiste la partida. Así dos pestañas no se pisan la misma clave de localStorage.
+   El dueño renueva un "candado" con marca de tiempo; si se cierra, otra pestaña lo toma. */
+var TAB_ID = (function () {
+  var v; try { v = sessionStorage.getItem("buscaminas.tab"); } catch (e) {}
+  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("buscaminas.tab", v); } catch (e) {} }
+  return v;
+})();
+var LOCK_KEY = "buscaminas.lock", saveOwner = false;
+function refreshSaveLock() {
+  var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+  var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
+  if (!alive || l.id === TAB_ID) {
+    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
+    try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    saveOwner = !!(l && l.id === TAB_ID);
+  } else saveOwner = false;
+}
+refreshSaveLock();
+setInterval(refreshSaveLock, 2500);
+function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
 function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
 function statFor(s, d) { if (!s[d]) s[d] = { played: 0, won: 0 }; return s[d]; }
@@ -724,13 +774,13 @@ function loadPrefs() {
 }
 function saveGame() {
   try {
-    if (!started || dead || won) { localStorage.removeItem(GAME_KEY); return; }
+    if (!started || dead || won) { gameDel(); return; }
     var g = [];
     for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
       var x = grid[r][c];
       g.push((x.mine ? 1 : 0) | (x.revealed ? 2 : 0) | (x.flagged ? 4 : 0) | (x.count << 3));
     }
-    localStorage.setItem(GAME_KEY, JSON.stringify({ difficulty: difficulty, rows: rows, cols: cols, mines: mines, seconds: seconds, g: g }));
+    gameSet(JSON.stringify({ difficulty: difficulty, rows: rows, cols: cols, mines: mines, seconds: seconds, g: g }));
   } catch (e) {}
 }
 function loadGame() {
@@ -757,6 +807,7 @@ function loadGame() {
 /* ---------- Nueva partida ---------- */
 function newGame() {
   stopConfetti(); clearHint(); stopTimer();
+  generating = false; genToken++;          // cancela una generación "sin adivinanzas" en curso
   if (press) { clearTimeout(press.timer); press = null; }  // cancela long-press pendiente
   var d = DIFFS[difficulty];
   rows = d.rows; cols = d.cols; mines = d.mines;

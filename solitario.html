@@ -390,7 +390,7 @@ var drag = null;           // { layer, inner, grabDX, grabDY }
 
 /* ---------- Pistas y autocompletar ---------- */
 var hintMoves = null, hintIndex = 0, hintStateMoves = -1, hintTimer = null;
-var autoTimer = null, autoNoProgress = 0;
+var autoTimer = null, autoProgress = true;
 
 /* ---------- Mazo ---------- */
 function makeDeck() {
@@ -676,13 +676,17 @@ function beginDrag() {
 function positionDrag(x, y) {
   drag.inner.style.transform = "translate(" + (x - drag.grabDX) + "px," + (y - drag.grabDY) + "px)";
 }
+function dropTargetAt(x, y) {
+  var under = document.elementFromPoint(x, y);
+  return under ? under.closest("[data-drop]") : null;
+}
 function finishDrag(e) {
   var cardLeft = e.clientX - drag.grabDX, cardTop = e.clientY - drag.grabDY;
   drag.layer.remove();
   drag = null;
-  var hx = cardLeft + CW * 0.5, hy = cardTop + CH * 0.30;
-  var under = document.elementFromPoint(hx, hy);
-  var target = under ? under.closest("[data-drop]") : null;
+  // Soltado: primero donde está el dedo/cursor (lo intuitivo, sirva donde sirva el agarre);
+  // si ahí no hay pila, se prueba el cuerpo de la carta como respaldo (no rebota si la tapa).
+  var target = dropTargetAt(e.clientX, e.clientY) || dropTargetAt(cardLeft + CW * 0.5, cardTop + CH * 0.30);
   var moved = false;
   if (target) {
     var d = target.getAttribute("data-drop");
@@ -1154,7 +1158,7 @@ function startAutoComplete() {
   clearHintHighlights();
   selection = null;
   snapshot();
-  autoNoProgress = 0;
+  autoProgress = true;
   updateAutoButton();
   autoTimer = setInterval(autoTick, 130);
 }
@@ -1167,7 +1171,7 @@ function autoTick() {
   var mv = findFoundationMove();
   if (mv) {
     autoFoundationMove(mv);
-    autoNoProgress = 0;
+    autoProgress = true;        // hubo progreso en esta vuelta al mazo
     render();
     if (isWon()) { stopAutoComplete(); checkWin(); }
     return;
@@ -1177,14 +1181,17 @@ function autoTick() {
     return;
   }
   if (state.stock.length === 0) {
+    // Acá se cierra una vuelta entera al mazo. Si en toda la vuelta anterior no se pudo
+    // subir ninguna carta a las fundaciones, ya no hay nada que hacer: cortar de inmediato
+    // (en vez de seguir ciclando cartas sin sentido durante decenas de "ticks").
+    if (!autoProgress) { stopAutoComplete(); render(); return; }
+    autoProgress = false;
     while (state.waste.length) { var c = state.waste.pop(); c.faceUp = false; state.stock.push(c); }
   } else {
     for (var k = 0; k < settings.draw && state.stock.length; k++) {
       var cc = state.stock.pop(); cc.faceUp = true; state.waste.push(cc);
     }
   }
-  autoNoProgress++;
-  if (autoNoProgress > 80) { stopAutoComplete(); }
   render();
 }
 
@@ -1198,6 +1205,29 @@ function toast(msg) {
 
 /* ---------- Persistencia (preferencias y partida) ---------- */
 var PREFS_KEY = "solitario.prefs", GAME_KEY = "solitario.game";
+
+/* Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la "dueña"
+   persiste la partida. Así dos pestañas no se pisan la misma clave de localStorage.
+   El dueño renueva un "candado" con marca de tiempo; si se cierra, otra pestaña lo toma. */
+var TAB_ID = (function () {
+  var v; try { v = sessionStorage.getItem("solitario.tab"); } catch (e) {}
+  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("solitario.tab", v); } catch (e) {} }
+  return v;
+})();
+var LOCK_KEY = "solitario.lock", saveOwner = false;
+function refreshSaveLock() {
+  var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+  var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
+  if (!alive || l.id === TAB_ID) {
+    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
+    try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    saveOwner = !!(l && l.id === TAB_ID);
+  } else saveOwner = false;
+}
+refreshSaveLock();
+setInterval(refreshSaveLock, 2500);
+function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function savePrefs() {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify({ draw: settings.draw })); } catch (e) {}
 }
@@ -1217,8 +1247,8 @@ function validState(s) {
 }
 function saveGame() {
   try {
-    if (isWon()) { localStorage.removeItem(GAME_KEY); return; }
-    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds, counted: counted }));
+    if (isWon()) { gameDel(); return; }
+    gameSet(JSON.stringify({ state: state, seconds: seconds, counted: counted }));
   } catch (e) {}
 }
 function loadGame() {

@@ -936,7 +936,7 @@ function showWin() {
     winner === HUMAN ? "🎉 Terminaste con menos puntos. ¡Felicitaciones!" : "Ganó " + playerName(winner) + " con " + players[winner].score + " puntos.";
   document.getElementById("win").hidden = false;
   if (winner === HUMAN) celebrate();
-  try { localStorage.removeItem(GAME_KEY); } catch (e) {}
+  gameDel();
 }
 function buildScoresTable() {
   var t = document.getElementById("scores-table"), s, h;
@@ -1058,6 +1058,29 @@ function loadPrefs() {
 
 /* ---------- Persistencia ---------- */
 var PREFS_KEY = "corazones.prefs", GAME_KEY = "corazones.game", STATS_KEY = "corazones.stats";
+
+/* Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la "dueña"
+   persiste la partida. Así dos pestañas no se pisan la misma clave de localStorage.
+   El dueño renueva un "candado" con marca de tiempo; si se cierra, otra pestaña lo toma. */
+var TAB_ID = (function () {
+  var v; try { v = sessionStorage.getItem("corazones.tab"); } catch (e) {}
+  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("corazones.tab", v); } catch (e) {} }
+  return v;
+})();
+var LOCK_KEY = "corazones.lock", saveOwner = false;
+function refreshSaveLock() {
+  var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+  var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
+  if (!alive || l.id === TAB_ID) {
+    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
+    try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    saveOwner = !!(l && l.id === TAB_ID);
+  } else saveOwner = false;
+}
+refreshSaveLock();
+setInterval(refreshSaveLock, 2500);
+function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
 function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
 function bumpStat(key) { var s = loadStats(); s[key] = (s[key] || 0) + 1; saveStats(s); }
@@ -1076,7 +1099,7 @@ function saveGame() {
     if (phase === "scoring") return;
     var p = [];
     for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints, taken: players[s].taken });
-    localStorage.setItem(GAME_KEY, JSON.stringify({
+    gameSet(JSON.stringify({
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
       heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
       history: history

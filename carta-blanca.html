@@ -689,13 +689,17 @@ function beginDrag() {
 function positionDrag(x, y) {
   drag.inner.style.transform = "translate(" + (x - drag.grabDX) + "px," + (y - drag.grabDY) + "px)";
 }
+function dropTargetAt(x, y) {
+  var under = document.elementFromPoint(x, y);
+  return under ? under.closest("[data-drop]") : null;
+}
 function finishDrag(e) {
   var cardLeft = e.clientX - drag.grabDX, cardTop = e.clientY - drag.grabDY;
   drag.layer.remove();
   drag = null;
-  var hx = cardLeft + CW * 0.5, hy = cardTop + CH * 0.30;
-  var under = document.elementFromPoint(hx, hy);
-  var target = under ? under.closest("[data-drop]") : null;
+  // Soltado: primero donde está el dedo/cursor (lo intuitivo, sirva donde sirva el agarre);
+  // si ahí no hay pila, se prueba el cuerpo de la carta como respaldo (no rebota si la tapa).
+  var target = dropTargetAt(e.clientX, e.clientY) || dropTargetAt(cardLeft + CW * 0.5, cardTop + CH * 0.30);
   var moved = false;
   if (target) {
     var d = target.getAttribute("data-drop");
@@ -1147,6 +1151,29 @@ function toast(msg) {
 
 /* ---------- Persistencia (partida en curso) ---------- */
 var GAME_KEY = "cartablanca.game";
+
+/* Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la "dueña"
+   persiste la partida. Así dos pestañas no se pisan la misma clave de localStorage.
+   El dueño renueva un "candado" con marca de tiempo; si se cierra, otra pestaña lo toma. */
+var TAB_ID = (function () {
+  var v; try { v = sessionStorage.getItem("cartablanca.tab"); } catch (e) {}
+  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("cartablanca.tab", v); } catch (e) {} }
+  return v;
+})();
+var LOCK_KEY = "cartablanca.lock", saveOwner = false;
+function refreshSaveLock() {
+  var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+  var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
+  if (!alive || l.id === TAB_ID) {
+    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
+    try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    saveOwner = !!(l && l.id === TAB_ID);
+  } else saveOwner = false;
+}
+refreshSaveLock();
+setInterval(refreshSaveLock, 2500);
+function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function validState(s) {
   if (!s || !s.foundations || !s.tableau || !s.free) return false;
   if (s.foundations.length !== 4 || s.tableau.length !== 8 || s.free.length !== 4) return false;
@@ -1157,8 +1184,8 @@ function validState(s) {
 }
 function saveGame() {
   try {
-    if (isWon()) { localStorage.removeItem(GAME_KEY); return; }
-    localStorage.setItem(GAME_KEY, JSON.stringify({ state: state, seconds: seconds, gameNumber: gameNumber, counted: counted }));
+    if (isWon()) { gameDel(); return; }
+    gameSet(JSON.stringify({ state: state, seconds: seconds, gameNumber: gameNumber, counted: counted }));
   } catch (e) {}
 }
 function loadGame() {
