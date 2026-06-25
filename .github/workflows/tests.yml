@@ -1,0 +1,36 @@
+name: Tests
+
+# Corre la suite de tests de navegador en cada push a main y en cada Pull Request.
+# También se puede lanzar a mano desde la pestaña "Actions" del repo.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Instala/encuentra Chromium dentro del workspace (lo resuelve tests/run.js).
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/pw-browsers
+    steps:
+      - name: Clonar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        working-directory: tests
+        run: npm install
+
+      - name: Instalar Chromium (con dependencias del sistema)
+        working-directory: tests
+        run: npx --yes playwright@1.61.1 install --with-deps chromium
+
+      - name: Correr los tests
+        working-directory: tests
+        run: npm test
