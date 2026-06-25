@@ -8,14 +8,10 @@ La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos.
 
 ## Juegos
 
-- **Solitario** (`solitario.html`) — el clásico Klondike. ✅
-- **Carta Blanca** (`carta-blanca.html`) — FreeCell, con partidas numeradas
-  idénticas a las del FreeCell de Windows. ✅
-- **Corazones** (`corazones.html`) — Hearts contra 3 oponentes, con pase de
-  cartas, disparo a la luna y puntaje a 50 o 100. ✅
-- **Buscaminas** (`buscaminas.html`) — Minesweeper con 3 dificultades, modo
-  bandera, acorde, pista, mejores tiempos y tableros **sin adivinanzas**
-  (resolubles con pura lógica). ✅
+- **Solitario** (`solitario.html`)
+- **Carta Blanca** (`carta-blanca.html`)
+- **Corazones** (`corazones.html`)
+- **Buscaminas** (`buscaminas.html`)
 
 Desde cualquier juego se puede saltar a otro con el botón 🎮, y hay una pantalla
 de **Estadísticas** (`estadisticas.html`).
