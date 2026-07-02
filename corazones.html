@@ -1102,7 +1102,7 @@ function saveGame() {
     gameSet(JSON.stringify({
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
       heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
-      history: handHistory
+      history: handHistory, humanPass: humanPass
     }));
   } catch (e) {}
 }
@@ -1138,6 +1138,13 @@ function loadGame() {
     if (d.target === 50 || d.target === 100) target = d.target;
     handHistory = (d.history && d.history.length != null) ? d.history : [];
     busy = false; humanPass = [];
+    // Restaurar las cartas ya elegidas para pasar (sólo ids presentes en la mano)
+    if (phase === "pass" && Array.isArray(d.humanPass)) {
+      for (var k = 0; k < d.humanPass.length && humanPass.length < 3; k++) {
+        for (var j = 0; j < players[HUMAN].hand.length; j++)
+          if (players[HUMAN].hand[j].id === d.humanPass[k]) { humanPass.push(d.humanPass[k]); break; }
+      }
+    }
     setSizes();
     render();
     if (phase === "play") {
@@ -1228,7 +1235,12 @@ document.getElementById("win-close").onclick = function () { document.getElement
   })(ni[i]);
 })();
 
-window.addEventListener("resize", function () { setSizes(); render(); });
+// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
+var resizeTimer = null;
+window.addEventListener("resize", function () {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); render(); }, 120);
+});
 </script>
 </body>
 </html>

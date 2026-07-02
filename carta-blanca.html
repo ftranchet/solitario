@@ -371,6 +371,7 @@ var hintMoves = null, hintIndex = 0, hintStateMoves = -1, hintTimer = null;
 var autoTimer = null;
 var animFoundation = -1;   // pila final que acaba de recibir una carta (para animarla)
 var counted = false;       // ¿ya se contó esta partida en las estadísticas?
+var winRecorded = false;   // ¿ya se registró la victoria? (deshacer y rehacer no debe duplicarla)
 
 /* ---------- Estadísticas ---------- */
 var STATS_KEY = "cartablanca.stats";
@@ -733,7 +734,8 @@ function isWon() { return totalFoundation() === 52; }
 function checkWin() {
   if (!isWon()) return;
   stopTimer();
-  recordWin();
+  started = false;   // si se sigue jugando (deshacer), el reloj puede reanudarse
+  if (!winRecorded) { winRecorded = true; recordWin(); }
   var m = Math.floor(seconds / 60), s = seconds % 60;
   var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
   document.getElementById("win-stats").textContent =
@@ -1063,9 +1065,11 @@ function onHint() {
    Aparece sólo cuando llevando cartas a las pilas finales (sin más movimientos)
    se puede ganar la partida. */
 function autoWinnable() {
-  var foundations = JSON.parse(JSON.stringify(state.foundations));
-  var free = JSON.parse(JSON.stringify(state.free));
-  var tableau = JSON.parse(JSON.stringify(state.tableau));
+  // Copias superficiales: la simulación sólo hace push/pop de referencias,
+  // nunca muta las cartas (mucho más barato que clonar con JSON en cada render).
+  var foundations = [], tableau = [], free = state.free.slice(), i0;
+  for (i0 = 0; i0 < 4; i0++) foundations.push(state.foundations[i0].slice());
+  for (i0 = 0; i0 < 8; i0++) tableau.push(state.tableau[i0].slice());
   var progress = true;
   while (progress) {
     progress = false;
@@ -1174,12 +1178,34 @@ refreshSaveLock();
 setInterval(refreshSaveLock, 2500);
 function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
 function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
+function validCard(c) { return !!(c && SUIT[c.suit] && c.rank >= 1 && c.rank <= 13); }
 function validState(s) {
   if (!s || !s.foundations || !s.tableau || !s.free) return false;
   if (s.foundations.length !== 4 || s.tableau.length !== 8 || s.free.length !== 4) return false;
-  var n = 0, i;
-  for (i = 0; i < 4; i++) { if (s.free[i]) n++; n += s.foundations[i].length; }
-  for (i = 0; i < 8; i++) n += s.tableau[i].length;
+  // Debe haber exactamente un mazo completo: 52 cartas válidas, sin repetidas.
+  var piles = [], seen = {}, n = 0, i, j;
+  for (i = 0; i < 4; i++) piles.push(s.foundations[i]);
+  for (i = 0; i < 8; i++) piles.push(s.tableau[i]);
+  for (i = 0; i < piles.length; i++) {
+    if (!Array.isArray(piles[i])) return false;
+    for (j = 0; j < piles[i].length; j++) {
+      var c = piles[i][j];
+      if (!validCard(c)) return false;
+      var key = c.suit + "-" + c.rank;
+      if (seen[key]) return false;
+      seen[key] = 1;
+      n++;
+    }
+  }
+  for (i = 0; i < 4; i++) {
+    var fc = s.free[i];
+    if (fc == null) continue;
+    if (!validCard(fc)) return false;
+    var fkey = fc.suit + "-" + fc.rank;
+    if (seen[fkey]) return false;
+    seen[fkey] = 1;
+    n++;
+  }
   return n === 52;
 }
 function saveGame() {
@@ -1197,6 +1223,7 @@ function loadGame() {
     seconds = (typeof data.seconds === "number" && data.seconds >= 0) ? data.seconds : 0;
     gameNumber = (typeof data.gameNumber === "number" && data.gameNumber >= 1) ? data.gameNumber : 1;
     counted = !!data.counted;
+    winRecorded = false;
     started = false; selection = null; undoStack = [];
     stopTimer();
     render();
@@ -1216,6 +1243,7 @@ function newGame(number) {
   selection = null;
   undoStack = [];
   counted = false;
+  winRecorded = false;
   resetTimer();
   document.getElementById("win").hidden = true;
   render();
@@ -1255,7 +1283,12 @@ document.getElementById("board").addEventListener("click", function (e) {
   if (e.target.closest(".card, .slot-ph, .placeholder, .foundation-ph, .free-ph, button")) return;
   if (selection) { selection = null; render(); }
 });
-window.addEventListener("resize", function () { setSizes(); render(); });
+// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
+var resizeTimer = null;
+window.addEventListener("resize", function () {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); render(); }, 120);
+});
 </script>
 </body>
 </html>

@@ -222,6 +222,107 @@ test("Carta Blanca: la victoria muestra el modal", async function (ctx) {
   assertNoErrors(p.errors);
 });
 
+/* 9) Solitario — la detección de atasco y las pistas ven escaleras parciales (#9).
+   Bug: hasAnyMove/generateHints sólo miraban la escalera completa; mover 8♥ → 9♣
+   para exponer el 9♠ (que sube a la fundación) no se detectaba y el botón "Nueva"
+   pulsaba como si no hubiera jugadas. */
+test("Solitario: detecta jugada útil de escalera parcial (stuck/pista) (#9)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    // Picas hasta el 8 en la fundación; una columna termina en 9♠,8♥ y otra en 9♣.
+    var sp = []; for (var r2 = 1; r2 <= 8; r2++) sp.push(c("spades", r2, 300 + r2));
+    state.foundations = [sp, [], [], []];
+    state.tableau = [
+      [c("hearts", 13, 1, false), c("spades", 9, 2), c("hearts", 8, 3)],
+      [c("diamonds", 13, 4, false), c("clubs", 9, 5)],
+      [], [], [], [], []
+    ];
+    state.stock = [c("clubs", 2, 6, false)]; state.waste = [];
+    state.moves = 77; selection = null;
+    var has = hasAnyMove();
+    var hints = generateHints(), partial = false;
+    for (var i = 0; i < hints.length; i++)
+      if (hints[i].kind === "tableau" && hints[i].from.col === 0 && hints[i].from.index === 2) partial = true;
+    return { has: has, partial: partial };
+  });
+  assert(r.has, "hasAnyMove debería detectar la jugada 8♥→9♣ que expone el 9♠");
+  assert(r.partial, "la pista debería sugerir mover el 8♥ (escalera parcial)");
+  assertNoErrors(p.errors);
+});
+
+/* 10) Solitario — la victoria se registra una sola vez (#10).
+   Bug: tras ganar, deshacer y rehacer el último movimiento volvía a llamar a
+   recordWin() e inflaba las estadísticas. */
+test("Solitario: la victoria se registra una sola vez (deshacer tras ganar) (#10)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    localStorage.removeItem("solitario.stats");
+    var f = [[], [], [], []];
+    for (var i = 0; i < 4; i++) for (var rk = 1; rk <= 13; rk++)
+      f[i].push({ suit: SUIT_ORDER[i], rank: rk, color: SUIT[SUIT_ORDER[i]].color, faceUp: true, id: i * 13 + rk });
+    var last = f[3].pop();   // a un movimiento de ganar: el K queda en una columna
+    state = { stock: [], waste: [], foundations: f, tableau: [[last], [], [], [], [], [], []], moves: 10 };
+    winRecorded = false; selection = null; undoStack = []; stuckCheckMoves = -1;
+    render();
+    selectCard("tableau", 0, 0, last);
+    moveSelectionToFoundation(); selection = null; afterMove();
+    var w1 = (JSON.parse(localStorage.getItem("solitario.stats")) || {}).won;
+    document.getElementById("win").hidden = true;
+    undo();
+    selectCard("tableau", 0, 0, state.tableau[0][0]);
+    moveSelectionToFoundation(); selection = null; afterMove();
+    var w2 = (JSON.parse(localStorage.getItem("solitario.stats")) || {}).won;
+    return { w1: w1, w2: w2 };
+  });
+  assert(r.w1 === 1, "la primera victoria debería registrar won=1 (fue " + r.w1 + ")");
+  assert(r.w2 === 1, "rehacer la victoria no debe volver a contarla (won=" + r.w2 + ")");
+  assertNoErrors(p.errors);
+});
+
+/* 11) Carta Blanca — autoWinnable no muta el estado real (refactor a copias superficiales). */
+test("Carta Blanca: autocompletar aparece y autoWinnable no muta el estado", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  var r = await p.page.evaluate(function () {
+    var su = ["spades", "hearts", "diamonds", "clubs"], f = [[], [], [], []], t = [[], [], [], [], [], [], [], []];
+    for (var i = 0; i < 4; i++) {
+      for (var rk = 1; rk <= 11; rk++) f[i].push({ suit: su[i], rank: rk, color: SUIT[su[i]].color, id: i * 13 + rk });
+      t[i].push({ suit: su[i], rank: 13, color: SUIT[su[i]].color, id: 1000 + i });
+      t[i].push({ suit: su[i], rank: 12, color: SUIT[su[i]].color, id: 2000 + i });
+    }
+    state = { free: [null, null, null, null], foundations: f, tableau: t, moves: 5 };
+    render();
+    return {
+      winnable: autoWinnable(),
+      btnShown: !document.getElementById("btn-auto").hidden,
+      intact: state.tableau[0].length === 2 && state.foundations[0].length === 11
+    };
+  });
+  assert(r.winnable, "autoWinnable debería dar true con todo ordenado");
+  assert(r.btnShown, "el botón Autocompletar debería estar visible");
+  assert(r.intact, "autoWinnable no debe mutar el estado real");
+  assertNoErrors(p.errors);
+});
+
+/* 12) Buscaminas — al restaurar una partida guardada el reloj espera la próxima
+   jugada (#12). Bug: loadGame arrancaba el reloj al abrir la pestaña. */
+test("Buscaminas: al restaurar una partida el reloj espera la próxima jugada (#12)", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  await p.page.evaluate(function () { noGuess = false; digCell(4, 4); render(); });
+  await p.page.waitForFunction(function () { return started === true; }, null, { timeout: 3000 });
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var r = await p.page.evaluate(function () {
+    var idle = timerId === null && started === true;
+    var rc = anySafe();
+    if (rc) onTap(rc[0], rc[1]);
+    return { idle: idle, resumed: timerId !== null };
+  });
+  assert(r.idle, "tras restaurar, el reloj no debería estar corriendo todavía");
+  assert(r.resumed, "el reloj debería reanudarse con la primera jugada");
+  assertNoErrors(p.errors);
+});
+
 /* ========================= RUNNER ========================= */
 (async function () {
   var srv = await startServer(ROOT);

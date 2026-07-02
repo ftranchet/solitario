@@ -370,6 +370,7 @@ var CW, CH, OFFSET_UP, OFFSET_DOWN;
 var settings = { draw: 1 };
 var animFoundation = -1;   // pila final que acaba de recibir una carta (para animarla)
 var counted = false;       // ¿ya se contó esta partida en las estadísticas?
+var winRecorded = false;   // ¿ya se registró la victoria? (deshacer y rehacer no debe duplicarla)
 
 /* ---------- Estadísticas ---------- */
 var STATS_KEY = "solitario.stats";
@@ -435,6 +436,7 @@ function undo() {
   clearHintHighlights();
   state = JSON.parse(undoStack.pop());
   selection = null;
+  stuckCheckMoves = -1;   // el estado cambió: invalida el chequeo de atasco
   render();
 }
 
@@ -715,7 +717,8 @@ function checkWin() {
   for (var i = 0; i < 4; i++) total += state.foundations[i].length;
   if (total === 52) {
     stopTimer();
-    recordWin();
+    started = false;   // si se sigue jugando (deshacer), el reloj puede reanudarse
+    if (!winRecorded) { winRecorded = true; recordWin(); }
     var m = Math.floor(seconds / 60), s = seconds % 60;
     var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
     document.getElementById("win-stats").textContent = "Tiempo " + t + " \u00b7 " + state.moves + " movimientos";
@@ -808,20 +811,25 @@ function reachableStockWasteCards() {
   return tops;
 }
 function hasAnyMove() {
-  // Movimientos directos desde las columnas
+  // Movimientos directos desde las columnas. Se consideran todos los sufijos de la
+  // escalera boca arriba: mover la escalera completa siempre, y una escalera parcial
+  // s\u00f3lo cuando sirve (la carta que queda expuesta puede subir a una fundaci\u00f3n).
   for (var col = 0; col < 7; col++) {
     var t = state.tableau[col];
     if (!t.length) continue;
     if (canMoveToFoundation(t[t.length - 1]) >= 0) return true;
     var fu = firstFaceUpIndex(t);
     if (fu >= 0) {
-      var lead = t[fu];
-      for (var dc = 0; dc < 7; dc++) {
-        if (dc === col) continue;
-        if (!canPlaceOnTableau(lead, dc)) continue;
-        // mover un Rey solo a otra columna vac\u00eda no aporta nada
-        if (lead.rank === 13 && fu === 0 && state.tableau[dc].length === 0) continue;
-        return true;
+      for (var i2 = fu; i2 < t.length; i2++) {
+        var lead = t[i2];
+        if (i2 > fu && canMoveToFoundation(t[i2 - 1]) < 0) continue;
+        for (var dc = 0; dc < 7; dc++) {
+          if (dc === col) continue;
+          if (!canPlaceOnTableau(lead, dc)) continue;
+          // mover un Rey solo a otra columna vac\u00eda no aporta nada
+          if (lead.rank === 13 && i2 === 0 && state.tableau[dc].length === 0) continue;
+          return true;
+        }
       }
     }
   }
@@ -830,9 +838,16 @@ function hasAnyMove() {
   for (var i = 0; i < reach.length; i++) if (canPlaceCardAnywhere(reach[i])) return true;
   return false;
 }
+/* hasAnyMove simula el ciclo completo del mazo, as\u00ed que se memoiza por cantidad de
+   movimientos (igual que las pistas). Se invalida donde el estado cambia sin mover. */
+var stuckCheckMoves = -1, stuckCheckHas = true;
+function hasAnyMoveCached() {
+  if (state.moves !== stuckCheckMoves) { stuckCheckMoves = state.moves; stuckCheckHas = hasAnyMove(); }
+  return stuckCheckHas;
+}
 function updateStuckState() {
   // Sin jugadas posibles: s\u00f3lo resaltamos el bot\u00f3n "Nueva" (sin aviso breve).
-  var stuck = !isWon() && !autoTimer && !hasAnyMove();
+  var stuck = !isWon() && !autoTimer && !hasAnyMoveCached();
   document.getElementById("btn-new").classList.toggle("attention", stuck);
 }
 
@@ -1001,6 +1016,7 @@ function setSizes() {
 /* ---------- Opciones ---------- */
 function applySettings() {
   savePrefs();
+  stuckCheckMoves = -1;   // el reparto (1 ó 3) cambia qué cartas del mazo son alcanzables
   setSizes();
   render();
   updateSettingsUI();
@@ -1043,19 +1059,25 @@ function generateHints() {
         moves.push({ kind: "foundation", from: { pile: "tableau", col: col, index: t.length - 1 }, fi: canMoveToFoundation(c), prio: 1 });
     }
   }
-  // 2) Mover columnas (prioriza destapar una carta tapada)
+  // 2) Mover columnas (prioriza destapar una carta tapada). Además de la escalera
+  // completa, sugiere escaleras parciales cuando la carta que queda expuesta puede
+  // subir a una fundación.
   for (var col2 = 0; col2 < 7; col2++) {
     var tt = state.tableau[col2];
     var fu = firstFaceUpIndex(tt);
     if (fu < 0) continue;
-    var lead = tt[fu];
-    for (var dc = 0; dc < 7; dc++) {
-      if (dc === col2) continue;
-      if (!canPlaceOnTableau(lead, dc)) continue;
-      var reveals = fu > 0;
-      var pointlessKing = lead.rank === 13 && fu === 0 && state.tableau[dc].length === 0;
-      if (pointlessKing) continue;
-      moves.push({ kind: "tableau", from: { pile: "tableau", col: col2, index: fu }, toCol: dc, prio: reveals ? 2 : 5 });
+    for (var i2 = fu; i2 < tt.length; i2++) {
+      var lead = tt[i2];
+      var exposes = i2 > fu && canMoveToFoundation(tt[i2 - 1]) >= 0;
+      if (i2 > fu && !exposes) continue;   // escaleras parciales sólo si sirven
+      for (var dc = 0; dc < 7; dc++) {
+        if (dc === col2) continue;
+        if (!canPlaceOnTableau(lead, dc)) continue;
+        var reveals = i2 === fu && fu > 0;
+        var pointlessKing = lead.rank === 13 && i2 === 0 && state.tableau[dc].length === 0;
+        if (pointlessKing) continue;
+        moves.push({ kind: "tableau", from: { pile: "tableau", col: col2, index: i2 }, toCol: dc, prio: reveals ? 2 : (exposes ? 3 : 5) });
+      }
     }
   }
   // 3) Del descarte a una columna
@@ -1165,6 +1187,7 @@ function startAutoComplete() {
 function stopAutoComplete() {
   if (autoTimer) clearInterval(autoTimer);
   autoTimer = null;
+  stuckCheckMoves = -1;   // el autocompletado mueve mazo/descarte sin sumar movimientos
 }
 function autoTick() {
   selection = null;
@@ -1237,12 +1260,25 @@ function loadPrefs() {
     if (p && (p.draw === 1 || p.draw === 3)) settings.draw = p.draw;
   } catch (e) {}
 }
+function validCard(c) { return !!(c && SUIT[c.suit] && c.rank >= 1 && c.rank <= 13); }
 function validState(s) {
   if (!s || !s.foundations || !s.tableau || !s.stock || !s.waste) return false;
   if (s.foundations.length !== 4 || s.tableau.length !== 7) return false;
-  var n = s.stock.length + s.waste.length, i;
-  for (i = 0; i < 4; i++) n += s.foundations[i].length;
-  for (i = 0; i < 7; i++) n += s.tableau[i].length;
+  // Debe haber exactamente un mazo completo: 52 cartas válidas, sin repetidas.
+  var piles = [s.stock, s.waste], seen = {}, n = 0, i, j;
+  for (i = 0; i < 4; i++) piles.push(s.foundations[i]);
+  for (i = 0; i < 7; i++) piles.push(s.tableau[i]);
+  for (i = 0; i < piles.length; i++) {
+    if (!Array.isArray(piles[i])) return false;
+    for (j = 0; j < piles[i].length; j++) {
+      var c = piles[i][j];
+      if (!validCard(c)) return false;
+      var key = c.suit + "-" + c.rank;
+      if (seen[key]) return false;
+      seen[key] = 1;
+      n++;
+    }
+  }
   return n === 52;
 }
 function saveGame() {
@@ -1259,7 +1295,9 @@ function loadGame() {
     if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;
     seconds = (typeof data.seconds === "number" && data.seconds >= 0) ? data.seconds : 0;
     counted = !!data.counted;
+    winRecorded = false;
     started = false; selection = null; undoStack = [];
+    stuckCheckMoves = -1;
     stopTimer();
     render();
     return true;
@@ -1276,6 +1314,8 @@ function newGame() {
   selection = null;
   undoStack = [];
   counted = false;
+  winRecorded = false;
+  stuckCheckMoves = -1;
   resetTimer();
   document.getElementById("win").hidden = true;
   render();
@@ -1315,7 +1355,12 @@ document.getElementById("board").addEventListener("click", function (e) {
   if (e.target.closest(".card, .slot-ph, .placeholder, .foundation-ph, .recycle, .badge, button")) return;
   if (selection) { selection = null; render(); }
 });
-window.addEventListener("resize", function () { setSizes(); render(); });
+// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
+var resizeTimer = null;
+window.addEventListener("resize", function () {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); render(); }, 120);
+});
 </script>
 </body>
 </html>

@@ -22,10 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
 
+      # npm ci usa el package-lock.json commiteado: mismas versiones en cada corrida
       - name: Instalar dependencias
         working-directory: tests
-        run: npm install
+        run: npm ci
 
       - name: Instalar Chromium (con dependencias del sistema)
         working-directory: tests

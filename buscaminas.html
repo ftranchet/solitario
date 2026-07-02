@@ -317,7 +317,6 @@ var flags = 0, revealedCount = 0;
 var seconds = 0, timerId = null;
 var flagMode = false;
 var noGuess = true;        // generar tableros resolubles por lógica (sin adivinar)
-var bestTimes = {};
 var hintTimer = null;
 
 /* ---------- Construcción ---------- */
@@ -525,9 +524,7 @@ function winGame() {
   for (var r = 0; r < rows; r++)
     for (var c = 0; c < cols; c++)
       if (grid[r][c].mine && !grid[r][c].flagged) { grid[r][c].flagged = true; flags++; }
-  var record = false;
-  if (bestTimes[difficulty] == null || seconds < bestTimes[difficulty]) { bestTimes[difficulty] = seconds; record = true; savePrefs(); }
-  recordWin();
+  var record = recordWin();   // una sola fuente de verdad: buscaminas.stats
   gameDel();
   document.getElementById("win-stats").textContent = DIFFS[difficulty].label + " · " + fmtTime(seconds);
   document.getElementById("win-record").hidden = !record;
@@ -538,6 +535,7 @@ function winGame() {
 /* ---------- Interacción ---------- */
 function onTap(r, c) {
   if (dead || won) return;
+  if (started) startTimer();   // reanuda el reloj de una partida restaurada
   var cell = grid[r][c];
   if (flagMode && !cell.revealed) { toggleFlag(r, c); render(); return; }
   if (cell.revealed) { chord(r, c); render(); return; }
@@ -545,6 +543,7 @@ function onTap(r, c) {
 }
 function onLong(r, c) {
   if (dead || won) return;
+  if (started) startTimer();   // reanuda el reloj de una partida restaurada
   var cell = grid[r][c];
   if (cell.revealed) { chord(r, c); render(); return; }
   toggleFlag(r, c); render();
@@ -758,16 +757,17 @@ function recordPlayed() { var s = loadStats(); statFor(s, difficulty).played++; 
 function recordWin() {
   var s = loadStats(), d = statFor(s, difficulty);
   d.won++;
-  if (d.best == null || seconds < d.best) d.best = seconds;
+  var record = d.best == null || seconds < d.best;
+  if (record) d.best = seconds;
   saveStats(s);
+  return record;
 }
-function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ difficulty: difficulty, bestTimes: bestTimes, noGuess: noGuess })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ difficulty: difficulty, noGuess: noGuess })); } catch (e) {} }
 function loadPrefs() {
   try {
     var p = JSON.parse(localStorage.getItem(PREFS_KEY));
     if (p) {
       if (DIFFS[p.difficulty]) difficulty = p.difficulty;
-      if (p.bestTimes && typeof p.bestTimes === "object") bestTimes = p.bestTimes;
       if (typeof p.noGuess === "boolean") noGuess = p.noGuess;
     }
   } catch (e) {}
@@ -786,8 +786,17 @@ function saveGame() {
 function loadGame() {
   try {
     var d = JSON.parse(localStorage.getItem(GAME_KEY));
-    if (!d || !DIFFS[d.difficulty] || !d.g) return false;
+    if (!d || !DIFFS[d.difficulty] || !Array.isArray(d.g)) return false;
     if (d.rows * d.cols !== d.g.length) return false;
+    if (typeof d.mines !== "number" || d.mines < 1) return false;
+    // Las minas del tablero guardado deben coincidir con el contador (guardado corrupto)
+    var mineBits = 0;
+    for (var k = 0; k < d.g.length; k++) {
+      var vk = d.g[k];
+      if (typeof vk !== "number" || vk < 0) return false;
+      if (vk & 1) mineBits++;
+    }
+    if (mineBits !== d.mines) return false;
     difficulty = d.difficulty; rows = d.rows; cols = d.cols; mines = d.mines;
     seconds = (typeof d.seconds === "number" && d.seconds >= 0) ? d.seconds : 0;
     makeGrid();
@@ -799,7 +808,9 @@ function loadGame() {
       if (cell.revealed) revealedCount++;
     }
     started = true; dead = false; won = false;
-    setSizes(); render(); startTimer();
+    // El reloj no arranca acá: se reanuda con la próxima jugada (onTap/onLong),
+    // así abrir la pestaña para mirar no suma tiempo.
+    setSizes(); render();
     return true;
   } catch (e) { return false; }
 }
@@ -871,7 +882,12 @@ document.getElementById("win-close").onclick = function () { document.getElement
   })(ng[i]);
 })();
 
-window.addEventListener("resize", function () { setSizes(); });
+// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
+var resizeTimer = null;
+window.addEventListener("resize", function () {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); }, 120);
+});
 </script>
 </body>
 </html>
