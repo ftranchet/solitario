@@ -2,7 +2,8 @@
  * Tests de navegador para los juegos (Solitario, Carta Blanca, Corazones, Buscaminas).
  *
  * Corren los HTML reales en Chromium y verifican los flujos clave y las regresiones
- * ya encontradas. No hace falta servidor: se abren con file://.
+ * ya encontradas. No hace falta configurar nada: el runner levanta su propio
+ * servidor HTTP local (ver startServer).
  *
  * Uso:   cd tests && npm install && npm test
  * Ver el README para detalles y cómo elegir el navegador.
@@ -320,6 +321,429 @@ test("Buscaminas: al restaurar una partida el reloj espera la próxima jugada (#
   });
   assert(r.idle, "tras restaurar, el reloj no debería estar corriendo todavía");
   assert(r.resumed, "el reloj debería reanudarse con la primera jugada");
+  assertNoErrors(p.errors);
+});
+
+/* ==================== PERSISTENCIA ==================== */
+
+/* 13) Solitario — la partida guardada se restaura al recargar. */
+test("Solitario: la partida guardada se restaura al recargar", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var before = await p.page.evaluate(function () {
+    dealStock();
+    return { moves: state.moves, waste: state.waste.length, stock: state.stock.length };
+  });
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var after = await p.page.evaluate(function () {
+    return { moves: state.moves, waste: state.waste.length, stock: state.stock.length };
+  });
+  assert(JSON.stringify(after) === JSON.stringify(before),
+    "no restauró: " + JSON.stringify(before) + " vs " + JSON.stringify(after));
+  assertNoErrors(p.errors);
+});
+
+/* 14) Carta Blanca — restauración al recargar + validState rechaza cartas repetidas. */
+test("Carta Blanca: se restaura al recargar y validState rechaza duplicados", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  var before = await p.page.evaluate(function () {
+    var col = 0; while (!state.tableau[col].length) col++;
+    selectCard("tableau", col, state.tableau[col].length - 1);
+    moveSelectionToFree(0); selection = null; render();
+    return { moves: state.moves, free0: state.free[0].id, gn: gameNumber };
+  });
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var after = await p.page.evaluate(function () {
+    var ok = { moves: state.moves, free0: state.free[0] && state.free[0].id, gn: gameNumber };
+    // validState: un mazo con una carta repetida no debe aceptarse
+    var s2 = JSON.parse(JSON.stringify(state));
+    var col = 0; while (s2.tableau[col].length < 2) col++;
+    s2.tableau[col][0] = JSON.parse(JSON.stringify(s2.tableau[col][1]));
+    ok.dupRejected = !validState(s2);
+    ok.saneAccepted = validState(JSON.parse(JSON.stringify(state)));
+    return ok;
+  });
+  assert(after.moves === before.moves && after.free0 === before.free0 && after.gn === before.gn,
+    "no restauró: " + JSON.stringify(before) + " vs " + JSON.stringify(after));
+  assert(after.dupRejected, "validState aceptó una carta duplicada");
+  assert(after.saneAccepted, "validState rechazó un estado sano");
+  assertNoErrors(p.errors);
+});
+
+/* 15) Buscaminas — el tablero guardado se restaura idéntico (minas incluidas). */
+test("Buscaminas: el tablero guardado se restaura idéntico al recargar", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  var before = await p.page.evaluate(function () {
+    noGuess = false; digCell(4, 4); render();
+    var m = []; for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) if (grid[r][c].mine) m.push(r + "," + c);
+    return { revealed: revealedCount, mines: m.join("|") };
+  });
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var after = await p.page.evaluate(function () {
+    var m = []; for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) if (grid[r][c].mine) m.push(r + "," + c);
+    return { revealed: revealedCount, mines: m.join("|") };
+  });
+  assert(after.revealed === before.revealed, "casillas reveladas: " + before.revealed + " vs " + after.revealed);
+  assert(after.mines === before.mines, "las minas deben quedar en el mismo lugar");
+  assertNoErrors(p.errors);
+});
+
+/* 16) Corazones — las cartas elegidas para pasar sobreviven la recarga (#16). */
+test("Corazones: las cartas elegidas para pasar sobreviven la recarga (#16)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  await p.page.waitForTimeout(150);
+  var before = await p.page.evaluate(function () {
+    // La mano 1 siempre pasa (izquierda): elegimos 2 cartas
+    togglePass(players[0].hand[0]);
+    togglePass(players[0].hand[5]);
+    return humanPass.slice();
+  });
+  assert(before.length === 2, "deberían quedar 2 cartas elegidas");
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(200);
+  var after = await p.page.evaluate(function () { return { phase: phase, pass: humanPass.slice() }; });
+  assert(after.phase === "pass", "debería seguir en fase de pase");
+  assert(JSON.stringify(after.pass) === JSON.stringify(before),
+    "humanPass no se restauró: " + JSON.stringify(before) + " vs " + JSON.stringify(after.pass));
+  assertNoErrors(p.errors);
+});
+
+/* 17) Solitario — un guardado corrupto se descarta sin excepciones. */
+test("Solitario: el guardado corrupto (JSON basura o carta repetida) se descarta sin errores", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    var out = {}, movesBefore = state.moves;
+    localStorage.setItem(GAME_KEY, "{esto no es json");
+    out.garbageRejected = loadGame() === false;
+    var s2 = JSON.parse(JSON.stringify(state));
+    s2.stock[0] = JSON.parse(JSON.stringify(s2.stock[1]));   // carta duplicada (siguen siendo 52)
+    localStorage.setItem(GAME_KEY, JSON.stringify({ state: s2, seconds: 5, counted: false }));
+    out.dupRejected = loadGame() === false;
+    out.stateIntact = state.moves === movesBefore;
+    return out;
+  });
+  assert(r.garbageRejected, "loadGame debería rechazar JSON inválido");
+  assert(r.dupRejected, "loadGame debería rechazar un mazo con carta repetida");
+  assert(r.stateIntact, "el estado en juego no debe cambiar al rechazar un guardado");
+  assertNoErrors(p.errors);
+});
+
+/* ==================== REGLAS DE JUEGO ==================== */
+
+/* 18) Carta Blanca — determinismo del reparto: la partida n.º 1 debe dar exactamente
+   el reparto del FreeCell de Microsoft (referencia externa conocida). Si msDeal
+   cambia por accidente, TODAS las partidas numeradas cambian en silencio. */
+test("Carta Blanca: la partida n.º 1 reparte igual que el FreeCell de Microsoft", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  var got = await p.page.evaluate(function () {
+    newGame(1);
+    var S = { clubs: "C", diamonds: "D", hearts: "H", spades: "S" };
+    return state.tableau.map(function (col) {
+      return col.map(function (c) { return (c.rank === 10 ? "T" : RANK_LABEL[c.rank]) + S[c.suit]; }).join(" ");
+    });
+  });
+  var expected = [
+    "JD KD 2S 4C 3S 6D 6S",
+    "2D KC KS 5C TD 8S 9C",
+    "9H 9S 9D TS 4S 8D 2H",
+    "JC 5S QD QH TH QS 6H",
+    "5D AD JS 4H 8H 6C",
+    "7H QC AS AC 2C 3D",
+    "7C KH AH 4D JH 8C",
+    "5H 3H 3C 7S 7D TC"
+  ];
+  for (var i = 0; i < 8; i++)
+    assert(got[i] === expected[i], "columna " + (i + 1) + ": " + got[i] + " != " + expected[i]);
+  assertNoErrors(p.errors);
+});
+
+/* 19) Carta Blanca — supermove: se pueden mover (pozos libres + 1) × 2^(columnas
+   vacías) cartas juntas, y la columna destino vacía no se cuenta a sí misma. */
+test("Carta Blanca: supermove respeta el límite (pozos+1) × 2^vacías", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    // Escalera de 4 (10♥ 9♣ 8♦ 7♠) en col 0; destino J♠ en col 1; col 2 vacía; 1 pozo libre.
+    state = {
+      free: [c("clubs", 2, 90), c("diamonds", 2, 91), c("hearts", 2, 92), null],
+      foundations: [[], [], [], []],
+      tableau: [[c("hearts", 10, 1), c("clubs", 9, 2), c("diamonds", 8, 3), c("spades", 7, 4)],
+                [c("spades", 11, 5)], [], [c("clubs", 5, 6)], [c("diamonds", 5, 7)],
+                [c("hearts", 5, 8)], [c("spades", 5, 9)], [c("clubs", 13, 10)]],
+      moves: 0
+    };
+    selection = null; undoStack = []; render();
+    var out = {};
+    out.m1 = maxMovable(1);                       // (1+1) × 2^1 = 4
+    out.m2 = maxMovable(2);                       // hacia la columna vacía: (1+1) × 2^0 = 2
+    selectCard("tableau", 0, 0);
+    out.okWithRoom = moveSelectionToTableau(1);   // 4 ≤ 4: permitido
+    undo();
+    state.free[3] = c("hearts", 3, 93);           // sin pozos libres: (0+1) × 2 = 2
+    selection = null; selectCard("tableau", 0, 0);
+    out.m3 = maxMovable(1);
+    out.blocked = !moveSelectionToTableau(1);     // 4 > 2: rechazado
+    return out;
+  });
+  assert(r.m1 === 4, "maxMovable con 1 pozo y 1 columna vacía debería ser 4 (fue " + r.m1 + ")");
+  assert(r.m2 === 2, "hacia la columna vacía no debe contarse a sí misma (fue " + r.m2 + ")");
+  assert(r.m3 === 2, "sin pozos libres debería ser 2 (fue " + r.m3 + ")");
+  assert(r.okWithRoom, "mover 4 cartas con capacidad 4 debería permitirse");
+  assert(r.blocked, "mover 4 cartas con capacidad 2 debería rechazarse");
+  assertNoErrors(p.errors);
+});
+
+/* 20) Corazones — reglas de jugadas legales. */
+test("Corazones: jugadas legales (2♣, seguir palo, corazones cerrados, 1.ª baza)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    function mk(s, rk) { return { suit: s, rank: rk, color: SUIT[s].color, id: s + "-" + rk }; }
+    var out = {};
+    phase = "play";
+    // 1) Primera baza: quien tiene el 2♣ sólo puede salir con él
+    players[0].hand = [mk("clubs", 2), mk("hearts", 5), mk("spades", 12)];
+    trick = []; tricksPlayed = 0; heartsBroken = false;
+    var l1 = legalCards(0);
+    out.only2C = l1.length === 1 && is2C(l1[0]);
+    // 2) Hay que seguir el palo si se puede
+    players[0].hand = [mk("diamonds", 4), mk("clubs", 9), mk("hearts", 2)];
+    trick = [{ seat: 1, card: mk("clubs", 5) }]; tricksPlayed = 3;
+    var l2 = legalCards(0);
+    out.followSuit = l2.length === 1 && l2[0].suit === "clubs";
+    // 3) No se lideran corazones hasta que se rompan…
+    players[0].hand = [mk("hearts", 5), mk("diamonds", 4), mk("hearts", 9)];
+    trick = []; heartsBroken = false;
+    var l3 = legalCards(0);
+    out.noHeartLead = l3.length === 1 && l3[0].suit === "diamonds";
+    heartsBroken = true;
+    out.heartLeadOk = legalCards(0).length === 3;
+    // …salvo que la mano sea sólo corazones
+    heartsBroken = false;
+    players[0].hand = [mk("hearts", 5), mk("hearts", 9)];
+    out.allHearts = legalCards(0).length === 2;
+    // 4) En la primera baza no se descartan corazones ni la Q♠
+    players[0].hand = [mk("hearts", 5), mk("spades", 12), mk("diamonds", 4)];
+    trick = [{ seat: 1, card: mk("clubs", 5) }]; tricksPlayed = 0;
+    var l4 = legalCards(0);
+    out.firstTrickSafe = l4.length === 1 && l4[0].suit === "diamonds";
+    return out;
+  });
+  assert(r.only2C, "con el 2♣ en mano, la única salida legal es el 2♣");
+  assert(r.followSuit, "hay que seguir el palo de salida");
+  assert(r.noHeartLead, "no se pueden liderar corazones sin romper");
+  assert(r.heartLeadOk, "con corazones rotos se puede liderar cualquiera");
+  assert(r.allHearts, "mano de sólo corazones puede liderar corazones");
+  assert(r.firstTrickSafe, "primera baza sin palo: ni corazones ni Q♠ si hay alternativa");
+  assertNoErrors(p.errors);
+});
+
+/* 21) Corazones — la luna reparte puntos según el modo elegido. */
+test("Corazones: disparar a la luna puntúa según el modo (+26 demás / −26 tirador)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    var out = {}, s;
+    function resetHand() {
+      for (s = 0; s < 4; s++) { players[s].score = 0; players[s].roundPoints = 0; players[s].taken = []; players[s].hand = []; }
+      players[1].roundPoints = 26;   // el asiento 1 se lleva todos los puntos
+      phase = "play"; handHistory = []; handNumber = 1; target = 100;
+    }
+    resetHand(); moonMode = "demas"; endHand();
+    out.demas = players.map(function (q) { return q.score; }).join(",");
+    document.getElementById("round").hidden = true;
+    resetHand(); moonMode = "tirador"; endHand();
+    out.tirador = players.map(function (q) { return q.score; }).join(",");
+    document.getElementById("round").hidden = true;
+    return out;
+  });
+  assert(r.demas === "26,0,26,26", "modo 'los demás +26': esperaba 26,0,26,26 y fue " + r.demas);
+  assert(r.tirador === "0,-26,0,0", "modo 'el tirador −26': esperaba 0,-26,0,0 y fue " + r.tirador);
+  assertNoErrors(p.errors);
+});
+
+/* 22) Buscaminas — el primer toque nunca es mina (zona 3×3 protegida). */
+test("Buscaminas: el primer toque nunca es mina (zona 3×3 segura)", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  var r = await p.page.evaluate(function () {
+    noGuess = false;
+    for (var t = 0; t < 25; t++) {
+      newGame();
+      digCell(4, 4);
+      if (dead) return { ok: false, why: "murió en el primer toque (intento " + t + ")" };
+      if (grid[4][4].mine) return { ok: false, why: "mina en la casilla tocada" };
+      var nb = neighbors(4, 4);
+      for (var i = 0; i < nb.length; i++)
+        if (grid[nb[i][0]][nb[i][1]].mine) return { ok: false, why: "mina vecina al primer toque" };
+      if (grid[4][4].count !== 0) return { ok: false, why: "la casilla tocada debería ser un 0" };
+    }
+    return { ok: true };
+  });
+  assert(r.ok, r.why);
+  assertNoErrors(p.errors);
+});
+
+/* 23) Buscaminas — el acorde abre las vecinas correctas; perder revela minas y
+   marca las banderas erróneas. */
+test("Buscaminas: acorde abre vecinas; perder revela minas y banderas erróneas", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  var r = await p.page.evaluate(function () {
+    var out = {}, r2, c2, i;
+    // Tablero determinista: una sola mina en (0,0)
+    noGuess = false; newGame();
+    grid[0][0].mine = true;
+    for (r2 = 0; r2 < rows; r2++) for (c2 = 0; c2 < cols; c2++) {
+      if (grid[r2][c2].mine) continue;
+      var nb = neighbors(r2, c2), k = 0;
+      for (i = 0; i < nb.length; i++) if (grid[nb[i][0]][nb[i][1]].mine) k++;
+      grid[r2][c2].count = k;
+    }
+    mines = 1; started = true;
+    digCell(1, 1);                     // revela el "1"
+    var pre = revealedCount;
+    chord(1, 1);                       // sin banderas: no debe abrir nada
+    out.noFlagNoChord = revealedCount === pre;
+    toggleFlag(0, 0);
+    chord(1, 1);                       // con la mina marcada: abre las 7 vecinas
+    var nb2 = neighbors(1, 1); out.opened = true;
+    for (i = 0; i < nb2.length; i++) {
+      var cell = grid[nb2[i][0]][nb2[i][1]];
+      if (!cell.flagged && !cell.revealed) out.opened = false;
+    }
+    out.wonAfterChord = won;           // el flood despeja todo (única mina flanqueada)
+    // Perder: bandera errónea + tocar una mina
+    newGame();
+    grid[2][2].mine = true; mines = 1; started = true;
+    toggleFlag(5, 5);                  // bandera equivocada
+    digCell(2, 2);                     // toca la mina
+    out.lost = dead && grid[2][2].revealed && grid[2][2].exploded;
+    out.wrongFlag = grid[5][5].wrong === true;
+    return out;
+  });
+  assert(r.noFlagNoChord, "el acorde sin banderas suficientes no debe abrir nada");
+  assert(r.opened, "el acorde debería abrir todas las vecinas no marcadas");
+  assert(r.wonAfterChord, "despejar todas las casillas seguras debería ganar");
+  assert(r.lost, "tocar una mina debe perder y mostrarla explotada");
+  assert(r.wrongFlag, "al perder, la bandera sin mina se marca como errónea");
+  assertNoErrors(p.errors);
+});
+
+/* 24) Solitario — reparto de a 3, reciclado del mazo y destape con deshacer. */
+test("Solitario: reparto de a 3, reciclado del mazo y destape con deshacer", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    var out = {}, i;
+    settings.draw = 3;
+    newGame();
+    dealStock();
+    out.draw3 = state.waste.length === 3 && state.stock.length === 21;
+    var guard = 0;
+    while (state.stock.length && guard++ < 20) dealStock();
+    out.emptied = state.stock.length === 0 && state.waste.length === 24;
+    dealStock();   // mazo vacío: recicla el descarte
+    out.recycled = state.stock.length === 24 && state.waste.length === 0;
+    for (i = 0; i < state.stock.length; i++) if (state.stock[i].faceUp) out.recycled = false;
+    // Mover una carta destapa la de abajo; deshacer la vuelve a tapar
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    state.tableau[0] = [c("hearts", 5, 400, false), c("spades", 9, 401)];
+    state.tableau[1] = [c("hearts", 10, 402)];
+    selection = null; stuckCheckMoves = -1; render();
+    selectCard("tableau", 0, 1, state.tableau[0][1]);
+    moveSelectionToTableau(1);
+    out.flipped = state.tableau[0].length === 1 && state.tableau[0][0].faceUp === true &&
+                  state.tableau[1].length === 2;
+    undo();
+    out.undone = state.tableau[0].length === 2 && state.tableau[0][0].faceUp === false &&
+                 state.tableau[1].length === 1;
+    return out;
+  });
+  assert(r.draw3, "en difícil se dan vuelta 3 cartas por vez");
+  assert(r.emptied, "el mazo debería vaciarse en el descarte");
+  assert(r.recycled, "reciclar debe devolver las 24 cartas boca abajo al mazo");
+  assert(r.flipped, "mover la carta debe destapar la de abajo");
+  assert(r.undone, "deshacer debe volver a tapar la carta destapada");
+  assertNoErrors(p.errors);
+});
+
+/* ==================== UI / VARIOS ==================== */
+
+/* 25) Estadísticas — muestra los datos guardados de los 4 juegos y Reiniciar los borra. */
+test("Estadísticas: muestra los datos guardados y Reiniciar los borra", async function (ctx) {
+  var p = await open(ctx, "estadisticas.html");
+  await p.page.evaluate(function () {
+    localStorage.setItem("solitario.stats", JSON.stringify({ played: 10, won: 4, bestTime: 65, bestMoves: 99 }));
+    localStorage.setItem("cartablanca.stats", JSON.stringify({ played: 5, won: 2, bestTime: 120 }));
+    localStorage.setItem("corazones.stats", JSON.stringify({ played: 2, won: 1, bestScore: 12, moons: 1 }));
+    localStorage.setItem("buscaminas.stats", JSON.stringify({ beginner: { played: 3, won: 1, best: 33 } }));
+    render();
+  });
+  var txt = await p.page.evaluate(function () { return document.getElementById("cards").textContent; });
+  assert(txt.indexOf("01:05") >= 0, "falta el mejor tiempo del Solitario (01:05)");
+  assert(txt.indexOf("40%") >= 0, "falta el porcentaje de victorias del Solitario (40%)");
+  assert(txt.indexOf("02:00") >= 0, "falta el mejor tiempo de Carta Blanca (02:00)");
+  assert(txt.indexOf("00:33") >= 0, "falta el mejor tiempo de Buscaminas (00:33)");
+  p.page.on("dialog", function (d) { d.accept(); });
+  await p.page.click("#reset");
+  await p.page.waitForTimeout(100);
+  var after = await p.page.evaluate(function () {
+    return { sol: localStorage.getItem("solitario.stats"), txt: document.getElementById("cards").textContent };
+  });
+  assert(after.sol === null, "Reiniciar debe borrar las estadísticas guardadas");
+  assert(after.txt.indexOf("Todavía no jugaste") >= 0, "debería mostrar el estado vacío");
+  assertNoErrors(p.errors);
+});
+
+/* 26) Preferencias — sobreviven la recarga (reparto, dificultad, nivel de IA). */
+test("Preferencias: sobreviven la recarga (reparto, dificultad, nivel de IA)", async function (ctx) {
+  var p1 = await open(ctx, "solitario.html");
+  await p1.page.evaluate(function () { document.querySelector('[data-draw="3"]').click(); });
+  await p1.page.reload({ waitUntil: "load" });
+  await p1.page.waitForTimeout(120);
+  var draw = await p1.page.evaluate(function () { return settings.draw; });
+  assert(draw === 3, "el reparto de a 3 debería persistir (fue " + draw + ")");
+
+  var p2 = await open(ctx, "buscaminas.html");
+  await p2.page.evaluate(function () { setDifficulty("intermediate"); });
+  await p2.page.reload({ waitUntil: "load" });
+  await p2.page.waitForTimeout(120);
+  var d2 = await p2.page.evaluate(function () { return { difficulty: difficulty, rows: rows }; });
+  assert(d2.difficulty === "intermediate" && d2.rows === 16, "la dificultad debería persistir: " + JSON.stringify(d2));
+
+  var p3 = await open(ctx, "corazones.html");
+  await p3.page.evaluate(function () { document.querySelector('[data-ai="dificil"]').click(); });
+  await p3.page.reload({ waitUntil: "load" });
+  await p3.page.waitForTimeout(150);
+  var ai = await p3.page.evaluate(function () { return aiLevel; });
+  assert(ai === "dificil", "el nivel de IA debería persistir (fue " + ai + ")");
+  assertNoErrors(p1.errors); assertNoErrors(p2.errors); assertNoErrors(p3.errors);
+});
+
+/* 27) Solitario — arrastrar y soltar de verdad (eventos de mouse/pointer). */
+test("Solitario: arrastrar del descarte a una columna (drag & drop real)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    state = { stock: [], waste: [c("hearts", 9, 500)], foundations: [[], [], [], []],
+              tableau: [[c("spades", 10, 501)], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; stuckCheckMoves = -1;
+    render();
+  });
+  var pos = await p.page.evaluate(function () {
+    var e = document.querySelector('.card[data-pile="waste"]').getBoundingClientRect();
+    var t = document.querySelector('[data-drop="tableau:0"]').getBoundingClientRect();
+    return { sx: e.left + e.width / 2, sy: e.top + e.height / 2, tx: t.left + t.width / 2, ty: t.top + 20 };
+  });
+  await p.page.mouse.move(pos.sx, pos.sy);
+  await p.page.mouse.down();
+  await p.page.mouse.move(pos.tx, pos.ty, { steps: 12 });
+  await p.page.mouse.up();
+  await p.page.waitForTimeout(120);
+  var r = await p.page.evaluate(function () {
+    return { col0: state.tableau[0].length, waste: state.waste.length, moves: state.moves };
+  });
+  assert(r.col0 === 2 && r.waste === 0,
+    "el 9♥ debería quedar sobre el 10♠ (col0=" + r.col0 + ", waste=" + r.waste + ")");
+  assert(r.moves === 1, "debería contarse 1 movimiento (fue " + r.moves + ")");
   assertNoErrors(p.errors);
 });
 
