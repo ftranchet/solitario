@@ -12,6 +12,43 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 - Nada por ahora.
 
+## [1.2.0] — 2026-07-07
+
+Refinamientos de la PWA (revisión propia) y mejoras a partir de un feedback
+externo de código.
+
+### Agregado
+
+- **Accesibilidad (primera pasada):** las cartas exponen un `aria-label`
+  legible (p. ej. «Reina de corazones») con `role="img"`, de modo que los
+  lectores de pantalla dejan de leer los símbolos `♠♥♦♣` sueltos. Las cartas
+  boca abajo **no** revelan su identidad. Los avisos (toast) y el estado de
+  Corazones se anuncian con `role="status"` / `aria-live`.
+- **Buscaminas:** aviso cuando el modo «sin adivinanzas» no logra un tablero
+  garantizado dentro del presupuesto de generación (la partida podría requerir
+  adivinar). Antes caía a un tablero normal en silencio.
+- **Guardado:** aviso **único** cuando no se puede guardar el progreso
+  (almacenamiento lleno o modo restringido), en vez de fallar en silencio.
+- **Tests:** fallback de «sin adivinanzas», offline por página (MPA), aviso de
+  guardado y `aria-label` de las cartas (39 en total).
+
+### Cambiado
+
+- **Corazones:** la mano usa **delegación de eventos** (un único listener) en
+  lugar de un listener por carta en cada render, consistente con
+  Solitario/Carta Blanca.
+- **Service worker:**
+  - `activate` limpia sólo las cachés propias (por prefijo); no toca las de
+    otras apps del mismo origen (p. ej. `usuario.github.io`).
+  - _network-first_ sólo cachea respuestas OK (una 404/500 transitoria no pisa
+    la copia buena precacheada).
+  - Sin conexión sirve la copia de **la página pedida**; ya no cae a
+    `index.html` (evita mostrar una página bajo la URL de otra en una app
+    multipágina).
+- **iOS instalado:** las cabeceras de los juegos, el launcher y estadísticas
+  respetan `env(safe-area-inset-top)` para no quedar tapados por la barra de
+  estado.
+
 ## [1.1.0] — 2026-07-07
 
 ### Agregado

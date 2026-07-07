@@ -823,6 +823,74 @@ test("PWA: el service worker sirve la app sin conexión", async function (ctx) {
   }
 });
 
+/* 31) Buscaminas — "sin adivinanzas" avisa cuando cae al fallback por presupuesto. */
+test("Buscaminas: 'sin adivinanzas' avisa si el tablero pudo requerir adivinar", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  await p.page.evaluate(function () {
+    setDifficulty("beginner");
+    noGuess = true;
+    solvableNoGuess = function () { return false; };   // nunca "resuelve": fuerza el fallback
+  });
+  await p.page.evaluate(function () { digCell(4, 4); });
+  await p.page.waitForFunction(function () { return generating === false && started === true; }, null, { timeout: 6000 });
+  var warned = await p.page.evaluate(function () {
+    var t = document.querySelector(".toast");
+    return !!t && /adivinar/i.test(t.textContent) && t.getAttribute("role") === "status";
+  });
+  assert(warned, "debería mostrar un toast (role=status) avisando que podría requerir adivinar");
+  assertNoErrors(p.errors);
+});
+
+/* 32) PWA — sin conexión sirve la página pedida, no index.html (app multipágina). */
+test("PWA: sin conexión sirve la página correcta, no index (MPA)", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  await p.page.evaluate(function () { return navigator.serviceWorker.ready; });
+  await p.page.waitForFunction(function () { return !!navigator.serviceWorker.controller; }, null, { timeout: 6000 });
+  await ctx.setOffline(true);
+  try {
+    await p.page.goto(url("corazones.html"), { waitUntil: "load" });
+    var info = await p.page.evaluate(function () {
+      return { title: document.title, hasHand: !!document.getElementById("hand") };
+    });
+    assert(info.title.indexOf("Corazones") >= 0 && info.hasHand,
+      "offline debería servir corazones.html, no index (title=" + info.title + ")");
+  } finally {
+    await ctx.setOffline(false);
+  }
+});
+
+/* 33) Guardado — avisa una sola vez si falla la escritura del progreso. */
+test("Guardado: avisa una vez si falla la escritura (quota/modo restringido)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    // Forzamos que sólo la escritura de la PARTIDA falle (sin romper el candado LOCK_KEY).
+    var orig = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function (k, v) { if (k === GAME_KEY) throw new Error("quota"); return orig(k, v); };
+    saveWarned = false;
+    gameSet("x"); gameSet("y");   // dos intentos: el aviso debe salir una sola vez
+    var toasts = document.querySelectorAll(".toast");
+    return { warned: saveWarned, count: toasts.length, txt: toasts.length ? toasts[0].textContent : "" };
+  });
+  assert(r.warned, "saveWarned debería quedar en true al fallar la escritura");
+  assert(r.count === 1, "el aviso debe mostrarse una sola vez (fue " + r.count + ")");
+  assert(/guardar/i.test(r.txt), "el aviso debería mencionar el guardado: " + r.txt);
+  assertNoErrors(p.errors);
+});
+
+/* 34) Accesibilidad — las cartas exponen aria-label legible y no revelan las tapadas. */
+test("Accesibilidad: las cartas tienen aria-label y las boca abajo no se revelan", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    var up = makeCardEl({ suit: "hearts", rank: 12, color: "red", faceUp: true, id: 1 });
+    var down = makeCardEl({ suit: "hearts", rank: 12, color: "red", faceUp: false, id: 2 });
+    return { up: up.getAttribute("aria-label"), role: up.getAttribute("role"), down: down.getAttribute("aria-label") };
+  });
+  assert(r.up === "Reina de corazones", "aria-label de carta cara arriba inesperado: " + r.up);
+  assert(r.role === "img", "la carta debería tener role=img");
+  assert(r.down === "carta boca abajo", "la carta boca abajo no debe revelar su identidad: " + r.down);
+  assertNoErrors(p.errors);
+});
+
 /* ========================= RUNNER ========================= */
 (async function () {
   var srv = await startServer(ROOT);

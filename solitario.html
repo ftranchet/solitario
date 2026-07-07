@@ -367,10 +367,10 @@
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
-  spades:   { symbol: "\u2660", color: "black" },
-  hearts:   { symbol: "\u2665", color: "red" },
-  diamonds: { symbol: "\u2666", color: "red" },
-  clubs:    { symbol: "\u2663", color: "black" }
+  spades:   { symbol: "\u2660", color: "black", name: "picas" },
+  hearts:   { symbol: "\u2665", color: "red", name: "corazones" },
+  diamonds: { symbol: "\u2666", color: "red", name: "diamantes" },
+  clubs:    { symbol: "\u2663", color: "black", name: "tr\u00e9boles" }
 };
 var SUIT_ORDER = ["spades", "hearts", "diamonds", "clubs"];
 var RANK_LABEL = {1:"A",2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K"};
@@ -878,10 +878,17 @@ function cardFace(card) {
   return '<div class="idx"><span class="r">' + r + '</span><span class="s">' + s + '</span></div>' +
          '<div class="pip">' + s + '</div>';
 }
+function rankName(r) {
+  return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
+}
+function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
 function makeCardEl(card, selected) {
   var cls = "card " + (card.faceUp ? ("up " + card.suit) : "down") + (selected ? " sel" : "");
   var e = el("div", cls);
-  if (card.faceUp) e.innerHTML = cardFace(card);
+  e.setAttribute("role", "img");
+  // Boca abajo: no revelamos la carta al lector de pantalla (sería hacer trampa).
+  if (card.faceUp) { e.innerHTML = cardFace(card); e.setAttribute("aria-label", cardLabel(card)); }
+  else { e.setAttribute("aria-label", "carta boca abajo"); }
   return e;
 }
 function attachDrag(elem, src) {
@@ -1235,6 +1242,7 @@ function autoTick() {
 /* ---------- Aviso breve ---------- */
 function toast(msg) {
   var t = el("div", "toast", msg);
+  t.setAttribute("role", "status");   // lo anuncian los lectores de pantalla
   document.body.appendChild(t);
   setTimeout(function () { t.classList.add("show"); }, 10);
   setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
@@ -1251,7 +1259,7 @@ var TAB_ID = (function () {
   if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("solitario.tab", v); } catch (e) {} }
   return v;
 })();
-var LOCK_KEY = "solitario.lock", saveOwner = false;
+var LOCK_KEY = "solitario.lock", saveOwner = false, saveWarned = false;
 function refreshSaveLock() {
   var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
   var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
@@ -1263,7 +1271,12 @@ function refreshSaveLock() {
 }
 refreshSaveLock();
 setInterval(refreshSaveLock, 2500);
-function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameSet(v) {
+  refreshSaveLock();
+  if (!saveOwner) return;
+  try { localStorage.setItem(GAME_KEY, v); }
+  catch (e) { if (!saveWarned) { saveWarned = true; toast("No se pudo guardar el progreso (almacenamiento lleno o restringido)."); } }
+}
 function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function savePrefs() {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify({ draw: settings.draw })); } catch (e) {}

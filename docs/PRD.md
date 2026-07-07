@@ -5,7 +5,7 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.1 |
+| Versión del documento | 1.2 |
 | Estado | Vigente |
 | Última actualización | 2026-07-07 |
 | Responsable | Francisco Tranchet |
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.2 | 2026-07-07 | F. Tranchet + IA | Refinamientos de PWA (safe-area iOS, caché por prefijo, offline por página) y mejoras del feedback: accesibilidad (RNF-08), aviso de fallback en Buscaminas (RF-BM-06) y aviso de guardado (RNF-04). |
 | 1.1 | 2026-07-07 | F. Tranchet + IA | Se agregan los requisitos de PWA (RF-PWA-*, RNF-05) y offline; se documenta el estado actual del producto. |
 | 1.0 | 2026-07-07 | F. Tranchet + IA | Primera versión del PRD: visión, alcance, requisitos funcionales de los cuatro juegos, no funcionales y matriz de seguimiento. |
 
@@ -134,6 +135,9 @@ inicio y jugable completamente offline.
 - **RF-BM-04.** Banderas, acorde (chord) y estados de victoria/derrota.
 - **RF-BM-05.** El tablero (minas incluidas) se restaura idéntico al recargar; el
   reloj espera la próxima jugada tras restaurar.
+- **RF-BM-06.** Si «sin adivinanzas» no logra un tablero garantizado dentro del
+  presupuesto de generación, se avisa al usuario (la partida podría requerir
+  adivinar) en vez de caer a un tablero normal en silencio.
 
 ### 5.6 Estadísticas
 
@@ -165,13 +169,19 @@ inicio y jugable completamente offline.
 - **RNF-03 · Privacidad.** No hay backend ni analítica; todos los datos quedan en
   `localStorage` del dispositivo.
 - **RNF-04 · Robustez.** Un guardado corrupto (JSON inválido o baraja con cartas
-  repetidas) se descarta sin romper la partida en curso.
+  repetidas) se descarta sin romper la partida en curso. Si la escritura del
+  progreso falla (almacenamiento lleno o modo restringido), se avisa una vez en
+  vez de fallar en silencio.
 - **RNF-05 · Offline-first.** Tras la primera carga, todas las pantallas
   funcionan sin conexión.
 - **RNF-06 · Calidad.** Suite de tests de navegador (Playwright) que corre los
   HTML reales; CI en cada push/PR. Cero errores de consola al cargar.
 - **RNF-07 · Compatibilidad.** Navegadores modernos (Chromium, Firefox, Safari)
   en sus versiones actuales.
+- **RNF-08 · Accesibilidad (a11y).** Primera pasada: las cartas exponen
+  `aria-label` legible para lectores de pantalla (sin revelar las cartas boca
+  abajo) y los avisos/estado se anuncian (`role="status"` / `aria-live`).
+  Pendiente: navegación por teclado completa.
 
 ## 7. Arquitectura y decisiones técnicas
 
@@ -192,6 +202,7 @@ inicio y jugable completamente offline.
 
 | Prioridad | Idea |
 |---|---|
+| Alta | Accesibilidad: navegación por teclado completa y foco visible (completar RNF-08). |
 | Media | Aviso «hay una versión nueva, recargá» cuando el service worker se actualiza. |
 | Media | Captura de pantalla y `screenshots` en el manifest para una ficha de instalación más rica. |
 | Baja | Sonido opcional y vibración táctil. |
@@ -209,6 +220,7 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 | RF-CB-01..04 | Carta Blanca completo | ✅ | 1.0.0 |
 | RF-COR-01..05 | Corazones completo | ✅ | 1.0.0 |
 | RF-BM-01..05 | Buscaminas completo | ✅ | 1.0.0 |
+| RF-BM-06 | Aviso de fallback en «sin adivinanzas» | ✅ | 1.2.0 |
 | RF-EST-01/02 | Estadísticas | ✅ | 0.5.0 |
 | RF-PWA-01 | Manifest enlazado y válido | ✅ | 1.1.0 |
 | RF-PWA-02 | Instalable (Android/desktop/iOS) | ✅ | 1.1.0 |
@@ -219,6 +231,8 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 | RNF-05 | Offline-first | ✅ | 1.1.0 |
 | RNF-06 | Tests + CI | ✅ | 0.9.0 |
 | RNF-07 | Compatibilidad navegadores modernos | ✅ | — |
+| RNF-08 | Accesibilidad (primera pasada: etiquetas y anuncios) | 🟡 | 1.2.0 |
+| — | Navegación por teclado completa (a11y) | ⬜ | roadmap |
 | — | Aviso de actualización del SW | ⬜ | roadmap |
 
 ## 10. Referencias

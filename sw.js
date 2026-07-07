@@ -88,10 +88,11 @@ self.addEventListener("fetch", (event) => {
         }
         return fresh;
       } catch (e) {
+        // App multipágina: servimos la copia cacheada de ESTA página (todas se
+        // precachean). No caemos a index.html para no mostrar una página bajo
+        // la URL de otra.
         const cached = await caches.match(req);
-        if (cached) return cached;
-        const index = await caches.match(new URL("index.html", self.location).toString());
-        return index || Response.error();
+        return cached || Response.error();
       }
     })());
     return;

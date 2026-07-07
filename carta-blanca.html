@@ -360,10 +360,10 @@
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
-  spades:   { symbol: "♠", color: "black" },
-  hearts:   { symbol: "♥", color: "red" },
-  diamonds: { symbol: "♦", color: "red" },
-  clubs:    { symbol: "♣", color: "black" }
+  spades:   { symbol: "♠", color: "black", name: "picas" },
+  hearts:   { symbol: "♥", color: "red", name: "corazones" },
+  diamonds: { symbol: "♦", color: "red", name: "diamantes" },
+  clubs:    { symbol: "♣", color: "black", name: "tréboles" }
 };
 var RANK_LABEL = {1:"A",2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K"};
 var MAX_GAME = 2147483647;
@@ -867,9 +867,16 @@ function cardFace(card) {
   return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
          '<div class="pip">' + s + '</div>';
 }
+function rankName(r) {
+  return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
+}
+function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
 function makeCardEl(card, selected) {
   var e = el("div", "card up " + card.suit + (selected ? " sel" : ""));
   e.innerHTML = cardFace(card);
+  // Accesibilidad: los ♠♥♦♣ decorativos se leen mal; el lector usa esta etiqueta.
+  e.setAttribute("role", "img");
+  e.setAttribute("aria-label", cardLabel(card));
   return e;
 }
 function attachDrag(elem, src) {
@@ -1162,6 +1169,7 @@ function autoTick() {
 /* ---------- Aviso breve ---------- */
 function toast(msg) {
   var t = el("div", "toast", msg);
+  t.setAttribute("role", "status");   // lo anuncian los lectores de pantalla
   document.body.appendChild(t);
   setTimeout(function () { t.classList.add("show"); }, 10);
   setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
@@ -1178,7 +1186,7 @@ var TAB_ID = (function () {
   if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("cartablanca.tab", v); } catch (e) {} }
   return v;
 })();
-var LOCK_KEY = "cartablanca.lock", saveOwner = false;
+var LOCK_KEY = "cartablanca.lock", saveOwner = false, saveWarned = false;
 function refreshSaveLock() {
   var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
   var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
@@ -1190,7 +1198,12 @@ function refreshSaveLock() {
 }
 refreshSaveLock();
 setInterval(refreshSaveLock, 2500);
-function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameSet(v) {
+  refreshSaveLock();
+  if (!saveOwner) return;
+  try { localStorage.setItem(GAME_KEY, v); }
+  catch (e) { if (!saveWarned) { saveWarned = true; toast("No se pudo guardar el progreso (almacenamiento lleno o restringido)."); } }
+}
 function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function validCard(c) { return !!(c && SUIT[c.suit] && c.rank >= 1 && c.rank <= 13); }
 function validState(s) {

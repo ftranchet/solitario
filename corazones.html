@@ -325,7 +325,7 @@
       <div id="trick"></div>
       <div class="seat east" id="seat-1"></div>
       <div class="hand-wrap">
-        <div id="status"></div>
+        <div id="status" role="status" aria-live="polite"></div>
         <div id="hand" class="hand"></div>
       </div>
     </div>
@@ -455,10 +455,10 @@
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
-  clubs:    { symbol: "♣", color: "black" },
-  diamonds: { symbol: "♦", color: "red" },
-  spades:   { symbol: "♠", color: "black" },
-  hearts:   { symbol: "♥", color: "red" }
+  clubs:    { symbol: "♣", color: "black", name: "tréboles" },
+  diamonds: { symbol: "♦", color: "red", name: "diamantes" },
+  spades:   { symbol: "♠", color: "black", name: "picas" },
+  hearts:   { symbol: "♥", color: "red", name: "corazones" }
 };
 var SUIT_ORDER = ["clubs", "diamonds", "spades", "hearts"];
 var SUIT_SORT = { clubs: 0, diamonds: 1, spades: 2, hearts: 3 };
@@ -767,9 +767,16 @@ function cardFace(card) {
   return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
          '<div class="pip">' + s + '</div>';
 }
+function rankName(r) {
+  return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
+}
+function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
 function makeCardEl(card) {
   var e = el("div", "card up " + card.suit);
   e.innerHTML = cardFace(card);
+  // Accesibilidad: los ♠♥♦♣ decorativos se leen mal; el lector usa esta etiqueta.
+  e.setAttribute("role", "img");
+  e.setAttribute("aria-label", cardLabel(card));
   return e;
 }
 function setStatus(msg) { document.getElementById("status").textContent = msg || ""; }
@@ -820,12 +827,9 @@ function renderHand() {
     if (phase === "pass") {
       ce.classList.add("playable");
       if (humanPass.indexOf(card.id) >= 0) ce.classList.add("picked");
-      (function (c) { ce.addEventListener("click", function () { togglePass(c); }); })(card);
     } else if (myTurn) {
-      if (legalSet[card.id]) {
-        ce.classList.add("playable");
-        (function (c) { ce.addEventListener("click", function () { humanPlay(c); }); })(card);
-      } else { ce.classList.add("dim"); }
+      if (legalSet[card.id]) { ce.classList.add("playable"); }
+      else { ce.classList.add("dim"); }
     } else { ce.classList.add("dim"); }
     hand.appendChild(ce);
   }
@@ -1026,6 +1030,7 @@ function celebrate() {
 /* ---------- Aviso breve ---------- */
 function toast(msg) {
   var t = el("div", "toast", msg);
+  t.setAttribute("role", "status");   // lo anuncian los lectores de pantalla
   document.body.appendChild(t);
   setTimeout(function () { t.classList.add("show"); }, 10);
   setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 1700);
@@ -1081,7 +1086,7 @@ var TAB_ID = (function () {
   if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("corazones.tab", v); } catch (e) {} }
   return v;
 })();
-var LOCK_KEY = "corazones.lock", saveOwner = false;
+var LOCK_KEY = "corazones.lock", saveOwner = false, saveWarned = false;
 function refreshSaveLock() {
   var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
   var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
@@ -1093,7 +1098,12 @@ function refreshSaveLock() {
 }
 refreshSaveLock();
 setInterval(refreshSaveLock, 2500);
-function gameSet(v) { refreshSaveLock(); if (saveOwner) { try { localStorage.setItem(GAME_KEY, v); } catch (e) {} } }
+function gameSet(v) {
+  refreshSaveLock();
+  if (!saveOwner) return;
+  try { localStorage.setItem(GAME_KEY, v); }
+  catch (e) { if (!saveWarned) { saveWarned = true; toast("No se pudo guardar el progreso (almacenamiento lleno o restringido)."); } }
+}
 function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
 function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
 function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
@@ -1213,6 +1223,17 @@ document.addEventListener("visibilitychange", function () { if (document.hidden)
 
 document.getElementById("btn-new").onclick = function () { newMatch(); };
 document.getElementById("btn-pass").onclick = confirmPass;
+
+// Delegación de clics de la mano (un único listener, en vez de uno por carta).
+document.getElementById("hand").addEventListener("click", function (e) {
+  var ce = e.target.closest(".card.playable");
+  if (!ce) return;
+  var id = ce.dataset.id, h = players[HUMAN].hand, card = null;
+  for (var i = 0; i < h.length; i++) if (String(h[i].id) === id) { card = h[i]; break; }
+  if (!card) return;
+  if (phase === "pass") togglePass(card);
+  else if (phase === "play") humanPlay(card);
+});
 document.getElementById("btn-hint").onclick = onHint;
 document.getElementById("btn-scores").onclick = openScores;
 document.getElementById("scores-close").onclick = function () { document.getElementById("scores").hidden = true; };
