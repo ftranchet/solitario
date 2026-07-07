@@ -31,7 +31,7 @@
   }
   #wrap {
     max-width: 640px; margin: 0 auto;
-    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
     display: flex; flex-direction: column; gap: 16px;
   }
   .top { display: flex; align-items: center; gap: 10px; }

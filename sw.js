@@ -18,7 +18,8 @@
  * así funciona igual servido en la raíz o en un subdirectorio (GitHub Pages).
  */
 const VERSION = "v1.0.0";
-const CACHE = "juegos-clasicos-" + VERSION;
+const PREFIX = "juegos-clasicos-";
+const CACHE = PREFIX + VERSION;
 
 const ASSETS = [
   "./",
@@ -49,7 +50,12 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    // Sólo borramos NUESTRAS cachés viejas. `caches` es por origen (no por
+    // scope): en un dominio compartido (p. ej. usuario.github.io) puede haber
+    // cachés de otras apps y no hay que tocarlas.
+    await Promise.all(
+      keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k))
+    );
     await self.clients.claim();
   })());
 });
@@ -74,8 +80,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        const cache = await caches.open(CACHE);
-        cache.put(req, fresh.clone());
+        // Sólo cacheamos respuestas OK: así una respuesta transitoria (404/500)
+        // no pisa la copia buena precacheada.
+        if (fresh && fresh.ok) {
+          const cache = await caches.open(CACHE);
+          cache.put(req, fresh.clone());
+        }
         return fresh;
       } catch (e) {
         const cached = await caches.match(req);

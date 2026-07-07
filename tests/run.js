@@ -759,13 +759,14 @@ test("PWA: el manifest y los íconos están enlazados y son válidos", async fun
     var res = await fetch(link.href);
     if (!res.ok) return { ok: false, why: "manifest HTTP " + res.status };
     var m = await res.json();
-    var checks = await Promise.all((m.icons || []).map(async function (ic) {
-      var r = await fetch(new URL(ic.src, link.href).toString());
-      return r.ok;
-    }));
+    async function ok(u) { try { return (await fetch(u)).ok; } catch (e) { return false; } }
+    var iconChecks = await Promise.all((m.icons || []).map(function (ic) { return ok(new URL(ic.src, link.href).toString()); }));
+    var scChecks = await Promise.all((m.shortcuts || []).map(function (sc) { return ok(new URL(sc.url, link.href).toString()); }));
+    var startOk = m.start_url ? await ok(new URL(m.start_url, link.href).toString()) : false;
     return {
-      ok: true, name: m.name, display: m.display, hasStart: !!m.start_url,
-      iconCount: (m.icons || []).length, allIconsOk: checks.every(Boolean),
+      ok: true, name: m.name, display: m.display, startOk: startOk,
+      iconCount: (m.icons || []).length, allIconsOk: iconChecks.every(Boolean),
+      shortcutCount: (m.shortcuts || []).length, allShortcutsOk: scChecks.every(Boolean),
       hasMaskable: (m.icons || []).some(function (i) { return (i.purpose || "").indexOf("maskable") >= 0; }),
       hasAppleIcon: !!document.querySelector('link[rel="apple-touch-icon"]'),
       theme: themeMeta && themeMeta.content
@@ -774,12 +775,33 @@ test("PWA: el manifest y los íconos están enlazados y son válidos", async fun
   assert(info.ok, info.why);
   assert(info.name === "Juegos clásicos", "name del manifest inesperado: " + info.name);
   assert(info.display === "standalone", "display debería ser standalone");
-  assert(info.hasStart, "el manifest necesita start_url");
+  assert(info.startOk, "el start_url del manifest no resuelve");
   assert(info.iconCount >= 2 && info.allIconsOk, "algún ícono del manifest falta o da 404");
   assert(info.hasMaskable, "falta un ícono con purpose maskable");
   assert(info.hasAppleIcon, "falta <link rel=apple-touch-icon>");
+  assert(info.shortcutCount === 4 && info.allShortcutsOk, "los shortcuts deben ser 4 y resolver a una página real");
   assert(info.theme === "#0e3a22", "theme-color inesperado: " + info.theme);
   assertNoErrors(p.errors);
+});
+
+/* 30) PWA — todas las páginas enlazan manifest, apple-touch-icon y theme-color. */
+test("PWA: todas las páginas están enlazadas como PWA", async function (ctx) {
+  var pages = ["index.html", "solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html", "estadisticas.html"];
+  for (var i = 0; i < pages.length; i++) {
+    var p = await open(ctx, pages[i]);
+    var meta = await p.page.evaluate(function () {
+      var theme = document.querySelector('meta[name="theme-color"]');
+      return {
+        manifest: !!document.querySelector('link[rel="manifest"]'),
+        apple: !!document.querySelector('link[rel="apple-touch-icon"]'),
+        theme: theme && theme.content
+      };
+    });
+    assert(meta.manifest, pages[i] + ": falta <link rel=manifest>");
+    assert(meta.apple, pages[i] + ": falta <link rel=apple-touch-icon>");
+    assert(meta.theme === "#0e3a22", pages[i] + ": theme-color inesperado (" + meta.theme + ")");
+    assertNoErrors(p.errors);
+  }
 });
 
 /* 29) PWA — el service worker se registra y sirve la app sin conexión. */
