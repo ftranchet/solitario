@@ -81,6 +81,13 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Preferencias | Reparto, dificultad y nivel de IA sobreviven la recarga |
 | Solitario · drag & drop | Arrastre real con eventos de mouse/pointer del descarte a una columna |
 
+**PWA**
+
+| Test | Qué valida |
+|------|-----------|
+| PWA · manifest e íconos | El manifest está enlazado, es válido y todos sus íconos existen (incluye `maskable` y `apple-touch-icon`) |
+| PWA · offline | El service worker se registra y sirve la app sin conexión (recarga con la red cortada) |
+
 ## Notas
 
 - Cada test corre en un contexto aislado (almacenamiento limpio).

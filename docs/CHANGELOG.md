@@ -1,0 +1,95 @@
+# Changelog
+
+Todos los cambios notables de **Juegos clásicos** se documentan en este archivo.
+
+El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el
+proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.org/lang/es/).
+
+> Las versiones anteriores a `1.1.0` se reconstruyeron a partir del historial de
+> Git (el repo no tenía etiquetas). Las fechas corresponden a los commits.
+
+## [No publicado]
+
+- Nada por ahora.
+
+## [1.1.0] — 2026-07-07
+
+### Agregado
+
+- **PWA (Progressive Web App):** la suite ahora es instalable y se puede jugar
+  **sin conexión**.
+  - `manifest.webmanifest` con nombre, colores de marca, `display: standalone`,
+    íconos y accesos directos (shortcuts) a los cuatro juegos.
+  - Service worker (`sw.js`) que precachea el _app shell_ (los HTML, íconos y
+    manifest) e implementa _network-first_ para documentos y
+    _stale-while-revalidate_ para estáticos.
+  - Juego de íconos PNG (`icons/`): 192 y 512 px (`any`), 192 y 512 px
+    (`maskable`) y `apple-touch-icon` de 180 px para iOS.
+  - Metadatos PWA en las 6 páginas (`manifest`, `apple-touch-icon`,
+    `apple-mobile-web-app-*`, `mobile-web-app-capable`, `description`) y registro
+    del service worker.
+- **Documentación de producto:** PRD (`docs/PRD.md`) con seguimiento de
+  requisitos, este changelog y el historial de revisiones.
+- **Tests:** dos pruebas nuevas de PWA (manifest e íconos válidos; el service
+  worker sirve la app sin conexión). El servidor de pruebas ahora sirve
+  `.webmanifest`/`.json` con el MIME correcto.
+
+## [1.0.0] — 2026-07-02
+
+### Agregado
+
+- Suite de tests de navegador ampliada a 32 casos: persistencia, reglas de juego
+  y UI.
+
+### Corregido
+
+- Bugs de lógica, validaciones reforzadas y renders optimizados en los cuatro
+  juegos.
+
+## [0.9.0] — 2026-06-25
+
+### Agregado
+
+- Suite de tests de navegador (Playwright) que abre los HTML reales.
+- Workflow de GitHub Actions que corre los tests en cada push y Pull Request.
+
+### Corregido
+
+- Corazones: cuelgue al terminar la mano (colisión `history` vs `window.history`).
+- Cinco problemas de UX y robustez repartidos por los juegos.
+
+## [0.5.0] — 2026-06-24
+
+### Agregado
+
+- Buscaminas con generador «sin adivinanzas» (tableros resolubles por lógica).
+- Marca **Carta Blanca** y logo nuevo en menús y estadísticas.
+- Corazones: se muestran las cartas de cada mano; rivales con nombre editable y
+  tabla de puntajes.
+
+### Corregido
+
+- Varios bugs de render en Corazones y mayor robustez general.
+
+## [0.3.0] — 2026-06-23
+
+### Agregado
+
+- **Launcher** de inicio (`index.html`) que enlaza toda la suite.
+- **Carta Blanca** (FreeCell), **Corazones** (Hearts) y **Buscaminas**.
+- Pantalla de estadísticas.
+
+### Corregido
+
+- Bug de timers y mejoras de robustez.
+
+## [0.1.0] — 2026-06-21 a 2026-06-22
+
+### Agregado
+
+- **Solitario** (Klondike) inicial, luego renombrado a la app principal.
+- Persistencia de preferencias y de la partida en curso con `localStorage`.
+- Cartas responsive a dos colores, festejo al ganar, resaltado de «Nueva» cuando
+  no hay jugadas, doble clic para mover, y crédito de autor.
+
+[No publicado]: https://github.com/ftranchet/solitario/compare/main...HEAD

@@ -20,7 +20,7 @@ function url(file) { return BASE + file; }
 /* Servidor estático mínimo: los juegos usan localStorage, que en file:// es poco
    fiable; servirlos por http reproduce el entorno real (mismo origen entre pestañas). */
 function startServer(rootDir) {
-  var types = { ".html": "text/html; charset=utf-8", ".svg": "image/svg+xml", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".ico": "image/x-icon" };
+  var types = { ".html": "text/html; charset=utf-8", ".svg": "image/svg+xml", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".json": "application/json" };
   var server = http.createServer(function (req, res) {
     var rel = decodeURIComponent(req.url.split("?")[0]);
     if (rel === "/") rel = "/index.html";
@@ -745,6 +745,60 @@ test("Solitario: arrastrar del descarte a una columna (drag & drop real)", async
     "el 9♥ debería quedar sobre el 10♠ (col0=" + r.col0 + ", waste=" + r.waste + ")");
   assert(r.moves === 1, "debería contarse 1 movimiento (fue " + r.moves + ")");
   assertNoErrors(p.errors);
+});
+
+/* ==================== PWA ==================== */
+
+/* 28) PWA — el manifest está enlazado, es válido y todos sus íconos existen. */
+test("PWA: el manifest y los íconos están enlazados y son válidos", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  var info = await p.page.evaluate(async function () {
+    var link = document.querySelector('link[rel="manifest"]');
+    var themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (!link) return { ok: false, why: "no hay <link rel=manifest>" };
+    var res = await fetch(link.href);
+    if (!res.ok) return { ok: false, why: "manifest HTTP " + res.status };
+    var m = await res.json();
+    var checks = await Promise.all((m.icons || []).map(async function (ic) {
+      var r = await fetch(new URL(ic.src, link.href).toString());
+      return r.ok;
+    }));
+    return {
+      ok: true, name: m.name, display: m.display, hasStart: !!m.start_url,
+      iconCount: (m.icons || []).length, allIconsOk: checks.every(Boolean),
+      hasMaskable: (m.icons || []).some(function (i) { return (i.purpose || "").indexOf("maskable") >= 0; }),
+      hasAppleIcon: !!document.querySelector('link[rel="apple-touch-icon"]'),
+      theme: themeMeta && themeMeta.content
+    };
+  });
+  assert(info.ok, info.why);
+  assert(info.name === "Juegos clásicos", "name del manifest inesperado: " + info.name);
+  assert(info.display === "standalone", "display debería ser standalone");
+  assert(info.hasStart, "el manifest necesita start_url");
+  assert(info.iconCount >= 2 && info.allIconsOk, "algún ícono del manifest falta o da 404");
+  assert(info.hasMaskable, "falta un ícono con purpose maskable");
+  assert(info.hasAppleIcon, "falta <link rel=apple-touch-icon>");
+  assert(info.theme === "#0e3a22", "theme-color inesperado: " + info.theme);
+  assertNoErrors(p.errors);
+});
+
+/* 29) PWA — el service worker se registra y sirve la app sin conexión. */
+test("PWA: el service worker sirve la app sin conexión", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  // Esperar a que el SW quede activo y tome control de la página.
+  await p.page.evaluate(function () { return navigator.serviceWorker.ready; });
+  await p.page.waitForFunction(function () { return !!navigator.serviceWorker.controller; }, null, { timeout: 6000 });
+  // Cortar la red: la recarga debe resolverse desde la caché del SW.
+  await ctx.setOffline(true);
+  try {
+    await p.page.reload({ waitUntil: "load" });
+    var ok = await p.page.evaluate(function () {
+      return document.title.indexOf("Juegos") >= 0 && !!document.getElementById("launcher");
+    });
+    assert(ok, "la app no cargó sin conexión desde la caché del service worker");
+  } finally {
+    await ctx.setOffline(false);
+  }
 });
 
 /* ========================= RUNNER ========================= */

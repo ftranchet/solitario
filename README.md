@@ -6,6 +6,11 @@ autocontenido, sin dependencias.
 
 La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos.
 
+Es una **PWA**: se puede **instalar** en la pantalla de inicio y jugar **sin
+conexión**. Tras la primera visita, un service worker (`sw.js`) precachea todo
+el _app shell_ y sirve los juegos offline. Ver el [PRD](docs/PRD.md) para los
+requisitos y el [CHANGELOG](docs/CHANGELOG.md) para el historial de cambios.
+
 ## Juegos
 
 - **Solitario** (`solitario.html`)
@@ -28,3 +33,10 @@ npm test
 ```
 
 Ver [`tests/README.md`](tests/README.md) para más detalle.
+
+## Documentación
+
+- [`docs/PRD.md`](docs/PRD.md) — Documento de Requisitos de Producto, con la
+  matriz de seguimiento de requisitos y el historial de revisiones.
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — historial de cambios del producto
+  (formato _Keep a Changelog_).
