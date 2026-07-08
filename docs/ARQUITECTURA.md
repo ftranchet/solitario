@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Aceptada — implementada** (Fases 0-6 completas); **Fase 7+ propuesta**, pendiente de aprobación (§12) |
-| Versión | 0.4 |
+| Estado | **Aceptada — implementada** (Fases 0-6 completas); **Fase 7+ propuesta**, pendiente de aprobación (§12) y **revisada contra un feedback externo (§13)** |
+| Versión | 0.5 |
 | Fecha | 2026-07-08 |
 | Autor | Francisco Tranchet + IA |
 | Relacionado | [PRD](./PRD.md) · [CHANGELOG](./CHANGELOG.md) |
@@ -17,6 +17,9 @@
 > afuera en cada una vive en la sección [10. Estado y seguimiento](#10-estado-y-seguimiento).
 > La sección [12](#12-próxima-secuencia-propuesta-fase-7) revisa esos alcances
 > acotados uno por uno y propone una nueva secuencia — **todavía no ejecutada**.
+> La sección [13](#13-revisión-de-un-feedback-externo-y-secuencia-revisada-fase-7)
+> contrasta esa secuencia con un feedback externo de arquitectura/diseño y la
+> reordena (Fases 7-12) — también **pendiente de aprobación**.
 
 ---
 
@@ -579,3 +582,69 @@ como refactor aislado (ver 12.1).
 - Los ítems ya marcados "sin acción" en 12.1 (paleta daltónica, riesgo de
   globals, `shared/a11y.js`, `@ts-check` en motores) — se consideran
   **resueltos por decisión**, no pendientes.
+
+## 13. Revisión de un feedback externo y secuencia revisada (Fase 7+)
+
+> **Estado: propuesta, no aprobada.** Esta sección contrasta un feedback
+> externo de arquitectura/diseño (recibido 2026-07-08) contra la secuencia ya
+> propuesta en §12, con el mismo criterio de riesgo/beneficio de todo el
+> documento. El feedback está bien orientado a los tres objetivos del producto
+> (escalar sin romper, adaptabilidad y estética) y coincide en varios puntos
+> con lo que ya se había planeado; en otros conflaciona un cambio de bajo
+> riesgo con uno de alto, o propone algo técnicamente inviable sin reescribir
+> el motor. Acá se separa cada cosa y se reordena la secuencia.
+
+### 13.1 Reconciliación punto por punto
+
+| Feedback | Veredicto | Razón / dónde encaja |
+|---|---|---|
+| **Externalizar el motor a `.js` para quitar `unsafe-inline` de la CSP** | ✅ **De acuerdo — es la prioridad 1.** | Es exactamente la **Fase 7** que ya se propuso en §12.2. Máximo acuerdo entre feedback y ADR: cierra el gap de CSP más repetido del documento con un movimiento mecánico verificable (diff byte-idéntico). Ver 13.2. |
+| **Migrar a ES Modules (`type="module"`)** | 🟡 **Innecesario para el objetivo; oportunista después.** | El objetivo de seguridad (quitar `unsafe-inline`) se logra con un `<script src>` **clásico** — no hace falta módulos. Migrar a módulos saca `state`/`grid`/`players` de `window` y **rompe ~57 tests** que hoy leen esas globals (riesgo ya listado en §9). Sigue siendo no-objetivo (§2); se reconsidera recién con el juego n.º 5 o ante una colisión concreta, no como big-bang. |
+| **Interfaz `mount/newGame/serialize/restore` + un solo `game-shell.html` dinámico** | ⏸️ **Diferido — el feedback conflaciona dos cosas.** | Esto **no** es la Fase 7 del ADR (esa es sólo la extracción mecánica). Es la interfaz `Game` completa de §5.2 + un shell que cargue el juego elegido: la reescritura de mayor riesgo del proyecto, para beneficio externo nulo con 4 juegos que ya andan. Paga su costo recién con un **5.º juego real** (§12.1). La Fase 7 es, de hecho, el **primer paso habilitante** hacia ese shell futuro. |
+| **Build step (Vite) + TypeScript real** | ❌ **No ahora.** | Contradice **RNF-01** (sin build, 100% estático), que es un requisito de producto, no una preferencia. El 90% del valor de TS ya lo da `@ts-check` + JSDoc + `tsc` en CI sobre `shared/` (0 errores, `strict`). El único dolor real que un build resolvería —**cache-busting del SW**— se cubre, si se vuelve recurrente, con un script de ~20 líneas en CI que hashea la lista de assets, no con un bundler. |
+| **Eliminar `setSizes()` y usar `aspect-ratio`/`clamp`/`grid auto-fit`** | 🟡 **Parcial — inviable tal cual en los juegos de cartas.** | En Solitario/Carta Blanca/Corazones, `CW`/`CH` **no son sólo CSS**: la lógica JS los lee para el hit-testing del drag (`dropTargetAt(cardLeft+CW*0.5, …)`), el abanicado (`fan=CW*0.30`), la altura de columna y los offsets de apilado. El tablero está **posicionado absolutamente por JS**; "borrar `setSizes()`" = reescribir el motor de layout (el mismo riesgo alto ya descartado). **Sí aplica a Buscaminas** (grilla de celdas sin drag): ahí la migración a CSS (`aspect-ratio:1`, container queries, `grid-template-columns: repeat(N,1fr)`) es viable y de bajo riesgo. Se hace acotado a Buscaminas, no en bloque. |
+| **Layouts específicos para landscape en móvil** | ✅ **De acuerdo — es el mejor hallazgo del feedback.** | **Gap real y no cubierto:** la Fase 6 sólo atacó desktop ancho (techo de tamaño ≥1100px); nunca el celular apaisado, donde el alto colapsa y header/footer se comen el tablero. Alto valor, riesgo moderado, cae dentro del objetivo 2. Ver Fase 8 (13.2). |
+| **Sustituir emojis por SVG consistentes** | ✅ **De acuerdo — nuevo y válido.** | El ADR sólo lo rozó (arte de figuras, "cosmético"). Los emojis (💣 🚩 🙂 🎉 🎮 ⚙) se ven distinto por SO y rompen la estética minimalista (objetivo 3). **Los SVG deben ir inline** (sin fuente de íconos por CDN) para respetar la CSP estricta — buena sinergia con el objetivo 1. Ver Fase 9 (13.2). |
+| **Modo oscuro (dark mode)** | ✅ **De acuerdo — ya estaba planeado (§12.4).** | Coincide con la Fase 9 del ADR. La mecánica es barata (overrides de ~10 tokens en `tokens.css` bajo `@media (prefers-color-scheme: dark)`); lo que necesita criterio humano es la paleta (fieltro→esmeralda muy oscuro, blanco→gris carbón). Se presentan 2-3 propuestas antes de tocar CSS. Ver Fase 10. |
+| **View Transitions API / animaciones FLIP** | 🟡 **Sí, pero como pulido final y progresivo.** | Lindo y moderno (objetivo 3), pero sobre un tablero posicionado a mano e imperativo puede pelearse con las animaciones `.card.land` y el drag actuales. Se hace **sólo como mejora progresiva** (`if (document.startViewTransition)`) y detrás de `prefers-reduced-motion`. Va al final, después de externalizar el motor (más fácil de iterar en un `.js`). Ver Fase 12. |
+
+### 13.2 Secuencia revisada
+
+Reordena §12 incorporando lo válido del feedback. Mismo método de siempre:
+cada fase mergeable por separado, **tests verdes como puerta**, verificación
+real (diff/screenshot/suite con la CSP puesta), y nada se implementa hasta
+confirmación explícita.
+
+- **Fase 7 — Externalizar el motor de cada juego (prioridad alta, bajo riesgo).**
+  Mover el `<script>` inline (900-1400 líneas) a `games/<juego>.js` **sin cambiar
+  una línea**, como `<script src>` clásico (mismas globals, mismos tests). Cierra
+  `unsafe-inline` en `script-src` de los 4 juegos → CSP estricta en las 6 páginas
+  sin excepción. Es el **habilitante** de todo lo demás. (= §12.2.)
+- **Fase 8 — Landscape en móvil (prioridad alta, riesgo moderado).** Reubicar
+  los controles de header/footer a un riel lateral en
+  `@media (orientation: landscape) and (max-height: 500px)` para maximizar el
+  tablero. Verificado por screenshot en ese breakpoint, sin tocar reglas de
+  juego. *(Nuevo, del feedback — el gap responsive que la Fase 6 no cubrió.)*
+- **Fase 9 — Íconos SVG (riesgo bajo→moderado).** Familia SVG minimalista
+  **inline** (respeta la CSP), en dos pasos: (1) íconos decorativos de UI
+  (🎮 ⚙ 💡 🎉 ↶) — swap directo, bajo riesgo; (2) estado de Buscaminas
+  (💣 🚩 ❌ 🙂/😎/😵/⏳) — toca el render, va con tests. *(Nuevo, del feedback.)*
+- **Fase 10 — Modo oscuro (requiere decisión de diseño).** Presentar 2-3
+  paletas concretas; recién ahí, overrides de tokens bajo
+  `prefers-color-scheme: dark`. (= §12.4, y coincide con el feedback.)
+- **Fase 11 — Cerrar los dos huecos "vivos" (prioridad media).** (a) Extender el
+  test de contrato para verificar que todos los archivos de cada juego (HTML +
+  el nuevo `.js` de la Fase 7) están en `ASSETS` de `sw.js`. (b) Aviso de
+  "nueva versión, recargá" (el listener `skip-waiting` de `sw.js` ya existe sin
+  usar). (= §12.3.)
+- **Fase 12 — Pulido de movimiento (opcional, progresivo).** View Transitions
+  como mejora progresiva y detrás de `prefers-reduced-motion`; y, acotada a
+  Buscaminas, migrar su dimensionado a CSS (container queries / `aspect-ratio`),
+  el único caso donde la idea "delegar a CSS" del feedback aplica sin reescribir
+  el motor. *(Nuevo/pulido.)*
+
+**Se mantienen diferidos (feedback reexaminado, la razón previa sigue en pie):**
+interfaz `Game` completa + `game-shell.html` (recién con el juego n.º 5, §12.1);
+migración a ES Modules big-bang (no la exige el objetivo de seguridad;
+oportunista); bundler/Vite (contra RNF-01); paleta daltónica (§10, los palos ya
+se distinguen por forma).
