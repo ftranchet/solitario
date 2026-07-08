@@ -238,5 +238,7 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 ## 10. Referencias
 
 - [CHANGELOG.md](./CHANGELOG.md) — historial de cambios del producto.
+- [ARQUITECTURA.md](./ARQUITECTURA.md) — propuesta para reorganizar el código
+  (capa compartida) y escalar a más juegos sin romper nada.
 - [README del proyecto](../README.md) — cómo correrlo y jugar.
 - [tests/README.md](../tests/README.md) — qué cubre la suite de tests.
