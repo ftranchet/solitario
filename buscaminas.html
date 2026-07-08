@@ -1,7 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-store-ns="buscaminas">
 <head>
 <meta charset="UTF-8">
+<!-- CSP: script-src necesita 'unsafe-inline' porque el motor del juego sigue
+     siendo un <script> inline (ver docs/ARQUITECTURA.md, Fase 5, brecha
+     conocida). Todo lo demás es estricto: sin CSS inline, sin plugins, sin
+     orígenes de terceros. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
 <link rel="icon" href="favicon.svg">
@@ -13,173 +18,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Buscaminas">
 <title>Buscaminas</title>
-<script>
-  if ("serviceWorker" in navigator) {
-    addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
-    });
-  }
-</script>
+<script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
-<style>
-  html, body { margin: 0; height: 100%; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #fff;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none; -webkit-user-select: none;
-    overflow: hidden;
-  }
-
-  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-
-  /* header -> styles/base.css */
-  .brand { display: flex; flex-direction: column; line-height: 1.1; }
-  .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
-  .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
-  .credit .author { color: inherit; font-weight: 700; text-decoration: none; }
-  .credit .author:hover, .credit .author:focus { text-decoration: underline; }
-  .hud { display: flex; gap: 14px; margin-left: auto; font-size: 14px; opacity: 0.95; white-space: nowrap; }
-  .hud b { font-variant-numeric: tabular-nums; }
-  .actions { display: flex; gap: 6px; }
-  /* .btn / :active / :disabled / .ghost / .primary -> styles/base.css */
-  .btn.active { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
-
-  #play { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-
-  /* Carita reseteadora (estilo Windows) */
-  #facebar { display: flex; justify-content: center; align-items: center; padding: 8px; }
-  .smiley {
-    width: 46px; height: 46px; font-size: 24px; line-height: 1;
-    border-radius: 12px; cursor: pointer;
-    background: linear-gradient(160deg, #f4eede, #e3d8bf);
-    border: 1px solid #d9cdb4;
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.3);
-  }
-  .smiley:active { transform: scale(0.94); }
-
-  #boardWrap {
-    flex: 1; min-height: 0; overflow: auto;
-    display: flex; align-items: flex-start; justify-content: center;
-    padding: 4px 4px 16px;
-    -webkit-touch-callout: none;
-  }
-  #board {
-    display: grid;
-    grid-template-columns: repeat(var(--cols), var(--cell));
-    gap: 2px;
-    touch-action: manipulation;
-  }
-  .cell {
-    width: var(--cell); height: var(--cell);
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: calc(var(--cell) * 0.56); line-height: 1;
-    border-radius: calc(var(--cell) * 0.16);
-    overflow: hidden;
-  }
-  .cell.covered {
-    background: linear-gradient(160deg, #2f9d63, #1a7044);
-    border: 1px solid rgba(0,0,0,0.18);
-    box-shadow: inset 1.5px 1.5px 0 rgba(255,255,255,0.28), inset -1.5px -1.5px 0 rgba(0,0,0,0.28);
-    cursor: pointer;
-  }
-  .cell.covered:active { filter: brightness(1.12); }
-  .cell.revealed {
-    background: #ece4d1;
-    border: 1px solid rgba(0,0,0,0.10);
-    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.10);
-    color: #555;
-  }
-  .cell.mine { background: #d9b44a; }
-  .cell.exploded { background: #e74c3c; }
-  .cell.wrong { background: #ece4d1; }
-  .cell.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 5; }
-  @keyframes hintpulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0), inset 0 0 0 0 rgba(0,0,0,0); }
-    50% { box-shadow: 0 0 0 3px rgba(232,180,74,0.95); }
-  }
-  /* Colores clásicos de los números */
-  .n1 { color: #1976d2; } .n2 { color: #2e7d32; } .n3 { color: #d32f2f; }
-  .n4 { color: #512da8; } .n5 { color: #b71c1c; } .n6 { color: #00838f; }
-  .n7 { color: #212121; } .n8 { color: #6d6d6d; }
-
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.62);
-    display: flex; align-items: center; justify-content: center;
-    padding: 22px; z-index: 100;
-  }
-  .overlay[hidden] { display: none; }
-  .card-modal {
-    background: #fdfaf2; color: #2a2a26; border-radius: 18px;
-    padding: 22px; max-width: 360px; width: 100%;
-    box-shadow: 0 22px 55px rgba(0,0,0,0.5);
-    max-height: 90vh; overflow-y: auto;
-  }
-  .win-modal { text-align: center; }
-  .win-emoji { font-size: 56px; animation: pop 0.6s ease, bob 1.6s ease-in-out 0.6s infinite; }
-  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
-  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
-  .win-congrats { font-weight: 700; font-size: 16px; margin-top: 2px; }
-  .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
-  .card-modal h2 { margin: 4px 0 6px; }
-  .card-modal p { margin: 6px 0; line-height: 1.5; }
-  .card-modal ol { padding-left: 20px; line-height: 1.6; margin: 10px 0; }
-  .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
-  .card-modal .btn { color: #2a2a26; background: #ece5d5; border-color: #ddd3bd; }
-  .card-modal .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
-  .hint-txt { font-size: 12.5px; opacity: 0.65; margin-top: 4px; }
-
-  .opt { margin: 14px 0; }
-  .opt-label { font-weight: 700; margin-bottom: 6px; }
-  .seg { display: flex; gap: 6px; }
-  .seg-btn {
-    flex: 1; padding: 9px 6px; border-radius: 9px;
-    border: 1px solid #d9cfb8; background: #efe9da; color: #4a463c;
-    font-weight: 600; font-size: 13px; cursor: pointer;
-  }
-  .seg-btn:active { transform: scale(0.97); }
-  .seg-btn.active { background: #1f7a46; color: #fff; border-color: #1f7a46; }
-
-  /* Menú de juegos (suite) */
-  .game-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
-  .game-link {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 14px; border-radius: 12px;
-    background: #efe9da; color: #2a2a26; border: 1px solid #ddd3bd;
-    font-weight: 700; font-size: 15px; text-decoration: none; cursor: pointer;
-  }
-  .game-link:active { transform: scale(0.98); }
-  .game-link .ico { font-size: 20px; line-height: 1; display: inline-flex; }
-  .game-link .ico svg { display: block; }
-  .game-link .soon { margin-left: auto; font-size: 12px; font-weight: 600; opacity: 0.75; }
-  .game-link.current { background: #1f7a46; color: #fff; border-color: #1f7a46; cursor: default; }
-  .game-link.disabled { opacity: 0.5; cursor: default; }
-
-  /* #controls -> styles/base.css */
-  .pill { border-radius: 999px; padding: 9px 18px; font-size: 14px; }
-
-  /* .toast / .toast.show -> styles/base.css */
-
-  @media (min-width: 700px) {
-    .title { font-size: 22px; }
-    .credit { font-size: 12px; }
-    .hud { font-size: 16px; gap: 18px; }
-    .btn { font-size: 14px; padding: 9px 14px; }
-    .btn.ghost { width: 42px; font-size: 17px; }
-    .pill { font-size: 16px; padding: 11px 22px; }
-    .smiley { width: 52px; height: 52px; font-size: 28px; }
-    header, #controls { padding-left: 18px; padding-right: 18px; }
-  }
-  @media (min-width: 1100px) { .title { font-size: 26px; } }
-  @media (max-height: 480px) {
-    header { padding: calc(5px + env(safe-area-inset-top, 0px)) 12px 5px; }
-    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px)); }
-    #facebar { padding: 4px; }
-    .smiley { width: 38px; height: 38px; font-size: 20px; }
-    .title { font-size: 16px; }
-  }
-</style>
+<link rel="stylesheet" href="styles/buscaminas.css">
 </head>
 <body>
 <div id="app">
@@ -290,7 +132,6 @@
 </div>
 
 <script src="shared/ui.js"></script>
-<script>window.STORE_NS = "buscaminas";</script>
 <script src="shared/storage.js"></script>
 <script>
 /* ---------- Dificultades ---------- */

@@ -990,6 +990,99 @@ test("Contrato: games/registry.js y manifest.webmanifest no divergen", async fun
   assertNoErrors(p.errors);
 });
 
+/* ==================== SEGURIDAD (Fase 5) ==================== */
+
+/* 40) XSS — un nombre de rival con HTML se muestra como texto literal, nunca
+   se inyecta como elemento, en las 4 superficies donde Corazones lo renderiza
+   (ficha de asiento, fin de mano, fin de partida, tabla de puntajes). Esta es
+   la protección real en las 4 páginas de juego, que necesitan 'unsafe-inline'
+   en script-src (ver docs/ARQUITECTURA.md, Fase 5) y por lo tanto NO pueden
+   apoyarse en la CSP para frenar una inyección: todo depende de escapar bien. */
+test("Seguridad: un nombre de rival con HTML no se inyecta, se muestra como texto", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var payload = '<img src=x onerror="window.__xss=1">';
+  var r = await p.page.evaluate(function (payload) {
+    names[1] = payload; names[2] = payload; names[3] = payload;
+
+    // 1) Ficha de asiento (renderOpp)
+    renderOpp(1);
+    var seatHtml = document.getElementById("seat-1").innerHTML;
+
+    // 2) Fin de mano (showRound)
+    for (var s = 0; s < 4; s++) { players[s].score = 0; players[s].taken = []; }
+    showRound([0, 0, 0, 0], -1);
+    var roundHtml = document.getElementById("round-body").innerHTML;
+    document.getElementById("round").hidden = true;
+
+    // 3) Fin de partida (showWin)
+    showWin();
+    var winHtml = document.getElementById("win-body").innerHTML;
+    document.getElementById("win").hidden = true;
+
+    // 4) Tabla de puntajes (buildScoresTable)
+    handHistory = [[1, 2, 3, 4]];
+    buildScoresTable();
+    var tableHtml = document.getElementById("scores-table").innerHTML;
+
+    return {
+      seatHtml: seatHtml, roundHtml: roundHtml, winHtml: winHtml, tableHtml: tableHtml,
+      xssRan: window.__xss === 1,
+      anyImgTag: /<img/i.test(seatHtml + roundHtml + winHtml + tableHtml)
+    };
+  }, payload);
+  assert(!r.xssRan, "el onerror inyectado se ejecutó: falló el escapado en alguna superficie");
+  assert(!r.anyImgTag, "el payload se insertó como elemento <img> real en vez de texto escapado");
+  assert(r.seatHtml.indexOf("&lt;img") >= 0, "la ficha de asiento debería mostrar el HTML escapado como texto");
+  assert(r.tableHtml.indexOf("&lt;img") >= 0, "la tabla de puntajes debería mostrar el HTML escapado como texto");
+  assertNoErrors(p.errors);
+});
+
+/* 41) CSP — las 6 páginas declaran una Content-Security-Policy sin orígenes de
+   terceros. index.html y estadisticas.html (sin script inline) son estrictas
+   (sin 'unsafe-inline' en script-src); los 4 juegos (motor todavía inline)
+   documentan la brecha conocida. Si alguna edición futura aflojara la
+   política sin darse cuenta, este test lo detecta. */
+test("CSP: las 6 páginas declaran una Content-Security-Policy coherente", async function (ctx) {
+  var strict = ["index.html", "estadisticas.html"];
+  var withInlineScript = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
+  for (var i = 0; i < strict.length + withInlineScript.length; i++) {
+    var file = i < strict.length ? strict[i] : withInlineScript[i - strict.length];
+    var p = await open(ctx, file);
+    var csp = await p.page.evaluate(function () {
+      var m = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+      return m && m.getAttribute("content");
+    });
+    assert(csp, file + ": falta la meta Content-Security-Policy");
+    assert(csp.indexOf("default-src 'self'") >= 0, file + ": default-src debería ser 'self'");
+    assert(csp.indexOf("object-src 'none'") >= 0, file + ": object-src debería ser 'none'");
+    assert(!/https?:|\*/.test(csp), file + ": la CSP no debería permitir orígenes externos: " + csp);
+    var styleStrict = /style-src 'self'(?!.*unsafe-inline)/.test(csp);
+    assert(styleStrict, file + ": style-src debería ser estricto (sin unsafe-inline), todo el CSS ya es externo: " + csp);
+    if (strict.indexOf(file) >= 0) {
+      assert(csp.indexOf("script-src 'self'") >= 0 && csp.indexOf("'unsafe-inline'") === -1,
+        file + ": no debería necesitar unsafe-inline (no tiene script inline): " + csp);
+    } else {
+      assert(csp.indexOf("'unsafe-inline'") >= 0,
+        file + ": debería declarar la brecha conocida de unsafe-inline en script-src: " + csp);
+    }
+    assertNoErrors(p.errors);
+  }
+});
+
+/* 42) Tipos — los módulos compartidos declaran // @ts-check (tsc -p . los
+   valida en CI; ver .github/workflows/tests.yml). No abre navegador: lee los
+   archivos directo del filesystem. */
+test("Tipos: los módulos compartidos declaran // @ts-check", async function () {
+  var files = [
+    "shared/storage.js", "shared/cards.js", "shared/ui.js", "shared/pwa.js",
+    "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
+  ];
+  for (var i = 0; i < files.length; i++) {
+    var content = fs.readFileSync(path.join(ROOT, files[i]), "utf8");
+    assert(content.indexOf("// @ts-check") === 0, files[i] + ": debería empezar con // @ts-check");
+  }
+});
+
 /* ========================= RUNNER ========================= */
 (async function () {
   var srv = await startServer(ROOT);

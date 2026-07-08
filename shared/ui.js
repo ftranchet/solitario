@@ -1,3 +1,4 @@
+// @ts-check
 /*
  * shared/ui.js — Widgets de UI comunes a los 4 juegos: por ahora, el aviso
  * flotante (toast).
@@ -14,6 +15,7 @@
  * (HUD de tiempo/movimientos vs. mano/objetivo; modal de victoria vs. de fin de
  * mano). Esa unificación queda para la Fase 4 (contrato de juego).
  */
+/** @param {string} msg */
 function toast(msg) {
   var t = document.createElement("div");
   t.className = "toast";

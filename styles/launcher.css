@@ -1,0 +1,67 @@
+/*
+ * styles/launcher.css — CSS propio del launcher (index.html).
+ * Extraído del <style> inline para poder aplicar una CSP sin 'unsafe-inline'
+ * en style-src (ver docs/ARQUITECTURA.md, Fase 5).
+ * Depende de styles/tokens.css y styles/base.css.
+ */
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+    min-height: 100vh; min-height: 100dvh;
+  }
+
+  #launcher {
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px; padding: calc(28px + env(safe-area-inset-top, 0px)) 18px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .hero { text-align: center; }
+  .big-title { font-weight: 800; font-size: 30px; letter-spacing: 0.5px; margin: 0; }
+  .sub { margin: 6px 0 0; font-size: 14px; opacity: 0.85; }
+
+  .tiles {
+    width: 100%; max-width: 620px;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+  }
+  .tile {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+    padding: 22px 14px;
+    background: linear-gradient(160deg, #ffffff, #f4eede);
+    border: 1px solid #d9cdb4; border-radius: 18px;
+    color: #2a2a26; text-decoration: none;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.28);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .tile:hover, .tile:focus {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.34), 0 0 0 3px rgba(232,180,74,0.7);
+    outline: none;
+  }
+  .tile:active { transform: scale(0.97); }
+  .tile .ico { font-size: 46px; line-height: 1; height: 1em; display: flex; align-items: center; }
+  .tile .ico svg { display: block; }
+  .tile .tname { font-weight: 800; font-size: 17px; }
+
+  .stats-link {
+    align-self: center; display: inline-flex; align-items: center; gap: 8px;
+    color: #fff; text-decoration: none; font-weight: 600; font-size: 14px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+    padding: 9px 16px; border-radius: 999px;
+  }
+  .stats-link:active { transform: scale(0.97); }
+
+  .credit-foot { font-size: 12px; opacity: 0.85; text-align: center; margin: 0; }
+  .credit-foot .author { color: inherit; font-weight: 700; text-decoration: none; }
+  .credit-foot .author:hover, .credit-foot .author:focus { text-decoration: underline; }
+
+  @media (min-width: 720px) {
+    .big-title { font-size: 38px; }
+    .sub { font-size: 16px; }
+    .tiles { grid-template-columns: repeat(4, 1fr); max-width: 860px; }
+    .tile .ico { font-size: 52px; }
+    .tile .tname { font-size: 18px; }
+  }

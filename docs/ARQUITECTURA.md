@@ -178,15 +178,22 @@ Cada fase es mergeable por separado y no debe romper los 39 tests.
 
 ## 7. Seguridad
 
+> Estado real tras la auditoría de la Fase 5: ver el detalle en §10. Resumen:
+> la suite ya escapaba correctamente el único input de usuario que existe
+> (nombres de rivales en Corazones); se agregó CSP estricta en todas las
+> páginas salvo `script-src` en los 4 juegos (brecha documentada, ligada a no
+> haber migrado el motor de cada juego fuera del `<script>` inline).
+
 - **XSS / `innerHTML`.** Los juegos arman HTML por concatenación. Hay input de
-  usuario (los **nombres editables de rivales en Corazones**). Hoy `renderOpp`
-  usa `esc()` — correcto —, pero hay que **auditar que todos** los puntos que
-  interpolan nombres estén escapados (modal de puntajes, etc.) y centralizarlo
-  en un helper seguro (o `textContent`).
-- **CSP.** Hoy no se puede aplicar una `Content-Security-Policy` estricta porque
-  el JS es inline. **Externalizar el JS (Fase 1+) habilita** una CSP sin
-  `unsafe-inline` — la mejor mejora de seguridad, y la desbloquea el propio
-  refactor.
+  usuario (los **nombres editables de rivales en Corazones**). `renderOpp`,
+  `showRound`, `showWin`/`scoreRow` y `buildScoresTable` usan `esc()` en los
+  cuatro puntos donde un nombre llega a `innerHTML`; dos usos adicionales sin
+  `esc()` son seguros porque bajan por `.textContent`. Test de regresión con
+  un payload `<img onerror=...>` cubre las 4 superficies.
+- **CSP.** Aplicada vía `<meta>` en las 6 páginas. `index.html`/
+  `estadisticas.html`: estricta (sin `unsafe-inline` en ningún directive). Los
+  4 juegos: `script-src` necesita `'unsafe-inline'` (motor todavía inline,
+  decisión de la Fase 4); `style-src` y el resto son estrictos en las 6.
 - **Superficie ya buena:** sin backend, sin dependencias de terceros, sin CDNs;
   validación defensiva del estado al cargar; SW con caché por prefijo.
 
@@ -222,7 +229,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 | 2 | `cards.js` + `cards.css` (chrome) | ✅ |
 | 3 | `ui.js` (toast) | ✅ |
 | 4 | Contrato + registro de juegos | ✅ (alcance acotado) |
-| 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | 💡 |
+| 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | ✅ (alcance acotado) |
 | 6 | Temas, responsive, a11y por teclado | 💡 |
 
 **Progreso**
@@ -298,6 +305,69 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   desde el registro (mismos `statsKey`); (4) el registro y los `shortcuts` del
   manifest **no divergen**. 44/44 tests verdes; sin cambios visuales
   (screenshots del launcher y de estadísticas con datos).
+- **Fase 5 (hecha, alcance deliberadamente acotado).** Tipos + CSP + auditoría XSS.
+
+  **Auditoría de XSS (resultado: la suite ya era segura).** Se revisó cada
+  punto donde datos con input libre del usuario (los **nombres editables de
+  rivales en Corazones**, el único "texto libre" de toda la suite) llegan a
+  `innerHTML`. Los cuatro puntos que lo hacen (`renderOpp`, `showRound`,
+  `showWin`/`scoreRow`, `buildScoresTable`) ya usaban `esc()`. Dos usos de
+  `playerName()` sin `esc()` resultaron seguros porque bajan por `.textContent`
+  (no interpreta HTML); se documentaron con un comentario en vez de agregarles
+  `esc()` (hacerlo ahí sería un bug: doble-escapado visible). Se encontraron y
+  corrigieron 2 atributos `style="..."` inline en `corazones.html` (movidos a
+  clases CSS) porque bloqueaban un `style-src` estricto. **Test de regresión
+  nuevo:** inyecta `<img src=x onerror=...>` como nombre de rival y verifica
+  que no se ejecuta y que las 4 superficies lo muestran como texto escapado.
+
+  **CSP.** Las 6 páginas declaran `Content-Security-Policy` vía `<meta>` (el
+  hosting estático no permite headers HTTP custom). Se logró una política
+  **estricta de verdad**, no aspiracional:
+  - Se externalizaron los últimos scripts inline triviales: el registro del
+    service worker (idéntico en las 6 páginas) a `shared/pwa.js`; el
+    namespace de persistencia (`window.STORE_NS`) pasó a ser un atributo
+    `data-store-ns` en `<html>` (sin script); y la lógica propia de
+    `index.html`/`estadisticas.html` a `shared/launcher.js` /
+    `shared/estadisticas-page.js`.
+  - Se extrajo el `<style>` restante de las 6 páginas a `styles/<página>.css`
+    (mecánico, sin lógica, verificado por screenshot), lo que permite
+    `style-src 'self'` estricto **en las 6 páginas sin excepción**.
+  - Resultado: `index.html` y `estadisticas.html` (sin ningún script inline)
+    tienen `script-src 'self'` **sin** `'unsafe-inline'`. Los 4 juegos
+    **siguen necesitando `'unsafe-inline'` en script-src**, documentado como
+    brecha conocida: su motor (900-1400 líneas) sigue siendo un `<script>`
+    inline a propósito (ver Fase 4 — migrarlo sería el mismo riesgo alto que
+    ya se descartó). Todo lo demás (`style-src`, `img-src`, `object-src
+    'none'`, `base-uri`, `form-action`) es estricto en las 6 páginas.
+  - **Verificación real, no aspiracional:** correr la suite completa CON la
+    CSP aplicada sirve de red de seguridad — cualquier violación real
+    (recurso bloqueado, script no permitido) aparece como `console.error` y
+    tira el test correspondiente (`assertNoErrors`). Los 47 tests pasan con
+    la CSP puesta, incluidos drag & drop, modales, IA de Corazones y el
+    service worker. Test nuevo dedicado verifica el contenido exacto de la
+    CSP en las 6 páginas (para detectar si una edición futura la afloja sin
+    querer).
+
+  **Tipos (`// @ts-check` + JSDoc).** Se agregó a los 7 archivos de la capa
+  compartida (`shared/storage.js`, `cards.js`, `ui.js`, `pwa.js`, `launcher.js`,
+  `estadisticas-page.js`, `games/registry.js`) junto con `shared/global.d.ts`
+  (declaraciones ambientales para las globals que cruzan archivos: `SUIT`,
+  `toast`, `GAME_KEY`, `GAMES`, etc.) y un `tsconfig.json` en modo **`strict`**.
+  Validado con el compilador real de TypeScript (`tsc -p .`), no a ojo: **0
+  errores**. El chequeo corrigió 2 usos reales de `localStorage.getItem()`
+  (puede devolver `null`) sin el guard correspondiente, y se sumaron
+  null-checks a dos `getElementById()` en `launcher.js`/`estadisticas-page.js`
+  (defensivo; el elemento siempre existe hoy). Se agregó como paso de CI en
+  `.github/workflows/tests.yml` y un test verifica que los 7 archivos
+  mantienen la directiva `// @ts-check`.
+
+  **Lo que NO se hizo, a propósito.** Los `<script>` inline con el motor de
+  cada juego (solitario.html, etc.) **no llevan `@ts-check`**: tiparlos
+  retroactivamente (900-1400 líneas por archivo, sin módulos, con variables
+  compartidas entre docenas de funciones) es un esfuerzo grande para un
+  beneficio incierto hoy, y typarlos mal sería peor que no typarlos. Es la
+  misma decisión de "no tocar el motor" de la Fase 4, aplicada a tipos en vez
+  de a la interfaz de juego.
 
 ### Criterios de aceptación (cuando esté todo)
 
@@ -308,7 +378,10 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   a "persiste y restaura" y "queda cacheado offline" el día que el registro
   también describa la persistencia de cada juego (hoy eso lo cubren los tests
   específicos de cada juego, no el test de contrato).
-- Una CSP estricta (sin `unsafe-inline`) activa. ⬜ (Fase 5)
+- Una CSP estricta activa en las 6 páginas. ✅ (Fase 5) — completa en
+  `index.html`/`estadisticas.html`; en los 4 juegos, estricta salvo
+  `'unsafe-inline'` en `script-src` (brecha documentada, ligada a no migrar el
+  motor de cada juego — ver Fase 4).
 - Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos. ✅ (Fases 0-3)
 
 ## 11. Decisión

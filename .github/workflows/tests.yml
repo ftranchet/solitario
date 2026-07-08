@@ -37,3 +37,9 @@ jobs:
       - name: Correr los tests
         working-directory: tests
         run: npm test
+
+      # Chequeo de tipos (// @ts-check + JSDoc) de los módulos compartidos
+      # (shared/*.js, games/registry.js). No cubre los <script> inline de cada
+      # juego (ver docs/ARQUITECTURA.md, Fase 5).
+      - name: Chequear tipos (shared/*.js, games/registry.js)
+        run: npx --yes typescript@5 tsc -p .

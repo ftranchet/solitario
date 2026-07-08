@@ -2,6 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- CSP estricta: todo el JS y CSS de esta página es externo, así que
+     script-src y style-src no necesitan 'unsafe-inline' (ver
+     docs/ARQUITECTURA.md, Fase 5). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
 <link rel="icon" href="favicon.svg">
@@ -13,59 +17,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Estadísticas">
 <title>Estadísticas</title>
-<script>
-  if ("serviceWorker" in navigator) {
-    addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
-    });
-  }
-</script>
+<script src="shared/pwa.js"></script>
 <script src="games/registry.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
-<style>
-  html, body { margin: 0; min-height: 100%; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #fff; -webkit-tap-highlight-color: transparent;
-    min-height: 100vh; min-height: 100dvh;
-  }
-  #wrap {
-    max-width: 640px; margin: 0 auto;
-    padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
-    display: flex; flex-direction: column; gap: 16px;
-  }
-  .top { display: flex; align-items: center; gap: 10px; }
-  .top h1 { font-size: 24px; margin: 0; font-weight: 800; flex: 1; }
-  .btn {
-    background: rgba(255,255,255,0.12); color: #fff;
-    border: 1px solid rgba(255,255,255,0.22);
-    padding: 8px 12px; border-radius: 9px; font-size: 13px; font-weight: 600;
-    cursor: pointer; text-decoration: none; line-height: 1; display: inline-block;
-  }
-  .btn:active { transform: scale(0.96); }
-  .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
-
-  .card {
-    background: #fdfaf2; color: #2a2a26; border-radius: 16px;
-    padding: 16px 18px; box-shadow: 0 8px 20px rgba(0,0,0,0.28);
-  }
-  .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
-  .card h2 .ico { font-size: 20px; display: inline-flex; }
-  .card h2 .ico svg { display: block; }
-  .sub { font-size: 12px; opacity: 0.6; margin: 0 0 8px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 6px 4px; border-bottom: 1px solid #ece3cf; text-align: left; font-size: 14px; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.55; font-weight: 700; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr:last-child td { border-bottom: none; }
-  .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #ece3cf; font-size: 14px; }
-  .row:last-child { border-bottom: none; }
-  .row b { font-variant-numeric: tabular-nums; }
-  .empty { opacity: 0.6; font-size: 13px; padding: 4px 0; }
-  .foot { text-align: center; }
-  .danger { color: #b71c1c; }
-</style>
+<link rel="stylesheet" href="styles/estadisticas.css">
 </head>
 <body>
 <div id="wrap">
@@ -77,43 +33,6 @@
   <div class="foot"><button id="reset" class="btn">Reiniciar estadísticas</button></div>
 </div>
 
-<script>
-function g(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
-function n(v) { return (typeof v === "number" && isFinite(v)) ? v : 0; }
-function fmtTime(s) {
-  if (s == null || !isFinite(s)) return "—";
-  var m = Math.floor(s / 60), x = s % 60;
-  return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x;
-}
-function rate(won, played) { return played > 0 ? Math.round(won / played * 100) + "%" : "—"; }
-function row(label, value) { return '<div class="row"><span>' + label + '</span><b>' + value + '</b></div>'; }
-function rowPlayed(st) {
-  var played = n(st.played), won = n(st.won);
-  return row("Partidas jugadas", played) + row("Ganadas", won + " (" + rate(won, played) + ")");
-}
-// Helpers que recibe el body(stats, h) de cada juego en games/registry.js.
-var statHelpers = { n: n, fmtTime: fmtTime, rate: rate, row: row, rowPlayed: rowPlayed };
-
-// Las tarjetas se arman a partir de games/registry.js: agregar un juego nuevo
-// sólo requiere sumarlo ahí (ver docs/ARQUITECTURA.md, Fase 4).
-function render() {
-  var out = window.GAMES.map(function (game) {
-    var stats = g(game.statsKey);
-    var body = game.body(stats, statHelpers) || '<div class="empty">Todavía no jugaste ninguna partida.</div>';
-    return '<div class="card"><h2><span class="ico">' + game.icon + '</span> ' + game.title + '</h2>' + body + '</div>';
-  }).join("");
-  document.getElementById("cards").innerHTML = out;
-}
-
-document.getElementById("reset").onclick = function () {
-  if (!confirm("¿Borrar todas las estadísticas? No se puede deshacer.")) return;
-  window.GAMES.forEach(function (game) {
-    try { localStorage.removeItem(game.statsKey); } catch (e) {}
-  });
-  render();
-};
-
-render();
-</script>
+<script src="shared/estadisticas-page.js"></script>
 </body>
 </html>

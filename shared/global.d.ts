@@ -1,0 +1,70 @@
+/*
+ * shared/global.d.ts — Declaraciones ambientales para el chequeo de tipos
+ * (`// @ts-check`) de los módulos compartidos (shared/*.js, games/registry.js).
+ *
+ * No es un módulo real ni se sirve al navegador ni se enlaza desde ningún
+ * HTML: sólo lo usa `tsc --checkJs` (ver tsconfig.json) para validar que los
+ * archivos compartidos son consistentes entre sí. Los motores de cada juego
+ * (los <script> inline en solitario.html, etc.) NO están tipados; sus propias
+ * globals (SUIT, RANK_LABEL, state, players, grid...) no se declaran acá.
+ */
+export {};
+
+// Todas las interfaces van DENTRO de `declare global` (no a nivel de este
+// módulo) para que sean visibles desde el JSDoc de los scripts NO-módulo
+// (shared/*.js, games/registry.js) que sólo conocen el ámbito global.
+declare global {
+  interface Card {
+    suit: string;
+    rank: number;
+    color?: string;
+    faceUp?: boolean;
+    id?: number | string;
+  }
+
+  interface Suit {
+    symbol: string;
+    color: string;
+    name: string;
+  }
+
+  interface StatHelpers {
+    n: (v: unknown) => number;
+    fmtTime: (s: unknown) => string;
+    rate: (won: number, played: number) => string;
+    row: (label: string, value: unknown) => string;
+    rowPlayed: (st: Record<string, unknown>) => string;
+  }
+
+  interface GameEntry {
+    id: string;
+    title: string;
+    href: string;
+    icon: string;
+    statsKey: string;
+    body: (stats: Record<string, any>, h: StatHelpers) => string;
+  }
+
+  // shared/cards.js depende de estas dos globals, que cada juego define con
+  // su propio orden (y, en Corazones, el As como rango 14).
+  var SUIT: Record<string, Suit>;
+  var RANK_LABEL: Record<number, string>;
+
+  function cardFace(card: Card): string;
+  function rankName(r: number): string;
+  function cardLabel(card: Card): string;
+  function makeCardEl(card: Card, selected?: boolean): HTMLDivElement;
+
+  function toast(msg: string): void;
+
+  var GAME_KEY: string;
+  var LOCK_KEY: string;
+  var TAB_ID: string;
+  var saveOwner: boolean;
+  var saveWarned: boolean;
+  function refreshSaveLock(): void;
+  function gameSet(v: string): void;
+  function gameDel(): void;
+
+  var GAMES: GameEntry[];
+}

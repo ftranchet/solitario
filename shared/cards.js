@@ -1,3 +1,4 @@
+// @ts-check
 /*
  * shared/cards.js — Componente de carta común a los juegos de cartas
  * (Solitario, Carta Blanca, Corazones).
@@ -15,6 +16,7 @@
  * el "chrome" idéntico (fondo, colores de palo, dorso) vive en styles/cards.css.
  */
 
+/** @param {Card} card */
 function cardFace(card) {
   var s = SUIT[card.suit].symbol;
   return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
@@ -23,14 +25,20 @@ function cardFace(card) {
 
 // Nombre legible del rango (para lectores de pantalla). As = rango 1 (Solitario/
 // Carta Blanca) o 14 (Corazones).
+/** @param {number} r */
 function rankName(r) {
   return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
 }
+/** @param {Card} card */
 function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
 
 // Crea el elemento de carta. `selected` marca la carta como elegida (los juegos
 // que no lo usan simplemente no lo pasan). Las cartas sin `faceUp` se consideran
 // cara arriba; las boca abajo no revelan su identidad al lector de pantalla.
+/**
+ * @param {Card} card
+ * @param {boolean} [selected]
+ */
 function makeCardEl(card, selected) {
   var up = card.faceUp !== false;
   var e = document.createElement("div");

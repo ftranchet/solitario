@@ -1,3 +1,4 @@
+// @ts-check
 /*
  * games/registry.js — Registro declarativo de los juegos de la suite.
  *
@@ -41,6 +42,7 @@
     '<text x="15" y="21" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" ' +
     'font-weight="bold" font-size="16" fill="#1a1a1a">&#9824;</text></svg>';
 
+  /** @type {GameEntry[]} */
   window.GAMES = [
     {
       id: "solitario",

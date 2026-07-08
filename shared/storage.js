@@ -1,3 +1,4 @@
+// @ts-check
 /*
  * shared/storage.js — Persistencia común de la suite: candado multi-pestaña +
  * guardado de la partida en curso.
@@ -8,8 +9,11 @@
  *   window.GAME_KEY, LOCK_KEY, TAB_ID, saveOwner, saveWarned,
  *   refreshSaveLock(), gameSet(), gameDel().
  *
- * La página debe declarar su namespace antes de cargar este archivo:
- *   <script>window.STORE_NS = "solitario";</script>
+ * La página debe declarar su namespace en el <html>, sin script inline (así
+ * no hace falta 'unsafe-inline' en script-src para la CSP; ver
+ * docs/ARQUITECTURA.md, Fase 5):
+ *   <html lang="es" data-store-ns="solitario">
+ *   ...
  *   <script src="shared/storage.js"></script>
  *
  * PREFS_KEY y STATS_KEY siguen en cada juego (no todos las usan igual).
@@ -19,8 +23,8 @@
  * pestañas no se pisan la misma clave de localStorage.
  */
 (function () {
-  var NS = window.STORE_NS;
-  if (!NS) throw new Error("shared/storage.js: falta window.STORE_NS");
+  var NS = document.documentElement.dataset.storeNs;
+  if (!NS) throw new Error("shared/storage.js: falta data-store-ns en <html>");
 
   window.GAME_KEY = NS + ".game";
   window.LOCK_KEY = NS + ".lock";
@@ -39,17 +43,18 @@
   window.saveWarned = false;
 
   window.refreshSaveLock = function () {
-    var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    var l = null; try { l = JSON.parse(/** @type {string} */ (localStorage.getItem(LOCK_KEY))); } catch (e) {}
     var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
     if (!alive || l.id === TAB_ID) {
       try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
-      try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+      try { l = JSON.parse(/** @type {string} */ (localStorage.getItem(LOCK_KEY))); } catch (e) {}
       saveOwner = !!(l && l.id === TAB_ID);
     } else saveOwner = false;
   };
   refreshSaveLock();
   setInterval(refreshSaveLock, 2500);
 
+  /** @param {string} v */
   window.gameSet = function (v) {
     refreshSaveLock();
     if (!saveOwner) return;

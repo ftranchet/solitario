@@ -1,7 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-store-ns="corazones">
 <head>
 <meta charset="UTF-8">
+<!-- CSP: script-src necesita 'unsafe-inline' porque el motor del juego sigue
+     siendo un <script> inline (ver docs/ARQUITECTURA.md, Fase 5, brecha
+     conocida). Todo lo demás es estricto: sin CSS inline, sin plugins, sin
+     orígenes de terceros. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e3a22">
 <link rel="icon" href="favicon.svg">
@@ -13,259 +18,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Corazones">
 <title>Corazones</title>
-<script>
-  if ("serviceWorker" in navigator) {
-    addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
-    });
-  }
-</script>
+<script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/cards.css">
-<style>
-  html, body { margin: 0; height: 100%; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #fff;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none; -webkit-user-select: none;
-    overflow: hidden;
-  }
-
-  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-
-  /* header -> styles/base.css */
-  .brand { display: flex; flex-direction: column; line-height: 1.1; }
-  .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
-  .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
-  .credit .author { color: inherit; font-weight: 700; text-decoration: none; }
-  .credit .author:hover, .credit .author:focus { text-decoration: underline; }
-  .hud { display: flex; gap: 14px; margin-left: auto; font-size: 14px; opacity: 0.95; white-space: nowrap; }
-  .hud b { font-variant-numeric: tabular-nums; }
-  .actions { display: flex; gap: 6px; }
-  /* .btn / :active / :disabled / .ghost / .primary -> styles/base.css */
-
-  #board { width: 100%; margin: 0 auto; padding: 8px; flex: 1; min-height: 0; display: flex; }
-
-  /* Mesa de 4 jugadores */
-  #table {
-    flex: 1; min-height: 0; display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      "north north north"
-      "west  center east"
-      "south south south";
-    gap: 6px; align-items: center; justify-items: center;
-  }
-  .seat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .seat.north { grid-area: north; }
-  .seat.west  { grid-area: west; }
-  .seat.east  { grid-area: east; }
-  #trick { grid-area: center; position: relative; width: 100%; height: 100%; min-height: calc(var(--ch) + 30px); }
-  .hand-wrap { grid-area: south; width: 100%; }
-
-  /* Cartas */
-  .card {
-    width: var(--cw); height: var(--ch);
-    border-radius: calc(var(--cw) * 0.14);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-    overflow: hidden;
-  }
-  /* .card.up / colores de palo / .card.down -> styles/cards.css */
-  /* Índice esquinero (rank + palo apilados): se ve aunque las cartas estén
-     abanicadas, así siempre se distingue el palo. Pip grande abajo a la derecha. */
-  .card .idx {
-    position: absolute; top: 5%; left: 8%;
-    display: flex; flex-direction: column; align-items: center; line-height: 0.9;
-    font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.6);
-  }
-  .card .idx .r { font-size: calc(var(--cw) * 0.40); }
-  .card .idx .s { font-size: calc(var(--cw) * 0.38); margin-top: 1px; }
-  .card .pip {
-    position: absolute; right: 7%; bottom: 4%;
-    font-size: calc(var(--cw) * 0.62); font-weight: 900; line-height: 1;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
-  }
-  /* Animaciones sutiles */
-  #trick .play.new .card { animation: pop-in 0.22s ease; }
-  @keyframes pop-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
-  #trick.collect .play .card { transition: transform 0.45s ease, opacity 0.45s ease; }
-  #trick.collect.to-south .play .card { transform: translateY(70px) scale(0.65); opacity: 0; }
-  #trick.collect.to-north .play .card { transform: translateY(-70px) scale(0.65); opacity: 0; }
-  #trick.collect.to-west  .play .card { transform: translateX(-90px) scale(0.65); opacity: 0; }
-  #trick.collect.to-east  .play .card { transform: translateX(90px) scale(0.65); opacity: 0; }
-  @media (prefers-reduced-motion: reduce) {
-    #trick .play .card, #trick.collect .play .card { animation: none !important; transition: none !important; }
-  }
-
-  /* Oponentes: un dorso con efecto de pila + ficha con nombre y puntos */
-  .seat-cards { position: relative; width: var(--ow); height: calc(var(--ow) * 1.42); }
-  .seat-cards .card.down {
-    width: var(--ow); height: calc(var(--ow) * 1.42);
-    box-shadow: 2px 0 0 rgba(0,0,0,0.22), 4px 0 0 rgba(255,255,255,0.05),
-                inset 0 0 0 2px rgba(232,180,74,0.30), 0 1px 2px rgba(0,0,0,0.3);
-  }
-  .count-badge {
-    position: absolute; bottom: -4px; right: -8px;
-    background: rgba(0,0,0,0.6); color: #fff;
-    font-size: 11px; padding: 1px 6px; border-radius: 10px;
-    font-variant-numeric: tabular-nums;
-  }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.12);
-    padding: 3px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap;
-  }
-  .chip .sc { font-weight: 800; font-variant-numeric: tabular-nums; }
-  .seat.active .chip {
-    background: #e8b44a; color: #2a1d05; border-color: #e8b44a;
-    box-shadow: 0 0 0 3px rgba(232,180,74,0.4);
-  }
-  .seat.active.thinking .chip::after { content: " …"; }
-
-  /* Cartas jugadas en el centro */
-  #trick .play {
-    position: absolute; left: 50%; top: 50%;
-    transition: transform 0.12s ease;
-  }
-  #trick .play.south { transform: translate(-50%, 8px); }
-  #trick .play.north { transform: translate(-50%, calc(-100% - 8px)); }
-  #trick .play.west  { transform: translate(calc(-100% - 8px), -50%); }
-  #trick .play.east  { transform: translate(8px, -50%); }
-  #trick .play .card { box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
-
-  /* Mano del jugador (abanico) */
-  #status {
-    text-align: center; min-height: 18px; font-size: 13px; opacity: 0.92;
-    margin-bottom: 4px; padding: 0 8px;
-  }
-  .hand { position: relative; height: calc(var(--ch) + 18px); }
-  .hand .card { position: absolute; bottom: 0; cursor: default; }
-  .hand .card.playable { cursor: pointer; }
-  .hand .card.playable:active { transform: translateY(-6px); }
-  .hand .card.dim { opacity: 0.4; }
-  .hand .card.picked { transform: translateY(-16px); outline: 3px solid #e8b44a; outline-offset: -1px; box-shadow: 0 0 0 3px #e8b44a, 0 8px 16px rgba(0,0,0,0.4); }
-  .hand .card.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 500 !important; }
-  @keyframes hintpulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0), 0 1px 2px rgba(0,0,0,0.25); }
-    50% { box-shadow: 0 0 0 4px rgba(232,180,74,0.95), 0 6px 14px rgba(0,0,0,0.4); }
-  }
-
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.62);
-    display: flex; align-items: center; justify-content: center;
-    padding: 22px; z-index: 100;
-  }
-  .overlay[hidden] { display: none; }
-  .card-modal {
-    background: #fdfaf2; color: #2a2a26; border-radius: 18px;
-    padding: 22px; max-width: 360px; width: 100%;
-    box-shadow: 0 22px 55px rgba(0,0,0,0.5);
-    max-height: 90vh; overflow-y: auto;
-  }
-  .win-modal { text-align: center; }
-  .win-emoji { font-size: 56px; animation: pop 0.6s ease, bob 1.6s ease-in-out 0.6s infinite; }
-  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
-  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
-  .win-congrats { font-weight: 700; font-size: 16px; margin-top: 2px; }
-  .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
-  .card-modal h2 { margin: 4px 0 6px; }
-  .card-modal p { margin: 6px 0; line-height: 1.5; }
-  .card-modal ol { padding-left: 20px; line-height: 1.6; margin: 10px 0; }
-  .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
-  .card-modal .btn { color: #2a2a26; background: #ece5d5; border-color: #ddd3bd; }
-  .card-modal .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
-  .hint-txt { font-size: 12.5px; opacity: 0.65; margin-top: 4px; }
-
-  .score-table { width: 100%; border-collapse: collapse; margin: 12px 0 4px; }
-  .score-table th, .score-table td { padding: 7px 8px; border-bottom: 1px solid #e7dec9; }
-  .score-table th { text-align: left; font-size: 12px; opacity: 0.7; }
-  .score-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .score-table tr.me td { font-weight: 800; }
-  .score-table tr.lead td { color: #1f7a46; }
-  .score-table td.lead, .score-table th.lead { color: #1f7a46; }
-  .score-table .col-me { background: rgba(31,122,70,0.08); }
-  .score-table tfoot td { border-top: 2px solid #ddd3bd; }
-
-  /* Fin de mano: cartas con puntos que se llevó cada uno */
-  .taken-list { margin: 10px 0 4px; }
-  .taken-row { padding: 8px 0; border-bottom: 1px solid #ece3cf; }
-  .taken-row:last-child { border-bottom: none; }
-  .taken-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .taken-head .nm { font-weight: 800; }
-  .taken-head .pts { font-size: 13px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .taken-row.me .nm { color: #1f7a46; }
-  .taken-row.lead .pts { color: #1f7a46; font-weight: 700; }
-  .taken-cards { margin-top: 5px; line-height: 1.9; }
-  .taken-cards .none { font-size: 12px; opacity: 0.5; }
-  .minicard {
-    display: inline-block; background: #fff; border: 1px solid #d9cdb4;
-    border-radius: 6px; padding: 2px 6px; margin: 0 4px 2px 0;
-    font-weight: 800; font-size: 13px; white-space: nowrap;
-  }
-  .minicard.hearts, .minicard.diamonds { color: #c62828; }
-  .minicard.spades, .minicard.clubs { color: #1a1a1a; }
-
-  .opt { margin: 14px 0; }
-  .opt-label { font-weight: 700; margin-bottom: 6px; }
-  .seg { display: flex; gap: 6px; }
-  .seg-btn {
-    flex: 1; padding: 9px 6px; border-radius: 9px;
-    border: 1px solid #d9cfb8; background: #efe9da; color: #4a463c;
-    font-weight: 600; font-size: 13px; cursor: pointer;
-  }
-  .seg-btn:active { transform: scale(0.97); }
-  .seg-btn.active { background: #1f7a46; color: #fff; border-color: #1f7a46; }
-  .name-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-  .name-row label { width: 72px; font-size: 13px; opacity: 0.75; }
-  .name-input {
-    flex: 1; min-width: 0; padding: 8px 10px; border-radius: 9px;
-    border: 1px solid #d9cfb8; background: #fff; color: #2a2a26;
-    font-size: 14px; font-weight: 600;
-  }
-
-  /* Menú de juegos (suite) */
-  .game-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
-  .game-link {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 14px; border-radius: 12px;
-    background: #efe9da; color: #2a2a26; border: 1px solid #ddd3bd;
-    font-weight: 700; font-size: 15px; text-decoration: none; cursor: pointer;
-  }
-  .game-link:active { transform: scale(0.98); }
-  .game-link .ico { font-size: 20px; line-height: 1; display: inline-flex; }
-  .game-link .ico svg { display: block; }
-  .game-link .soon { margin-left: auto; font-size: 12px; font-weight: 600; opacity: 0.75; }
-  .game-link.current { background: #1f7a46; color: #fff; border-color: #1f7a46; cursor: default; }
-  .game-link.disabled { opacity: 0.5; cursor: default; }
-
-  /* #controls -> styles/base.css */
-  .pill { border-radius: 999px; padding: 9px 18px; font-size: 14px; }
-
-  /* .toast / .toast.show -> styles/base.css */
-
-  @media (min-width: 700px) {
-    .title { font-size: 22px; }
-    .credit { font-size: 12px; }
-    .hud { font-size: 16px; gap: 18px; }
-    .btn { font-size: 14px; padding: 9px 14px; }
-    .btn.ghost { width: 42px; font-size: 17px; }
-    .pill { font-size: 16px; padding: 11px 22px; }
-    header, #controls { padding-left: 18px; padding-right: 18px; }
-    #status { font-size: 15px; }
-  }
-  @media (min-width: 1100px) {
-    .title { font-size: 26px; }
-    #board { padding-left: 14px; padding-right: 14px; }
-  }
-  @media (max-height: 480px) {
-    header { padding: calc(5px + env(safe-area-inset-top, 0px)) 12px 5px; }
-    #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px)); }
-    .title { font-size: 16px; }
-  }
-</style>
+<link rel="stylesheet" href="styles/corazones.css">
 </head>
 <body>
 <div id="app">
@@ -400,7 +157,7 @@
 <div id="scores" class="overlay" hidden>
   <div class="card-modal">
     <h2>Puntajes</h2>
-    <div id="scores-wrap" style="overflow-x:auto"><table class="score-table" id="scores-table"></table></div>
+    <div id="scores-wrap"><table class="score-table" id="scores-table"></table></div>
     <div class="modal-actions">
       <button id="scores-close" class="btn primary">Cerrar</button>
     </div>
@@ -422,7 +179,6 @@
 </div>
 
 <script src="shared/ui.js"></script>
-<script>window.STORE_NS = "corazones";</script>
 <script src="shared/storage.js"></script>
 <script src="shared/cards.js"></script>
 <script>
@@ -877,6 +633,9 @@ function showRound(deltas, shooter) {
   var moon = document.getElementById("round-moon");
   if (shooter >= 0) {
     moon.hidden = false;
+    // playerName() sin esc(): seguro porque baja unas líneas por .textContent (no
+    // interpreta HTML). Si esto pasara a asignarse por .innerHTML, hay que
+    // escapar playerName() como en el resto del archivo (ver auditoría XSS).
     var who = shooter === HUMAN ? "¡Disparaste a la luna!" : playerName(shooter) + " disparó a la luna";
     var eff = moonMode === "tirador" ? (shooter === HUMAN ? " — restás 26." : " — resta 26.") : " — los demás +26.";
     moon.textContent = "🌙 " + who + eff;
@@ -907,6 +666,7 @@ function showWin() {
   document.getElementById("win-body").innerHTML = body;
   document.getElementById("win-emoji").textContent = winner === HUMAN ? "🏆" : "🙂";
   document.getElementById("win-title").textContent = winner === HUMAN ? "¡Ganaste!" : "Fin del juego";
+  // playerName() sin esc(): seguro porque baja por .textContent (ver nota en showRound).
   document.getElementById("win-congrats").textContent =
     winner === HUMAN ? "🎉 Terminaste con menos puntos. ¡Felicitaciones!" : "Ganó " + playerName(winner) + " con " + players[winner].score + " puntos.";
   document.getElementById("win").hidden = false;
@@ -916,7 +676,7 @@ function showWin() {
 function buildScoresTable() {
   var t = document.getElementById("scores-table"), s, h;
   if (!handHistory.length) {
-    t.innerHTML = '<tbody><tr><td style="border:none;opacity:.6;padding:10px 2px">Todavía no terminó ninguna mano.</td></tr></tbody>';
+    t.innerHTML = '<tbody><tr><td class="score-table-empty">Todavía no terminó ninguna mano.</td></tr></tbody>';
     return;
   }
   var leader = 0;

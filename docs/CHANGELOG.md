@@ -48,6 +48,28 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   para la justificación: sería el cambio de mayor riesgo del proyecto para
   beneficio externo nulo hoy). Sin cambios visuales (screenshots del launcher y
   de estadísticas con datos). 44 tests verdes.
+- **Arquitectura (Fase 5): tipos, CSP y auditoría de seguridad.**
+  - **Seguridad:** auditoría completa de XSS — el único input de usuario de
+    toda la suite (nombres de rivales en Corazones) ya se escapaba
+    correctamente en los 4 puntos donde llega a `innerHTML`. Test de
+    regresión nuevo con un payload `<img onerror=...>`.
+  - **CSP:** las 6 páginas declaran `Content-Security-Policy`. Se
+    externalizaron los últimos scripts inline (registro del SW a
+    `shared/pwa.js`; namespace de persistencia a un atributo `data-store-ns`;
+    lógica de `index.html`/`estadisticas.html` a `shared/launcher.js` /
+    `shared/estadisticas-page.js`) y el `<style>` restante de las 6 páginas a
+    `styles/<página>.css`. Resultado: `index.html`/`estadisticas.html` con CSP
+    **totalmente estricta**; los 4 juegos, estrictos salvo `'unsafe-inline'`
+    en `script-src` (el motor de cada juego sigue siendo un `<script>` inline
+    a propósito, ver Fase 4). Verificado corriendo toda la suite **con la CSP
+    puesta**: cualquier violación real se ve como error de consola y tira el
+    test.
+  - **Tipos:** `// @ts-check` + JSDoc en los 7 archivos de `shared/` y
+    `games/registry.js`, con `shared/global.d.ts` (declaraciones ambientales)
+    y un `tsconfig.json` en modo `strict`. Validado con el compilador real de
+    TypeScript: 0 errores. Paso nuevo en el CI (`.github/workflows/tests.yml`).
+  - Sin cambios visuales (screenshots de las 6 páginas) ni de comportamiento.
+    47 tests verdes en total.
 
 ## [1.2.0] — 2026-07-07
 
