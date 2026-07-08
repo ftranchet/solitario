@@ -1,0 +1,35 @@
+/*
+ * styles/tokens.css — Design tokens de "Juegos clásicos".
+ *
+ * Fuente única de verdad para los colores de marca. El resto del CSS
+ * (compartido o de cada juego) debería referenciar estas variables en vez de
+ * repetir los valores hexadecimales/rgba.
+ *
+ * Nota: <meta name="theme-color"> y los íconos NO pueden leer variables CSS
+ * (son atributos HTML), así que ahí el valor sigue literal — pero debe
+ * coincidir con --felt-3 / --gold. Si cambiás estos tokens, actualizá también
+ * esos atributos en las 6 páginas.
+ */
+:root {
+  /* Fondo "fieltro" (gradiente radial de las 6 pantallas) */
+  --felt-1: #2a8a52;
+  --felt-2: #176039;
+  --felt-3: #0d3a23;
+
+  /* Acento dorado: botones primarios, selección, marca */
+  --gold: #e8b44a;
+  --gold-ink: #2a1d05;
+
+  /* Superficies claras (tarjetas de contenido tipo estadísticas/menús) */
+  --paper: #fdfaf2;
+  --paper-2: #f4eede;
+  --paper-border: #d9cdb4;
+  --ink: #2a2a26;
+
+  /* Color de palo (cartas): dos colores clásicos, rojo y negro */
+  --suit-red: #c62828;
+  --suit-black: #1a1a1a;
+
+  /* Aviso flotante (toast) */
+  --toast-bg: rgba(20, 20, 20, 0.92);
+}

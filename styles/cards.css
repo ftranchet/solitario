@@ -2,19 +2,21 @@
  * styles/cards.css — "Chrome" de la carta, idéntico en todos los juegos de
  * cartas: fondo de la cara, colores de palo (rojo/negro) y dorso.
  *
+ * Depende de styles/tokens.css (debe enlazarse antes que este archivo).
+ *
  * El tamaño y el layout del índice (.idx / .pip) NO están acá porque varían a
  * propósito entre juegos (Corazones apila rango y palo; Solitario/Carta Blanca
  * los ponen en fila). Eso queda en el CSS de cada juego.
  */
 
 .card.up {
-  background: linear-gradient(160deg, #ffffff, #f4eede);
-  border: 1px solid #d9cdb4;
+  background: linear-gradient(160deg, #ffffff, var(--paper-2));
+  border: 1px solid var(--paper-border);
 }
 
 /* Dos colores clásicos: rojo y negro. */
-.card.up.hearts, .card.up.diamonds { color: #c62828; }
-.card.up.spades, .card.up.clubs { color: #1a1a1a; }
+.card.up.hearts, .card.up.diamonds { color: var(--suit-red); }
+.card.up.spades, .card.up.clubs { color: var(--suit-black); }
 
 .card.down {
   background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);

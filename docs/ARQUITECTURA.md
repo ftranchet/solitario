@@ -207,10 +207,10 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 
 | Fase | Alcance | Estado |
 |---|---|:---:|
-| 0 | Estructura de carpetas (`/shared`, `/styles`) + design tokens | 🟡 |
+| 0 | Estructura de carpetas (`/shared`, `/styles`) + design tokens | ✅ |
 | 1 | `storage.js` (persistencia compartida) | ✅ |
 | 2 | `cards.js` + `cards.css` (chrome) | ✅ |
-| 3 | `ui.js` | 💡 |
+| 3 | `ui.js` (toast) | ✅ |
 | 4 | Contrato + registro de juegos | 💡 |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | 💡 |
 | 6 | Temas, responsive, a11y por teclado | 💡 |
@@ -232,8 +232,27 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   propósito** (Corazones apila rango y palo; Solitario/Carta Blanca los ponen en
   fila). Unificarlo cambiaría el aspecto de Corazones: es una **decisión de
   diseño** que queda para la Fase 6.
-- **Fase 0 (en curso).** Ya existen `/shared` y `/styles`. Falta extraer los
-  design tokens (colores, radios, sombras, escalas) a `styles/tokens.css`.
+- **Fase 0 (hecha).** `styles/tokens.css` define los design tokens (paleta
+  verde fieltro, dorado, superficies claras, colores de palo) y
+  `styles/base.css` los consume en las reglas verificadas como **byte-idénticas**
+  en las 6 páginas: reset, fondo del body, `header`, `#controls`, `.btn` (y sus
+  variantes `:active`/`:disabled`/`.ghost`/`.primary`) y `.toast`/`.toast.show`.
+  `styles/cards.css` (Fase 2) también pasó a consumir los tokens. Cada página
+  conserva su propio `body {}` para lo que sí varía (layout fijo de los juegos
+  vs. scroll del launcher/estadísticas) y sus reglas específicas
+  (`.btn.attention`, `.btn.active`, `.card-modal .btn.primary`, etc.), que no
+  eran idénticas y por lo tanto no se movieron. **Sin cambios visuales**
+  (screenshots de las 6 páginas) ni de comportamiento (39/39 tests antes de
+  sumar los de Fase 3).
+- **Fase 3 (hecha, alcance acotado).** Se extrajo `shared/ui.js` con la función
+  `toast()` —idéntica en los 4 juegos salvo por el helper `el()` que Buscaminas
+  no tiene; la versión compartida no depende de `el()`—. El resto de lo listado
+  originalmente bajo "ui.js" (header/HUD y modal) **no se generalizó**: el HUD
+  difiere en contenido real entre juegos (tiempo/movimientos vs. mano/objetivo)
+  y los modales tienen contenido propio por juego (victoria vs. fin de mano vs.
+  ayuda); forzar una interfaz común ahí sería una abstracción prematura antes de
+  tener el contrato de juego (Fase 4). Se decidió honestamente **no** incluirlos
+  para no acumular complejidad sin un beneficio real todavía.
 
 ### Criterios de aceptación (cuando esté todo)
 

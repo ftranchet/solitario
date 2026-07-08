@@ -850,11 +850,14 @@ test("PWA: sin conexión sirve la página correcta, no index (MPA)", async funct
   try {
     await p.page.goto(url("corazones.html"), { waitUntil: "load" });
     var info = await p.page.evaluate(function () {
-      return { title: document.title, hasHand: !!document.getElementById("hand"), sharedOk: typeof gameSet === "function" };
+      return {
+        title: document.title, hasHand: !!document.getElementById("hand"),
+        sharedOk: typeof gameSet === "function" && typeof toast === "function" && typeof makeCardEl === "function"
+      };
     });
     assert(info.title.indexOf("Corazones") >= 0 && info.hasHand,
       "offline debería servir corazones.html, no index (title=" + info.title + ")");
-    assert(info.sharedOk, "shared/storage.js debería cargarse desde la caché del SW sin conexión");
+    assert(info.sharedOk, "shared/storage.js, shared/ui.js y shared/cards.js deberían cargarse desde la caché del SW sin conexión");
     assertNoErrors(p.errors);
   } finally {
     await ctx.setOffline(false);
@@ -891,6 +894,23 @@ test("Accesibilidad: las cartas tienen aria-label y las boca abajo no se revelan
   assert(r.role === "img", "la carta debería tener role=img");
   assert(r.down === "carta boca abajo", "la carta boca abajo no debe revelar su identidad: " + r.down);
   assertNoErrors(p.errors);
+});
+
+/* 35) Arquitectura — shared/ui.js expone un toast() único, igual en los 4 juegos. */
+test("Arquitectura: shared/ui.js expone toast() igual en los 4 juegos", async function (ctx) {
+  var pages = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
+  for (var i = 0; i < pages.length; i++) {
+    var p = await open(ctx, pages[i]);
+    var r = await p.page.evaluate(function () {
+      toast("hola");
+      var t = document.querySelector(".toast");
+      return { isFn: typeof toast === "function", role: t && t.getAttribute("role"), text: t && t.textContent };
+    });
+    assert(r.isFn, pages[i] + ": toast debería ser una función global (shared/ui.js)");
+    assert(r.role === "status", pages[i] + ": el toast debería tener role=status");
+    assert(r.text === "hola", pages[i] + ": el toast debería mostrar el mensaje pasado");
+    assertNoErrors(p.errors);
+  }
 });
 
 /* ========================= RUNNER ========================= */

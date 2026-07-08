@@ -25,6 +25,18 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   cambios visuales (verificado por screenshots antes/después) ni de comportamiento
   (39 tests verdes). El layout del índice (`.idx`/`.pip`) sigue por juego porque
   varía a propósito; unificarlo queda para la Fase 6 (decisión de diseño).
+- **Arquitectura (Fase 0).** Se agregaron `styles/tokens.css` (design tokens:
+  paleta, colores de palo) y `styles/base.css` (reset, fondo, `header`,
+  `#controls`, `.btn` y `.toast`, todo verificado como byte-idéntico antes de
+  extraerlo), enlazados desde las 6 páginas. `styles/cards.css` pasó a consumir
+  los tokens. Sin cambios visuales (screenshots de las 6 páginas) ni de
+  comportamiento.
+- **Arquitectura (Fase 3).** La función `toast()` (idéntica en los 4 juegos) se
+  extrajo a `shared/ui.js`. Nuevo test verifica que los 4 juegos comparten el
+  mismo `toast()`. El HUD/header y los modales de cada juego **no** se
+  generalizaron: su contenido difiere de verdad entre juegos; unificarlos queda
+  para cuando exista el contrato de juego (Fase 4), para no introducir
+  abstracción prematura. 40 tests verdes.
 
 ## [1.2.0] — 2026-07-07
 

@@ -1,0 +1,56 @@
+/*
+ * styles/base.css — CSS base compartido por las 6 páginas.
+ *
+ * Reglas verificadas como byte-idénticas antes de extraerlas (ver
+ * docs/ARQUITECTURA.md, Fase 0). Consume los tokens de styles/tokens.css.
+ *
+ * header / #controls / .btn / .toast son de los 4 juegos (index.html y
+ * estadisticas.html no tienen esos elementos, así que estas reglas no les
+ * afectan). Cada página conserva su propio reset de `html, body { margin }`
+ * y el resto de `body {}` porque difieren (los juegos son pantalla fija con
+ * `overflow: hidden`; el launcher y estadísticas son contenido con scroll).
+ */
+
+* { box-sizing: border-box; }
+
+/* Fondo "fieltro": se define acá para que sea un solo lugar, pero cada página
+   mantiene su propio `body {}` con el resto de las propiedades (font-family,
+   color, user-select, overflow/min-height, etc.), que sí varían. */
+body {
+  background: radial-gradient(120% 90% at 50% -10%, var(--felt-1) 0%, var(--felt-2) 45%, var(--felt-3) 100%);
+}
+
+/* ---------- Cabecera y barra inferior de los juegos ---------- */
+header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+  background: rgba(0,0,0,0.18);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+#controls {
+  display: flex; gap: 8px; justify-content: center; align-items: center;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(0,0,0,0.18);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ---------- Botones ---------- */
+.btn {
+  background: rgba(255,255,255,0.12); color: #fff;
+  border: 1px solid rgba(255,255,255,0.22);
+  padding: 7px 11px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; cursor: pointer; line-height: 1;
+}
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.4; }
+.btn.ghost { width: 36px; padding: 7px 0; text-align: center; font-size: 15px; }
+.btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+
+/* ---------- Aviso flotante (toast) ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(10px);
+  background: var(--toast-bg); color: #fff; padding: 10px 16px; border-radius: 12px;
+  font-size: 14px; max-width: 80%; text-align: center;
+  opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 200; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
