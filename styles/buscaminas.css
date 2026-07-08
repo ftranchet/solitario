@@ -13,9 +13,7 @@
     overflow: hidden;
   }
 
-  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-
-  /* header -> styles/base.css */
+  /* #app / header -> styles/base.css */
   .brand { display: flex; flex-direction: column; line-height: 1.1; }
   .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
   .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
@@ -45,15 +43,38 @@
     display: flex; align-items: flex-start; justify-content: center;
     padding: 4px 4px 16px;
     -webkit-touch-callout: none;
+    container-type: size;
+    container-name: boardwrap;
   }
+  /* Dimensionado por CSS (antes: setSizes() en JS medía boardWrap y fijaba
+     --cell/--cols en cada resize; ver docs/PLAN.md, Fase 2). --cols/--rows
+     siguen viniendo de JS (son la forma del tablero, no un tamaño en px).
+     --cell es el tamaño de celda que entra por ancho Y por alto del
+     contenedor (container query units, no window.innerWidth: así también
+     funciona bien en el riel lateral apaisado de la Fase 2), con el mismo
+     techo que tenía el JS (44px normal, 60px en contenedores anchos). */
   #board {
+    --cell: max(16px, min(
+      calc((100cqw - (var(--cols) - 1) * 2px) / var(--cols)),
+      calc((100cqh - (var(--rows) - 1) * 2px) / var(--rows)),
+      44px
+    ));
     display: grid;
     grid-template-columns: repeat(var(--cols), var(--cell));
     gap: 2px;
     touch-action: manipulation;
   }
+  @container boardwrap (min-width: 1100px) {
+    #board {
+      --cell: max(16px, min(
+        calc((100cqw - (var(--cols) - 1) * 2px) / var(--cols)),
+        calc((100cqh - (var(--rows) - 1) * 2px) / var(--rows)),
+        60px
+      ));
+    }
+  }
   .cell {
-    width: var(--cell); height: var(--cell);
+    width: var(--cell); aspect-ratio: 1;
     display: flex; align-items: center; justify-content: center;
     font-weight: 900; font-size: calc(var(--cell) * 0.56); line-height: 1;
     border-radius: calc(var(--cell) * 0.16);

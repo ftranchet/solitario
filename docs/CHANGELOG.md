@@ -12,6 +12,23 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Cambiado
 
+- **Arquitectura (Fase 2 de PLAN.md): riel lateral en apaisado corto +
+  Buscaminas a CSS.** En `@media (orientation: landscape) and (max-height:
+  500px)`, el header y el footer de los 4 juegos pasan de barras horizontales
+  a rieles laterales (izquierdo/derecho), así el tablero usa el alto completo
+  de la pantalla en vez de quedar apretado entre dos barras. De paso se
+  corrigió un bug de cascada real: `#app` estaba redefinido idéntico en las 4
+  hojas de estilo de cada juego y esa copia le ganaba al override compartido
+  en `styles/base.css`; se consolidó en un solo lugar. El dimensionado de
+  Buscaminas (`setSizes()` en JS, medía el contenedor en cada `resize`) se
+  reemplazó por CSS puro (`container-type: size` + `calc()`/`min()`/`max()`
+  con unidades `cqw`/`cqh` + `aspect-ratio: 1` por celda), con la misma
+  fórmula de tamaño (piso 16px, techo 44px/60px) pero ahora basada en el
+  contenedor real en vez de `window.innerWidth` — más correcto con el riel
+  lateral, que reduce el ancho disponible sin cambiar el de la ventana. Sin
+  cambios visuales fuera de apaisado corto (capturas idénticas al baseline de
+  la Fase 0 en los otros 3 breakpoints) ni de comportamiento (53 tests
+  verdes). Ver [PLAN.md](./PLAN.md), Fase 2.
 - **Arquitectura (Fase 1 de PLAN.md): motor de cada juego externalizado + CSP
   estricta.** El `<script>` inline de Solitario, Carta Blanca, Corazones y
   Buscaminas (900-1400 líneas cada uno) se movió a `games/<juego>.js` como
