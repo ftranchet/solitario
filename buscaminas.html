@@ -371,7 +371,7 @@ function winGame() {
 
 /* ---------- Interacción ---------- */
 function onTap(r, c) {
-  if (dead || won) return;
+  if (dead || won || generating) return;
   if (started) startTimer();   // reanuda el reloj de una partida restaurada
   var cell = grid[r][c];
   if (flagMode && !cell.revealed) { toggleFlag(r, c); render(); return; }

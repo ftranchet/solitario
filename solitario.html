@@ -651,14 +651,12 @@ function render() {
   var stockSlot = el("div", "slot");
   if (state.stock.length) {
     var sc = el("div", "card down stock-card");
-    sc.onclick = dealStock;
-    keyActivate(sc, dealStock);
+    clickActivate(sc, dealStock);
     stockSlot.appendChild(sc);
     stockSlot.appendChild(el("div", "badge", String(state.stock.length)));
   } else {
     var rec = el("div", "recycle stock-card", "\u21bb");
-    rec.onclick = dealStock;
-    keyActivate(rec, dealStock);
+    clickActivate(rec, dealStock);
     stockSlot.appendChild(rec);
   }
   top.appendChild(stockSlot);
@@ -706,8 +704,7 @@ function render() {
       fslot.appendChild(fe);
     } else {
       var fph = el("div", "foundation-ph", "A");
-      fph.onclick = handleFoundationClick;
-      keyActivate(fph, handleFoundationClick);
+      clickActivate(fph, handleFoundationClick);
       fslot.appendChild(fph);
     }
     top.appendChild(fslot);
@@ -720,11 +717,7 @@ function render() {
     var pile = state.tableau[col];
     if (pile.length === 0) {
       var ph = el("div", "placeholder");
-      (function (cc) {
-        var handler = function () { handleEmptyColumn(cc); };
-        ph.onclick = handler;
-        keyActivate(ph, handler);
-      })(col);
+      (function (cc) { clickActivate(ph, function () { handleEmptyColumn(cc); }); })(col);
       colEl.appendChild(ph);
     } else {
       var y = 0, lastOff = OFFSET_UP;

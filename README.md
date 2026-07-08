@@ -1,10 +1,13 @@
 # Juegos clásicos
 
 Suite de juegos clásicos al estilo de los que traía Windows, hechos para jugar
-en el navegador (celular o escritorio). Cada juego es un único archivo HTML
-autocontenido, sin dependencias.
+en el navegador (celular o escritorio). Sin build ni dependencias externas:
+cada juego es una página HTML que enlaza una capa compartida propia del
+proyecto (`shared/`, `styles/`, `games/registry.js`) — ver
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
-La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos.
+La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos,
+generado a partir de `games/registry.js`.
 
 Es una **PWA**: se puede **instalar** en la pantalla de inicio y jugar **sin
 conexión**. Tras la primera visita, un service worker (`sw.js`) precachea todo
@@ -40,5 +43,6 @@ Ver [`tests/README.md`](tests/README.md) para más detalle.
   matriz de seguimiento de requisitos y el historial de revisiones.
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — historial de cambios del producto
   (formato _Keep a Changelog_).
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — propuesta (en revisión) para
-  reorganizar el código en una capa compartida y escalar a más juegos.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — decisión de arquitectura
+  (capa compartida, registro de juegos, tipos, CSP, accesibilidad) y su
+  seguimiento por fases.

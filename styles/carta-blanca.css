@@ -104,7 +104,7 @@
   }
   .foundation-ph, .placeholder, .free-ph { cursor: pointer; }
   .foundation-ph:focus-visible, .placeholder:focus-visible, .free-ph:focus-visible {
-    outline: 3px solid #e8b44a; outline-offset: 2px;
+    outline: 3px solid var(--gold); outline-offset: 2px;
   }
   /* Los pozos libres llevan un marco apenas más cálido para distinguirlos
      de las pilas finales (que muestran una "A"). */

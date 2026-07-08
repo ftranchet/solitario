@@ -10,6 +10,15 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+- Nada por ahora.
+
+## [1.3.0] — 2026-07-08
+
+Reorganización completa del código en una capa compartida (`shared/`,
+`styles/`, `games/registry.js`), sin cambios visuales ni de comportamiento en
+ningún juego. Ver [ARQUITECTURA.md](./ARQUITECTURA.md) para el detalle
+completo de las 6 fases.
+
 ### Cambiado
 
 - **Arquitectura (Fase 1).** La persistencia (candado multi-pestaña + guardado
@@ -95,6 +104,38 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   - Verificado con screenshots (foco visible, breakpoints responsive) y 4
     tests nuevos que disparan eventos de teclado reales (no llaman a la
     función de juego directamente). 51 tests verdes en total.
+
+### Corregido
+
+- **Auditoría final antes de mergear a `main`.** Revisión completa de las 6
+  fases en conjunto (no sólo cada una por separado), buscando bugs de
+  integración, duplicación remanente y documentación desactualizada:
+  - **Buscaminas:** `onTap()` (el punto de entrada compartido por mouse y
+    teclado) no frenaba la entrada mientras el tablero "sin adivinanzas" se
+    generaba en segundo plano (`generating === true`). Con mouse esto no se
+    notaba porque `onPointerDown` ya bloqueaba todo antes de llegar a
+    `onTap`, pero el atajo de teclado de la Fase 6 llama a `onTap()`
+    directo, así que se podía poner una bandera durante la generación. Se
+    agregó el mismo freno que ya tenía `digCell()`. Nuevo test de regresión
+    que dispara el escenario real (genera un tablero Experto y prueba
+    `onTap` en otra celda mientras `generating` sigue en `true`).
+  - **Solitario / Carta Blanca:** el patrón `el.onclick = fn; keyActivate(el,
+    fn);` se repetía idéntico 6 veces (3 por juego) en los huecos clickeables
+    (mazo, columna vacía, fundación vacía). Se extrajo a `clickActivate(el,
+    fn)` en `shared/ui.js`.
+  - Dos reglas de foco nuevas (`.recycle:focus-visible` etc.) usaban el hex
+    `#e8b44a` en vez de `var(--gold)`, rompiendo la convención de tokens
+    seguida en el resto de la Fase 0 (mismo valor, sin cambio visual).
+  - **Documentación desactualizada:** el README seguía diciendo "cada juego
+    es un único archivo HTML autocontenido, sin dependencias" — ya no es
+    cierto tras las Fases 0-6. `tests/README.md` no mencionaba ninguno de los
+    tests de registro, seguridad, tipos o teclado agregados en las Fases 4-6.
+    `ARQUITECTURA.md` seguía encabezado como "Propuesta" pese a estar
+    implementada. El changelog acumulaba las 6 fases bajo "[No publicado]"
+    sin cortar versión pese a haberse mergeado a `main` varias veces durante
+    la sesión; se corta como `1.3.0` acá.
+  - Verificado: `tsc -p .` limpio y 52/52 tests verdes (1 nuevo) después de
+    cada corrección.
 
 ## [1.2.0] — 2026-07-07
 

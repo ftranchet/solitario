@@ -49,3 +49,16 @@ function keyActivate(el, handler) {
     }
   });
 }
+
+/**
+ * Asigna `handler` como click Y como activación por teclado (keyActivate),
+ * para los "huecos" clickeables que no son cartas (mazo, columna vacía,
+ * fundación vacía). Evita repetir el par `el.onclick = handler; keyActivate
+ * (el, handler);` en cada punto donde se crean.
+ * @param {HTMLElement} el
+ * @param {() => void} handler
+ */
+function clickActivate(el, handler) {
+  el.onclick = handler;
+  keyActivate(el, handler);
+}

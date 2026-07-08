@@ -1,19 +1,20 @@
-# Propuesta de arquitectura — Juegos clásicos
+# Arquitectura — Juegos clásicos
 
-**ADR / RFC de arquitectura (documento vivo)**
+**ADR de arquitectura (documento vivo)**
 
 | Campo | Valor |
 |---|---|
-| Estado | **Aceptada** — en ejecución |
-| Versión | 0.2 |
+| Estado | **Aceptada — implementada** (Fases 0-6 completas, alcance acotado y documentado en cada una) |
+| Versión | 0.3 |
 | Fecha | 2026-07-08 |
 | Autor | Francisco Tranchet + IA |
 | Relacionado | [PRD](./PRD.md) · [CHANGELOG](./CHANGELOG.md) |
 
-> Este documento propone reorganizar el proyecto para que **agregar juegos no
-> rompa nada** y para que la suite sea **robusta, segura y visualmente
-> consistente en múltiples pantallas**. Es una propuesta: no cambia código
-> todavía. El seguimiento vive en la sección [10. Estado y seguimiento](#10-estado-y-seguimiento).
+> Este documento registra por qué y cómo se reorganizó el proyecto para que
+> **agregar juegos no rompa nada** y para que la suite sea **robusta, segura y
+> accesible en múltiples pantallas**. Las 6 fases del plan (§6) ya están
+> implementadas; el detalle de qué se hizo y qué se dejó deliberadamente
+> afuera en cada una vive en la sección [10. Estado y seguimiento](#10-estado-y-seguimiento).
 
 ---
 

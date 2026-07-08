@@ -86,7 +86,39 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Test | Qué valida |
 |------|-----------|
 | PWA · manifest e íconos | El manifest está enlazado, es válido y todos sus íconos existen (incluye `maskable` y `apple-touch-icon`) |
+| PWA · todas las páginas | Las 6 páginas enlazan manifest + apple-touch-icon + theme-color |
 | PWA · offline | El service worker se registra y sirve la app sin conexión (recarga con la red cortada) |
+| PWA · offline por página (MPA) | Sin conexión se sirve la página pedida, no `index.html`; `shared/*.js` también se sirven desde caché |
+| Buscaminas · aviso "sin adivinanzas" | Avisa cuando el tablero pudo requerir adivinar (se agotó el presupuesto de generación) |
+| Guardado · aviso de fallo | Avisa una sola vez si falla la escritura del progreso (quota / modo restringido) |
+| Accesibilidad · `aria-label` | Las cartas exponen `aria-label` legible; las boca abajo no revelan su identidad |
+
+**Arquitectura (registro de juegos y contrato)**
+
+| Test | Qué valida |
+|------|-----------|
+| `shared/ui.js` · toast | Los 4 juegos comparten el mismo `toast()` |
+| Registro · datos | `games/registry.js` declara los 4 juegos con todos los campos requeridos |
+| Registro · launcher | El menú de inicio se genera iterando el registro (mismos hrefs/títulos) |
+| Registro · estadísticas | Las tarjetas de estadísticas se generan iterando el registro |
+| Contrato · registro vs. manifest | Los `shortcuts` del manifest y el registro no divergen |
+
+**Seguridad y tipos**
+
+| Test | Qué valida |
+|------|-----------|
+| Seguridad · XSS | Un nombre de rival con HTML (`<img onerror=...>`) se muestra como texto, nunca se inyecta, en las 4 superficies de Corazones |
+| CSP | Las 6 páginas declaran una `Content-Security-Policy` coherente (estricta en `index.html`/`estadisticas.html`; `unsafe-inline` en `script-src` documentado como brecha conocida en los 4 juegos) |
+| Tipos | Los módulos compartidos (`shared/*.js`, `games/registry.js`) mantienen `// @ts-check` (`tsc -p .` los valida en CI) |
+
+**Accesibilidad (navegación por teclado)**
+
+| Test | Qué valida |
+|------|-----------|
+| Solitario / Carta Blanca · teclado | Enter/Espacio selecciona y mueve una carta, igual que un click (sin simular mouse) |
+| Corazones · teclado | Enter juega una carta de la mano, igual que un click |
+| Buscaminas · roving tabindex | Una sola celda es alcanzable por Tab a la vez; las flechas mueven el foco; Enter cava |
+| Buscaminas · `generating` | `onTap` ignora la entrada (por teclado o mouse) mientras el tablero "sin adivinanzas" se genera en segundo plano |
 
 ## Notas
 

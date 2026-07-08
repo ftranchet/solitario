@@ -662,6 +662,28 @@ test("Buscaminas: roving tabindex — flechas mueven el foco, Enter cava", async
   assertNoErrors(p.errors);
 });
 
+/* 22c) Buscaminas — regresión: con mouse, onPointerDown bloquea toda
+   interacción mientras se genera el tablero "sin adivinanzas" (generating).
+   onTap() en sí no tenía ese freno, así que Enter por teclado (que llama a
+   onTap directo, sin pasar por onPointerDown) podía poner una bandera
+   mientras el tablero todavía se estaba generando en segundo plano. */
+test("Buscaminas: onTap ignora la entrada mientras se genera el tablero (generating)", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  await p.page.evaluate(function () { noGuess = true; setDifficulty("expert"); });
+  await p.page.evaluate(function () { digCell(8, 15); }); // dispara la generación (asíncrona)
+  var mid = await p.page.evaluate(function () {
+    if (!generating) return { skipped: true };
+    flagMode = true;
+    onTap(0, 0);          // simula Enter por teclado en otra celda mientras se genera
+    return { skipped: false, flagged: grid[0][0].flagged, revealed: grid[0][0].revealed };
+  });
+  if (!mid.skipped) {
+    assert(!mid.flagged && !mid.revealed, "onTap no debería tocar la celda mientras generating=true: " + JSON.stringify(mid));
+  }
+  await p.page.waitForFunction(function () { return started === true && generating === false; }, null, { timeout: 9000 });
+  assertNoErrors(p.errors);
+});
+
 /* 23) Buscaminas — el acorde abre las vecinas correctas; perder revela minas y
    marca las banderas erróneas. */
 test("Buscaminas: acorde abre vecinas; perder revela minas y banderas erróneas", async function (ctx) {

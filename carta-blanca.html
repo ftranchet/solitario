@@ -660,11 +660,7 @@ function render() {
       cell.appendChild(ce);
     } else {
       var fph = el("div", "free-ph");
-      (function (c) {
-        var handler = function () { handleFreeClick(c); };
-        fph.onclick = handler;
-        keyActivate(fph, handler);
-      })(fc);
+      (function (c) { clickActivate(fph, function () { handleFreeClick(c); }); })(fc);
       cell.appendChild(fph);
     }
     top.appendChild(cell);
@@ -685,8 +681,7 @@ function render() {
       fslot.appendChild(fe);
     } else {
       var fph2 = el("div", "foundation-ph", "A");
-      fph2.onclick = handleFoundationClick;
-      keyActivate(fph2, handleFoundationClick);
+      clickActivate(fph2, handleFoundationClick);
       fslot.appendChild(fph2);
     }
     top.appendChild(fslot);
@@ -699,11 +694,7 @@ function render() {
     var pile = state.tableau[col];
     if (pile.length === 0) {
       var ph = el("div", "placeholder");
-      (function (cc) {
-        var handler = function () { handleEmptyColumn(cc); };
-        ph.onclick = handler;
-        keyActivate(ph, handler);
-      })(col);
+      (function (cc) { clickActivate(ph, function () { handleEmptyColumn(cc); }); })(col);
       colEl.appendChild(ph);
     } else {
       var y = 0;

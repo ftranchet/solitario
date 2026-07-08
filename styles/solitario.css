@@ -103,7 +103,7 @@ html, body { margin: 0; height: 100%; }
   }
   .recycle, .foundation-ph, .placeholder { cursor: pointer; }
   .recycle:focus-visible, .foundation-ph:focus-visible, .placeholder:focus-visible,
-  .stock-card:focus-visible { outline: 3px solid #e8b44a; outline-offset: 2px; }
+  .stock-card:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
   .badge {
     position: absolute; bottom: -3px; right: -3px;
