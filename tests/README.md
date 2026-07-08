@@ -102,14 +102,15 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Registro · launcher | El menú de inicio se genera iterando el registro (mismos hrefs/títulos) |
 | Registro · estadísticas | Las tarjetas de estadísticas se generan iterando el registro |
 | Contrato · registro vs. manifest | Los `shortcuts` del manifest y el registro no divergen |
+| Precache | Todo archivo servido (HTML, CSS, JS, íconos) está en la lista `ASSETS` de `sw.js`; un archivo nuevo fuera de la lista rompe el test (ver docs/PLAN.md, Fase 0) |
 
 **Seguridad y tipos**
 
 | Test | Qué valida |
 |------|-----------|
 | Seguridad · XSS | Un nombre de rival con HTML (`<img onerror=...>`) se muestra como texto, nunca se inyecta, en las 4 superficies de Corazones |
-| CSP | Las 6 páginas declaran una `Content-Security-Policy` coherente (estricta en `index.html`/`estadisticas.html`; `unsafe-inline` en `script-src` documentado como brecha conocida en los 4 juegos) |
-| Tipos | Los módulos compartidos (`shared/*.js`, `games/registry.js`) mantienen `// @ts-check` (`tsc -p .` los valida en CI) |
+| CSP | Las 6 páginas declaran una `Content-Security-Policy` estricta, sin `unsafe-inline` en ningún directive (el motor de cada juego vive en `games/<juego>.js` desde la Fase 1 de docs/PLAN.md) |
+| Tipos | Los módulos compartidos (`shared/*.js`, `games/registry.js`) mantienen `// @ts-check` (`tsc -p .` los valida en CI); el motor de cada juego en `games/<juego>.js` queda deliberadamente fuera (ver docs/PLAN.md, Fase 1) |
 
 **Accesibilidad (navegación por teclado)**
 
@@ -119,6 +120,20 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Corazones · teclado | Enter juega una carta de la mano, igual que un click |
 | Buscaminas · roving tabindex | Una sola celda es alcanzable por Tab a la vez; las flechas mueven el foco; Enter cava |
 | Buscaminas · `generating` | `onTap` ignora la entrada (por teclado o mouse) mientras el tablero "sin adivinanzas" se genera en segundo plano |
+
+## Screenshots (verificación visual manual)
+
+`screenshot.js` no es parte de la suite (no hace assertions): captura las 6
+páginas en los 4 breakpoints del plan (vertical, apaisado corto, tablet,
+desktop ancho) para comparar regresiones visuales a mano entre fases.
+
+```bash
+cd tests
+node screenshot.js [carpeta-salida]   # por defecto docs/screenshots/baseline
+```
+
+`docs/screenshots/baseline/` guarda la referencia de la Fase 0 (ver
+docs/PLAN.md); las fases siguientes comparan contra esas capturas.
 
 ## Notas
 

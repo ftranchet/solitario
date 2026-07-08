@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente |
-| Versión | 1.0 |
+| Estado | Vigente (Fases 0-1 hechas) |
+| Versión | 1.1 |
 | Fecha | 2026-07-08 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
@@ -151,9 +151,44 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 
 | Fase | Alcance | Objetivo | Estado |
 |---|---|:---:|:---:|
-| 0 | Baseline visual + test de precache automático | 1 | ⬜ |
-| 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ⬜ |
+| 0 | Baseline visual + test de precache automático | 1 | ✅ |
+| 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ✅ |
 | 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ⬜ |
 | 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ⬜ |
 | 4 | Modo oscuro (paleta a elegir) | 3 | ⬜ |
 | 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
+
+## Progreso
+
+- **Fase 0 (hecha).** Capturas de referencia de las 6 páginas en los 4
+  breakpoints (`docs/screenshots/baseline/`, generadas con el nuevo
+  `tests/screenshot.js`) para comparar regresiones visuales en las fases
+  siguientes. Nuevo test de precache (`tests/run.js`) que compara el
+  filesystem contra la lista `ASSETS` de `sw.js` sin abrir navegador: falla si
+  se sirve un archivo (HTML, CSS, JS, ícono) que no está precacheado.
+  Verificado agregando un archivo fuera de `ASSETS` a propósito (el test lo
+  detecta) y quitándolo (vuelve a pasar). 53/53 tests verdes.
+- **Fase 1 (hecha).** El `<script>` inline de cada juego (900–1400 líneas) se
+  movió a `games/<juego>.js` como `<script src>` clásico, sin cambiar una
+  línea de la lógica: el contenido de cada archivo nuevo se comparó por
+  `diff` contra el bloque original y es **byte-idéntico**. Mismo scope global,
+  mismas variables que ya leían los tests (`state`, `players`, `grid`, etc.).
+  - **CSP estricta en las 6 páginas sin excepción:** al no quedar JS inline,
+    `script-src` de los 4 juegos pasó a `'self'` (sin `'unsafe-inline'`),
+    igual que ya tenían `index.html`/`estadisticas.html`. El test de CSP se
+    simplificó a una sola lista (antes distinguía "estrictas" de "con script
+    inline"); ya no hace falta la distinción.
+  - `sw.js` suma los 4 archivos nuevos a `ASSETS` (detectado y forzado por el
+    test de precache de la Fase 0) y sube `VERSION` a `v1.8.0` para que los
+    clientes instalados tomen la app shell nueva.
+  - `tsconfig.json`: el `include` de `games/**/*.js` se acotó a
+    `games/registry.js` explícito. Con `checkJs: true` global, `tsc` habría
+    empezado a tipar los motores recién externalizados (sin `// @ts-check` ni
+    JSDoc) y roto la puerta de CI con cientos de errores — deliberadamente
+    **no** se tipan (misma decisión que ARQUITECTURA.md, Fase 5, aplicada
+    ahora al archivo en vez de al `<script>` inline).
+  - Sin cambios de comportamiento ni visuales: 53/53 tests verdes (incluida
+    la suite completa corrida con la CSP endurecida) y `tsc -p .` limpio;
+    capturas después de la fase comparadas contra el baseline de la Fase 0
+    (mismo layout y estilos; sólo difieren las cartas repartidas, que son
+    aleatorias en cada carga).

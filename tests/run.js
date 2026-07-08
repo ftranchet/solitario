@@ -1114,14 +1114,58 @@ test("Contrato: games/registry.js y manifest.webmanifest no divergen", async fun
   assertNoErrors(p.errors);
 });
 
+/* 40) Precache — todo archivo servido (HTML, CSS, JS, íconos) está en la lista
+   ASSETS de sw.js. Hoy esa correspondencia se cuida a mano; con más archivos
+   por juego (ver Fase 1 de docs/PLAN.md) el riesgo de olvidar uno —y romper el
+   offline en silencio— crece. Este test lo convierte en un fallo de CI. No
+   abre navegador: compara el filesystem contra sw.js directo. */
+test("Precache: todo archivo servido está en la lista ASSETS de sw.js", async function () {
+  var swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+  var listMatch = swSrc.match(/const ASSETS = \[([\s\S]*?)\];/);
+  assert(listMatch, "no se pudo encontrar la lista ASSETS en sw.js");
+  var assets = {};
+  var strRe = /"([^"]+)"/g, strMatch;
+  while ((strMatch = strRe.exec(listMatch[1]))) assets[strMatch[1]] = true;
+
+  // Carpetas que forman el "app shell" y qué extensiones les corresponden
+  // (null = todas). Cada archivo real de estas carpetas debe estar en ASSETS.
+  var dirs = [
+    { dir: "", exts: [".html"] },
+    { dir: "styles", exts: [".css"] },
+    { dir: "shared", exts: [".js"] },
+    { dir: "games", exts: [".js"] },
+    { dir: "icons", exts: null },
+  ];
+  var extras = ["favicon.svg", "manifest.webmanifest"];
+
+  var missing = [];
+  dirs.forEach(function (d) {
+    var abs = path.join(ROOT, d.dir);
+    fs.readdirSync(abs).forEach(function (name) {
+      var full = path.join(abs, name);
+      if (!fs.statSync(full).isFile()) return;
+      if (d.exts && d.exts.indexOf(path.extname(name)) === -1) return;
+      var rel = d.dir ? d.dir + "/" + name : name;
+      if (!assets[rel]) missing.push(rel);
+    });
+  });
+  extras.forEach(function (rel) { if (!assets[rel]) missing.push(rel); });
+
+  assert(missing.length === 0,
+    "archivo(s) servido(s) fuera de ASSETS en sw.js: " + missing.join(", "));
+});
+
 /* ==================== SEGURIDAD (Fase 5) ==================== */
 
-/* 40) XSS — un nombre de rival con HTML se muestra como texto literal, nunca
+/* 41) XSS — un nombre de rival con HTML se muestra como texto literal, nunca
    se inyecta como elemento, en las 4 superficies donde Corazones lo renderiza
    (ficha de asiento, fin de mano, fin de partida, tabla de puntajes). Esta es
-   la protección real en las 4 páginas de juego, que necesitan 'unsafe-inline'
-   en script-src (ver docs/ARQUITECTURA.md, Fase 5) y por lo tanto NO pueden
-   apoyarse en la CSP para frenar una inyección: todo depende de escapar bien. */
+   la protección real: el escapado no depende de la CSP para frenar una
+   inyección (defensa en profundidad, no la única barrera). Desde la Fase 1 de
+   docs/PLAN.md la CSP también es estricta en las 4 páginas de juego (sin
+   'unsafe-inline' en script-src), así que de paso bloquearía la ejecución de
+   un atributo onerror inyectado — pero el test verifica el escapado en sí,
+   no la CSP (eso lo cubre el test de CSP). */
 test("Seguridad: un nombre de rival con HTML no se inyecta, se muestra como texto", async function (ctx) {
   var p = await open(ctx, "corazones.html");
   var payload = '<img src=x onerror="window.__xss=1">';
@@ -1161,16 +1205,16 @@ test("Seguridad: un nombre de rival con HTML no se inyecta, se muestra como text
   assertNoErrors(p.errors);
 });
 
-/* 41) CSP — las 6 páginas declaran una Content-Security-Policy sin orígenes de
-   terceros. index.html y estadisticas.html (sin script inline) son estrictas
-   (sin 'unsafe-inline' en script-src); los 4 juegos (motor todavía inline)
-   documentan la brecha conocida. Si alguna edición futura aflojara la
-   política sin darse cuenta, este test lo detecta. */
-test("CSP: las 6 páginas declaran una Content-Security-Policy coherente", async function (ctx) {
-  var strict = ["index.html", "estadisticas.html"];
-  var withInlineScript = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
-  for (var i = 0; i < strict.length + withInlineScript.length; i++) {
-    var file = i < strict.length ? strict[i] : withInlineScript[i - strict.length];
+/* 42) CSP — las 6 páginas declaran una Content-Security-Policy estricta, sin
+   orígenes de terceros y sin 'unsafe-inline' en ningún directive. Desde que el
+   motor de cada juego se externalizó a games/<juego>.js (ver docs/PLAN.md,
+   Fase 1) ya no queda script inline en ninguna página. Si una edición futura
+   aflojara la política sin darse cuenta (o volviera a meter un <script>
+   inline), este test lo detecta. */
+test("CSP: las 6 páginas declaran una Content-Security-Policy estricta", async function (ctx) {
+  var pages = ["index.html", "estadisticas.html", "solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
+  for (var i = 0; i < pages.length; i++) {
+    var file = pages[i];
     var p = await open(ctx, file);
     var csp = await p.page.evaluate(function () {
       var m = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
@@ -1180,20 +1224,14 @@ test("CSP: las 6 páginas declaran una Content-Security-Policy coherente", async
     assert(csp.indexOf("default-src 'self'") >= 0, file + ": default-src debería ser 'self'");
     assert(csp.indexOf("object-src 'none'") >= 0, file + ": object-src debería ser 'none'");
     assert(!/https?:|\*/.test(csp), file + ": la CSP no debería permitir orígenes externos: " + csp);
-    var styleStrict = /style-src 'self'(?!.*unsafe-inline)/.test(csp);
-    assert(styleStrict, file + ": style-src debería ser estricto (sin unsafe-inline), todo el CSS ya es externo: " + csp);
-    if (strict.indexOf(file) >= 0) {
-      assert(csp.indexOf("script-src 'self'") >= 0 && csp.indexOf("'unsafe-inline'") === -1,
-        file + ": no debería necesitar unsafe-inline (no tiene script inline): " + csp);
-    } else {
-      assert(csp.indexOf("'unsafe-inline'") >= 0,
-        file + ": debería declarar la brecha conocida de unsafe-inline en script-src: " + csp);
-    }
+    assert(csp.indexOf("'unsafe-inline'") === -1, file + ": no debería necesitar unsafe-inline en ningún directive: " + csp);
+    assert(csp.indexOf("script-src 'self'") >= 0, file + ": script-src debería ser 'self' estricto: " + csp);
+    assert(/style-src 'self'(?!.*unsafe-inline)/.test(csp), file + ": style-src debería ser 'self' estricto: " + csp);
     assertNoErrors(p.errors);
   }
 });
 
-/* 42) Tipos — los módulos compartidos declaran // @ts-check (tsc -p . los
+/* 43) Tipos — los módulos compartidos declaran // @ts-check (tsc -p . los
    valida en CI; ver .github/workflows/tests.yml). No abre navegador: lee los
    archivos directo del filesystem. */
 test("Tipos: los módulos compartidos declaran // @ts-check", async function () {
