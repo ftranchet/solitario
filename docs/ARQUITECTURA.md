@@ -4,22 +4,19 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Aceptada — implementada** (Fases 0-6 completas); **Fase 7+ propuesta**, pendiente de aprobación (§12) y **revisada contra un feedback externo (§13)** |
-| Versión | 0.5 |
+| Estado | **Aceptada — implementada** (Fases 0-6 completas) |
+| Versión | 0.6 |
 | Fecha | 2026-07-08 |
 | Autor | Francisco Tranchet + IA |
-| Relacionado | [PRD](./PRD.md) · [CHANGELOG](./CHANGELOG.md) |
+| Relacionado | [PLAN](./PLAN.md) · [PRD](./PRD.md) · [CHANGELOG](./CHANGELOG.md) |
 
 > Este documento registra por qué y cómo se reorganizó el proyecto para que
 > **agregar juegos no rompa nada** y para que la suite sea **robusta, segura y
-> accesible en múltiples pantallas**. Las 6 fases del plan (§6) ya están
+> accesible en múltiples pantallas**. Las 6 fases del refactor (§6) ya están
 > implementadas; el detalle de qué se hizo y qué se dejó deliberadamente
 > afuera en cada una vive en la sección [10. Estado y seguimiento](#10-estado-y-seguimiento).
-> La sección [12](#12-próxima-secuencia-propuesta-fase-7) revisa esos alcances
-> acotados uno por uno y propone una nueva secuencia — **todavía no ejecutada**.
-> La sección [13](#13-revisión-de-un-feedback-externo-y-secuencia-revisada-fase-7)
-> contrasta esa secuencia con un feedback externo de arquitectura/diseño y la
-> reordena (Fases 7-12) — también **pendiente de aprobación**.
+> Es el registro de **lo ya construido**; el trabajo hacia adelante vive en
+> **[docs/PLAN.md](./PLAN.md)** (ver §12).
 
 ---
 
@@ -98,17 +95,17 @@ real con esbuild.
 
 ### 5.1 Estructura de carpetas
 
-> Actualizado post-Fase 6 para reflejar lo **realmente implementado** (la
-> versión original de esta sección era aspiracional; §10 y §12.1 explican
-> cada diferencia — `msdeal.js` y `a11y.js` no se crearon como archivos
-> aparte a propósito, `games/*.js` con el motor de cada juego es la Fase 7
-> propuesta en §12.2, todavía no implementada).
+> Refleja lo **realmente implementado** (la versión original de esta sección
+> era aspiracional; §10 explica cada diferencia — `msdeal.js` y `a11y.js` no se
+> crearon como archivos aparte a propósito). Externalizar `games/*.js` con el
+> motor de cada juego es la **Fase 1 de [PLAN.md](./PLAN.md)**, todavía no
+> implementada.
 
 ```
 /
   index.html                 launcher (se arma desde games/registry.js)
   estadisticas.html          agrega stats leyendo el registro
-  solitario.html             motor todavía inline (ver §12.2, Fase 7 propuesta)
+  solitario.html             motor todavía inline (se externaliza en PLAN.md, Fase 1)
   carta-blanca.html
   corazones.html
   buscaminas.html
@@ -483,168 +480,21 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 
 ## 11. Decisión
 
-**Aceptada.** El trabajo se ejecuta por fases (ver §10). Cada fase es mergeable
-por separado y mantiene los 39 tests verdes como puerta.
+**Aceptada e implementada.** El refactor se ejecutó por fases (§10), cada una
+mergeable por separado y con la suite de tests verde como puerta (hoy 52
+tests). El resultado: la duplicación transversal (persistencia, cartas, UI,
+stats, PWA, diseño) vive en un solo lugar, y agregar un juego al launcher/
+estadísticas es una sola edición en `games/registry.js`.
 
-## 12. Próxima secuencia propuesta (Fase 7+)
+## 12. Próximos pasos
 
-> **Estado de esta sección: propuesta, no aprobada.** Revisa cada "alcance
-> acotado" dejado por las Fases 0-6 (§10) y propone qué hacer con cada uno,
-> con el mismo criterio de riesgo/beneficio usado en todo este documento. No
-> se implementa nada de lo que sigue hasta una confirmación explícita.
+El trabajo **hacia adelante** (externalizar el motor de cada juego, layouts por
+orientación, íconos SVG, modo oscuro, pulido de interacción) se planifica en un
+documento aparte para no mezclarlo con este registro de lo ya hecho:
 
-### 12.1 Inventario: qué quedó afuera y qué se propone hacer con eso
+➡️ **[docs/PLAN.md](./PLAN.md)** — plan de trabajo por fases (desde Fase 0).
 
-| Origen | Alcance acotado | Propuesta |
-|---|---|---|
-| Fase 3 | Header/HUD y modal sin generalizar | **Sin acción.** Sigue sin haber un 5.º juego que lo necesite; forzarlo ahora sería la misma abstracción prematura que se evitó en su momento. |
-| Fase 4 | Interfaz `Game` completa (`mount/newGame/serialize/restore/destroy`, §5.2) no implementada | **Sin acción por ahora.** Paga su costo recién con un 5.º juego real (ver Fase 4, §10). |
-| Fase 4 | `shared/msdeal.js` (repartidor determinista de Carta Blanca) nunca se extrajo | **Sin acción como refactor aislado** — hoy sólo lo usa un juego, no hay duplicación que resolver. Sólo tiene sentido si viene *junto* con una funcionalidad nueva que lo reutilice (ver 12.4). |
-| Fase 4/10 | El test de contrato no verifica "persiste y restaura" ni "cacheado offline" por juego | **Se resuelve en Fase 8** (12.3), extendiéndolo para cubrir también los archivos de cada juego. |
-| Fase 5 | CSP con `'unsafe-inline'` en `script-src` de los 4 juegos (motor inline) | **Se resuelve en Fase 7** (12.2) — es el gap más repetido de todo el documento y ahora tiene una vía segura para cerrarlo. |
-| Fase 5 | Sin `@ts-check` en los motores de juego | **Sin fase dedicada.** Se recomienda adopción oportunista (al tocar una función, tipar esa función) en vez de una migración de una vez — mismo riesgo/beneficio que ya se documentó en Fase 5. |
-| Fase 6 | Temas claro/oscuro no implementados | **Fase 9** (12.4): decisión de diseño humana, no una extracción mecánica. Se proponen mockups concretos, no código. |
-| Fase 6 | Paleta apta para daltónicos deprioritizada | **Se cierra sin acción.** Al revisarlo de nuevo el argumento sigue siendo débil: los palos ya se distinguen por forma (♠♥♦♣), y rojo-negro no es la confusión típica de protanopia/deuteranopia. No es un gap real, es una decisión ya tomada. |
-| §5.1 | `shared/a11y.js` (planeado en la estructura de carpetas) nunca se creó | **Se cierra sin acción.** Los helpers de a11y terminaron donde tenía sentido cada uno (`keyActivate` en `ui.js`, `cardLabel` en `cards.js`); crear un archivo aparte ahora sólo movería código sin motivo. Se actualiza §5.1 para reflejar la estructura real en vez de la aspiracional. |
-| §9 (riesgos) | "Los tests dependen de globals" (ligado a una futura migración a módulos ES) | **Se cierra sin acción.** Migrar a módulos sigue siendo un no-objetivo explícito (§2); el riesgo sólo existe si eso cambia. |
-| PRD (roadmap) | "Aviso de actualización del SW" | **Se resuelve en Fase 8** (12.3) — `sw.js` ya tiene el listener `skip-waiting` sin usar, esperando el lado del cliente. |
-
-### 12.2 Fase 7 (propuesta, prioridad alta): externalizar el motor de cada juego
-
-**Qué.** Mover el `<script>` inline de cada juego (900-1400 líneas) a un
-archivo externo del mismo origen — `solitario.html` pasaría a tener
-`<script src="games/solitario.js"></script>` en vez del bloque inline,
-**sin cambiar una sola línea de ese código**. Se mantienen los `<script>`
-clásicos (no módulos): mismo scope global, mismas variables que hoy leen los
-tests (`state`, `grid`, `players`…).
-
-**Por qué es distinto de lo que ya se descartó.** Esto **no** es migrar a la
-interfaz `Game` de §5.2 (eso sigue sin hacer falta, ver 12.1). Es exactamente
-el mismo movimiento mecánico que ya funcionó tres veces en este trabajo: la
-extracción de CSS inline en la Fase 0 y la de los últimos scripts triviales
-(`pwa.js`, `launcher.js`, namespace vía `data-store-ns`) en la Fase 5. Mover
-contenido byte-idéntico a un archivo aparte es de bajo riesgo porque es
-verificable mecánicamente (diff de contenido) y no toca lógica.
-
-**Qué resuelve.** Cierra **el gap de CSP más repetido del documento**: un
-script externo del mismo origen ya cumple `script-src 'self'` sin
-`'unsafe-inline'` (a diferencia de uno inline). Las 6 páginas quedarían con
-CSP estricta sin excepciones — no sólo `index.html`/`estadisticas.html`.
-
-**Cómo se verificaría.** El mismo método usado en todo el documento:
-diff de contenido contra el HTML original (el `.js` extraído debe ser
-idéntico al bloque que estaba entre `<script>` y `</script>`), suite completa
-verde, y correr los tests con la CSP ya endurecida como red de seguridad
-(igual que en Fase 5). Sin cambios de comportamiento esperados.
-
-### 12.3 Fase 8 (propuesta, prioridad media): cerrar los dos huecos "vivos"
-
-Dos items quedaron explícitamente como pendientes de extender, no como
-decisiones cerradas — se proponen juntos porque comparten el mismo tema
-(mantener el registro/SW honestos a medida que crece la suite):
-
-1. **Extender el test de contrato** (Fase 4) para verificar que **todos** los
-   archivos de cada juego (HTML, y tras la Fase 7 también su `.js`) están en
-   la lista `ASSETS` de `sw.js`. Hoy esa verificación es manual; con más
-   archivos por juego (después de la Fase 7) el riesgo de un olvido crece, y
-   este tipo de bug ya se dio una vez en la auditoría final de esta sesión.
-2. **Aviso de "hay una versión nueva, recargá"**: `sw.js` ya tiene, sin usar,
-   el listener `self.addEventListener("message", ...skip-waiting...)`. Falta
-   el lado del cliente: detectar `registration.waiting` /
-   `updatefound`/`controllerchange` y mostrar un `toast` con acción "Recargar"
-   que llame `postMessage("skip-waiting")`. Es código muerto real hoy — o se
-   completa o se saca; completarlo además cierra un ítem que ya estaba en el
-   roadmap del PRD.
-
-### 12.4 Fase 9 (propuesta, requiere decisión humana): temas claro/oscuro
-
-No se propone implementar una paleta a ciegas. Se propone presentar 2-3
-propuestas visuales concretas (paleta clara alternativa a la mesa de fieltro
-verde, manteniendo dorado/marca) para que se elija una antes de tocar CSS —
-mismo criterio ya documentado en Fase 6: es una decisión de diseño, no una
-extracción mecánica.
-
-**Oportunidad relacionada (opcional, sólo si hay interés):** si en algún
-momento se quiere una funcionalidad de "partida numerada/con semilla" para
-Solitario (jugar la misma partida que otra persona, tipo "Solitaire #1247"),
-ahí sí valdría la pena extraer `shared/msdeal.js` — reutilizando el mismo
-mezclador determinista que hoy sólo usa Carta Blanca — porque resolvería una
-duplicación real *a la vez que* entrega una función nueva. No se propone
-como refactor aislado (ver 12.1).
-
-### 12.5 Fuera de la secuencia propuesta
-
-- **Auditoría responsive más profunda.** Sólo si aparece un defecto concreto
-  reportado — no especular con más breakpoints sin un problema real (mismo
-  criterio que ya se aplicó en Fase 6).
-- **Variantes de arte para figuras (J/Q/K).** Cosmético, sin impacto
-  funcional; no justifica una fase propia.
-- Los ítems ya marcados "sin acción" en 12.1 (paleta daltónica, riesgo de
-  globals, `shared/a11y.js`, `@ts-check` en motores) — se consideran
-  **resueltos por decisión**, no pendientes.
-
-## 13. Revisión de un feedback externo y secuencia revisada (Fase 7+)
-
-> **Estado: propuesta, no aprobada.** Esta sección contrasta un feedback
-> externo de arquitectura/diseño (recibido 2026-07-08) contra la secuencia ya
-> propuesta en §12, con el mismo criterio de riesgo/beneficio de todo el
-> documento. El feedback está bien orientado a los tres objetivos del producto
-> (escalar sin romper, adaptabilidad y estética) y coincide en varios puntos
-> con lo que ya se había planeado; en otros conflaciona un cambio de bajo
-> riesgo con uno de alto, o propone algo técnicamente inviable sin reescribir
-> el motor. Acá se separa cada cosa y se reordena la secuencia.
-
-### 13.1 Reconciliación punto por punto
-
-| Feedback | Veredicto | Razón / dónde encaja |
-|---|---|---|
-| **Externalizar el motor a `.js` para quitar `unsafe-inline` de la CSP** | ✅ **De acuerdo — es la prioridad 1.** | Es exactamente la **Fase 7** que ya se propuso en §12.2. Máximo acuerdo entre feedback y ADR: cierra el gap de CSP más repetido del documento con un movimiento mecánico verificable (diff byte-idéntico). Ver 13.2. |
-| **Migrar a ES Modules (`type="module"`)** | 🟡 **Innecesario para el objetivo; oportunista después.** | El objetivo de seguridad (quitar `unsafe-inline`) se logra con un `<script src>` **clásico** — no hace falta módulos. Migrar a módulos saca `state`/`grid`/`players` de `window` y **rompe ~57 tests** que hoy leen esas globals (riesgo ya listado en §9). Sigue siendo no-objetivo (§2); se reconsidera recién con el juego n.º 5 o ante una colisión concreta, no como big-bang. |
-| **Interfaz `mount/newGame/serialize/restore` + un solo `game-shell.html` dinámico** | ⏸️ **Diferido — el feedback conflaciona dos cosas.** | Esto **no** es la Fase 7 del ADR (esa es sólo la extracción mecánica). Es la interfaz `Game` completa de §5.2 + un shell que cargue el juego elegido: la reescritura de mayor riesgo del proyecto, para beneficio externo nulo con 4 juegos que ya andan. Paga su costo recién con un **5.º juego real** (§12.1). La Fase 7 es, de hecho, el **primer paso habilitante** hacia ese shell futuro. |
-| **Build step (Vite) + TypeScript real** | ❌ **No ahora.** | Contradice **RNF-01** (sin build, 100% estático), que es un requisito de producto, no una preferencia. El 90% del valor de TS ya lo da `@ts-check` + JSDoc + `tsc` en CI sobre `shared/` (0 errores, `strict`). El único dolor real que un build resolvería —**cache-busting del SW**— se cubre, si se vuelve recurrente, con un script de ~20 líneas en CI que hashea la lista de assets, no con un bundler. |
-| **Eliminar `setSizes()` y usar `aspect-ratio`/`clamp`/`grid auto-fit`** | 🟡 **Parcial — inviable tal cual en los juegos de cartas.** | En Solitario/Carta Blanca/Corazones, `CW`/`CH` **no son sólo CSS**: la lógica JS los lee para el hit-testing del drag (`dropTargetAt(cardLeft+CW*0.5, …)`), el abanicado (`fan=CW*0.30`), la altura de columna y los offsets de apilado. El tablero está **posicionado absolutamente por JS**; "borrar `setSizes()`" = reescribir el motor de layout (el mismo riesgo alto ya descartado). **Sí aplica a Buscaminas** (grilla de celdas sin drag): ahí la migración a CSS (`aspect-ratio:1`, container queries, `grid-template-columns: repeat(N,1fr)`) es viable y de bajo riesgo. Se hace acotado a Buscaminas, no en bloque. |
-| **Layouts específicos para landscape en móvil** | ✅ **De acuerdo — es el mejor hallazgo del feedback.** | **Gap real y no cubierto:** la Fase 6 sólo atacó desktop ancho (techo de tamaño ≥1100px); nunca el celular apaisado, donde el alto colapsa y header/footer se comen el tablero. Alto valor, riesgo moderado, cae dentro del objetivo 2. Ver Fase 8 (13.2). |
-| **Sustituir emojis por SVG consistentes** | ✅ **De acuerdo — nuevo y válido.** | El ADR sólo lo rozó (arte de figuras, "cosmético"). Los emojis (💣 🚩 🙂 🎉 🎮 ⚙) se ven distinto por SO y rompen la estética minimalista (objetivo 3). **Los SVG deben ir inline** (sin fuente de íconos por CDN) para respetar la CSP estricta — buena sinergia con el objetivo 1. Ver Fase 9 (13.2). |
-| **Modo oscuro (dark mode)** | ✅ **De acuerdo — ya estaba planeado (§12.4).** | Coincide con la Fase 9 del ADR. La mecánica es barata (overrides de ~10 tokens en `tokens.css` bajo `@media (prefers-color-scheme: dark)`); lo que necesita criterio humano es la paleta (fieltro→esmeralda muy oscuro, blanco→gris carbón). Se presentan 2-3 propuestas antes de tocar CSS. Ver Fase 10. |
-| **View Transitions API / animaciones FLIP** | 🟡 **Sí, pero como pulido final y progresivo.** | Lindo y moderno (objetivo 3), pero sobre un tablero posicionado a mano e imperativo puede pelearse con las animaciones `.card.land` y el drag actuales. Se hace **sólo como mejora progresiva** (`if (document.startViewTransition)`) y detrás de `prefers-reduced-motion`. Va al final, después de externalizar el motor (más fácil de iterar en un `.js`). Ver Fase 12. |
-
-### 13.2 Secuencia revisada
-
-Reordena §12 incorporando lo válido del feedback. Mismo método de siempre:
-cada fase mergeable por separado, **tests verdes como puerta**, verificación
-real (diff/screenshot/suite con la CSP puesta), y nada se implementa hasta
-confirmación explícita.
-
-- **Fase 7 — Externalizar el motor de cada juego (prioridad alta, bajo riesgo).**
-  Mover el `<script>` inline (900-1400 líneas) a `games/<juego>.js` **sin cambiar
-  una línea**, como `<script src>` clásico (mismas globals, mismos tests). Cierra
-  `unsafe-inline` en `script-src` de los 4 juegos → CSP estricta en las 6 páginas
-  sin excepción. Es el **habilitante** de todo lo demás. (= §12.2.)
-- **Fase 8 — Landscape en móvil (prioridad alta, riesgo moderado).** Reubicar
-  los controles de header/footer a un riel lateral en
-  `@media (orientation: landscape) and (max-height: 500px)` para maximizar el
-  tablero. Verificado por screenshot en ese breakpoint, sin tocar reglas de
-  juego. *(Nuevo, del feedback — el gap responsive que la Fase 6 no cubrió.)*
-- **Fase 9 — Íconos SVG (riesgo bajo→moderado).** Familia SVG minimalista
-  **inline** (respeta la CSP), en dos pasos: (1) íconos decorativos de UI
-  (🎮 ⚙ 💡 🎉 ↶) — swap directo, bajo riesgo; (2) estado de Buscaminas
-  (💣 🚩 ❌ 🙂/😎/😵/⏳) — toca el render, va con tests. *(Nuevo, del feedback.)*
-- **Fase 10 — Modo oscuro (requiere decisión de diseño).** Presentar 2-3
-  paletas concretas; recién ahí, overrides de tokens bajo
-  `prefers-color-scheme: dark`. (= §12.4, y coincide con el feedback.)
-- **Fase 11 — Cerrar los dos huecos "vivos" (prioridad media).** (a) Extender el
-  test de contrato para verificar que todos los archivos de cada juego (HTML +
-  el nuevo `.js` de la Fase 7) están en `ASSETS` de `sw.js`. (b) Aviso de
-  "nueva versión, recargá" (el listener `skip-waiting` de `sw.js` ya existe sin
-  usar). (= §12.3.)
-- **Fase 12 — Pulido de movimiento (opcional, progresivo).** View Transitions
-  como mejora progresiva y detrás de `prefers-reduced-motion`; y, acotada a
-  Buscaminas, migrar su dimensionado a CSS (container queries / `aspect-ratio`),
-  el único caso donde la idea "delegar a CSS" del feedback aplica sin reescribir
-  el motor. *(Nuevo/pulido.)*
-
-**Se mantienen diferidos (feedback reexaminado, la razón previa sigue en pie):**
-interfaz `Game` completa + `game-shell.html` (recién con el juego n.º 5, §12.1);
-migración a ES Modules big-bang (no la exige el objetivo de seguridad;
-oportunista); bundler/Vite (contra RNF-01); paleta daltónica (§10, los palos ya
-se distinguen por forma).
+> Este documento (ARQUITECTURA.md) es el **registro de la arquitectura ya
+> construida**: por qué existe la capa compartida y qué se decidió incluir o
+> dejar afuera en cada fase del refactor. Las propuestas "Fase 7+" que antes
+> vivían acá se consolidaron y reemplazaron por PLAN.md.

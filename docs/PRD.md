@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.4 | 2026-07-08 | F. Tranchet + IA | El roadmap (§8) pasa a apuntar al nuevo [PLAN.md](./PLAN.md) (plan de trabajo por fases desde Fase 0); §8 conserva sólo el backlog de ideas sin planificar. Se agrega PLAN.md a las referencias (§10). |
 | 1.3 | 2026-07-08 | F. Tranchet + IA | Se completa RNF-08 (accesibilidad): navegación por teclado y foco visible en los 4 juegos. Se retira "temas claro/oscuro" del roadmap de alta prioridad (pasa a decisión de diseño pendiente). |
 | 1.2 | 2026-07-07 | F. Tranchet + IA | Refinamientos de PWA (safe-area iOS, caché por prefijo, offline por página) y mejoras del feedback: accesibilidad (RNF-08), aviso de fallback en Buscaminas (RF-BM-06) y aviso de guardado (RNF-04). |
 | 1.1 | 2026-07-07 | F. Tranchet + IA | Se agregan los requisitos de PWA (RF-PWA-*, RNF-05) y offline; se documenta el estado actual del producto. |
@@ -203,11 +204,17 @@ inicio y jugable completamente offline.
 
 ## 8. Roadmap / próximos pasos
 
+El plan de trabajo por fases (externalizar el motor de cada juego, layouts por
+orientación, íconos SVG, modo oscuro, pulido de interacción) vive en un
+documento propio:
+
+➡️ **[docs/PLAN.md](./PLAN.md)**
+
+**Backlog de ideas todavía sin planificar** (fuera de las fases actuales):
+
 | Prioridad | Idea |
 |---|---|
-| Media | Temas claro/oscuro (decisión de diseño, requiere validación visual humana). |
-| Media | Aviso «hay una versión nueva, recargá» cuando el service worker se actualiza. |
-| Media | Captura de pantalla y `screenshots` en el manifest para una ficha de instalación más rica. |
+| Baja | Captura de pantalla y `screenshots` en el manifest para una ficha de instalación más rica. |
 | Baja | Sonido opcional y vibración táctil. |
 | Baja | Exportar/importar estadísticas (respaldo manual). |
 | Baja | Más solitarios (Spider, Golf) reutilizando el motor de cartas. |
@@ -240,8 +247,9 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 
 ## 10. Referencias
 
+- [PLAN.md](./PLAN.md) — plan de trabajo por fases (desde Fase 0).
 - [CHANGELOG.md](./CHANGELOG.md) — historial de cambios del producto.
-- [ARQUITECTURA.md](./ARQUITECTURA.md) — propuesta para reorganizar el código
-  (capa compartida) y escalar a más juegos sin romper nada.
+- [ARQUITECTURA.md](./ARQUITECTURA.md) — registro de la arquitectura ya
+  construida (capa compartida) que permite escalar a más juegos sin romper nada.
 - [README del proyecto](../README.md) — cómo correrlo y jugar.
 - [tests/README.md](../tests/README.md) — qué cubre la suite de tests.

@@ -14,7 +14,8 @@
  * Nota: la cabecera (header/HUD) y los modales de cada juego NO se
  * generalizaron acá porque su contenido difiere sustancialmente entre juegos
  * (HUD de tiempo/movimientos vs. mano/objetivo; modal de victoria vs. de fin de
- * mano). Esa unificación queda para la Fase 4 (contrato de juego).
+ * mano). Se decidió no forzar una interfaz común: sería abstracción prematura
+ * (ver docs/ARQUITECTURA.md, Fase 3).
  */
 /** @param {string} msg */
 function toast(msg) {

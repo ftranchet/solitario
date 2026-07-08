@@ -10,7 +10,24 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-- Nada por ahora.
+### Corregido
+
+- **Buscaminas:** `onLong()` (bandera por toque largo / clic derecho) ahora
+  también ignora la entrada mientras se genera el tablero "sin adivinanzas"
+  (`generating`), igual que `onTap()`. Hoy no era alcanzable durante la
+  generación (lo bloquea `onPointerDown`), pero deja la función simétrica con
+  `onTap` y cierra la misma trampa latente que la auditoría anterior corrigió
+  para el teclado.
+
+### Cambiado
+
+- **Documentación:** se consolidó el trabajo hacia adelante en un nuevo
+  [PLAN.md](./PLAN.md) (plan por fases desde Fase 0) y se retiraron de
+  `ARQUITECTURA.md` las propuestas "Fase 7+" (§12/§13), que quedaban duplicadas.
+  `ARQUITECTURA.md` pasa a ser el registro de lo ya construido; el roadmap del
+  PRD (§8) apunta a PLAN.md. Se corrigieron referencias y comentarios
+  desactualizados (p. ej. una nota de `shared/ui.js` que citaba una fase que
+  finalmente no se hizo).
 
 ## [1.3.0] — 2026-07-08
 

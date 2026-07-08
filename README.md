@@ -39,10 +39,12 @@ Ver [`tests/README.md`](tests/README.md) para más detalle.
 
 ## Documentación
 
+- [`docs/PLAN.md`](docs/PLAN.md) — plan de trabajo por fases (desde Fase 0):
+  qué sigue y en qué orden.
 - [`docs/PRD.md`](docs/PRD.md) — Documento de Requisitos de Producto, con la
   matriz de seguimiento de requisitos y el historial de revisiones.
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — historial de cambios del producto
   (formato _Keep a Changelog_).
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — decisión de arquitectura
-  (capa compartida, registro de juegos, tipos, CSP, accesibilidad) y su
-  seguimiento por fases.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — registro de la arquitectura
+  ya construida (capa compartida, registro de juegos, tipos, CSP, accesibilidad)
+  y su seguimiento por fases.
