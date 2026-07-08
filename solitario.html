@@ -20,6 +20,7 @@
     });
   }
 </script>
+<link rel="stylesheet" href="styles/cards.css">
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -97,16 +98,7 @@
   }
   .col .card { position: absolute; left: 0; }
 
-  .card.up { background: linear-gradient(160deg, #ffffff, #f4eede); border: 1px solid #d9cdb4; }
-  /* Dos colores clásicos: rojo y negro */
-  .card.up.hearts, .card.up.diamonds { color: #c62828; }
-  .card.up.spades, .card.up.clubs { color: #1a1a1a; }
-
-  .card.down {
-    background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);
-    border: 1px solid rgba(255,255,255,0.18);
-    box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
-  }
+  /* .card.up / colores de palo / .card.down -> styles/cards.css */
 
   /* Índice arriba-izquierda con número + palo juntos (se ven aunque las cartas
      estén apiladas, mostrando sólo la franja superior) y pip grande del palo
@@ -366,6 +358,7 @@
 
 <script>window.STORE_NS = "solitario";</script>
 <script src="shared/storage.js"></script>
+<script src="shared/cards.js"></script>
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
@@ -874,25 +867,7 @@ function el(tag, cls, html) {
   if (html != null) e.innerHTML = html;
   return e;
 }
-function cardFace(card) {
-  var r = RANK_LABEL[card.rank];
-  var s = SUIT[card.suit].symbol;
-  return '<div class="idx"><span class="r">' + r + '</span><span class="s">' + s + '</span></div>' +
-         '<div class="pip">' + s + '</div>';
-}
-function rankName(r) {
-  return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
-}
-function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
-function makeCardEl(card, selected) {
-  var cls = "card " + (card.faceUp ? ("up " + card.suit) : "down") + (selected ? " sel" : "");
-  var e = el("div", cls);
-  e.setAttribute("role", "img");
-  // Boca abajo: no revelamos la carta al lector de pantalla (sería hacer trampa).
-  if (card.faceUp) { e.innerHTML = cardFace(card); e.setAttribute("aria-label", cardLabel(card)); }
-  else { e.setAttribute("aria-label", "carta boca abajo"); }
-  return e;
-}
+// cardFace, rankName, cardLabel y makeCardEl viven en shared/cards.js.
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
   elem.addEventListener("pointerdown", function (e) { onPointerDown(e, src, elem); });

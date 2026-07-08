@@ -18,6 +18,13 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   juego sólo declara su namespace (`window.STORE_NS`). Sin cambios de
   comportamiento (39 tests verdes; el módulo se sirve también sin conexión).
   Ver [ARQUITECTURA.md](./ARQUITECTURA.md).
+- **Arquitectura (Fase 2).** El componente de carta se extrajo a
+  `shared/cards.js` (`cardFace`, `rankName`, `cardLabel`, `makeCardEl`) y el
+  "chrome" idéntico de la carta (fondo, colores de palo, dorso) a
+  `styles/cards.css`, compartidos por Solitario, Carta Blanca y Corazones. Sin
+  cambios visuales (verificado por screenshots antes/después) ni de comportamiento
+  (39 tests verdes). El layout del índice (`.idx`/`.pip`) sigue por juego porque
+  varía a propósito; unificarlo queda para la Fase 6 (decisión de diseño).
 
 ## [1.2.0] — 2026-07-07
 

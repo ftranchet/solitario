@@ -20,6 +20,7 @@
     });
   }
 </script>
+<link rel="stylesheet" href="styles/cards.css">
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -98,10 +99,7 @@
   }
   .col .card, .slot .card { position: absolute; left: 0; }
 
-  .card.up { background: linear-gradient(160deg, #ffffff, #f4eede); border: 1px solid #d9cdb4; }
-  /* Dos colores clásicos: rojo y negro */
-  .card.up.hearts, .card.up.diamonds { color: #c62828; }
-  .card.up.spades, .card.up.clubs { color: #1a1a1a; }
+  /* .card.up / colores de palo -> styles/cards.css */
 
   /* Índice arriba-izquierda con número + palo juntos (visibles aunque las cartas
      estén apiladas) y pip grande del palo abajo a la derecha, en color del palo. */
@@ -359,6 +357,7 @@
 
 <script>window.STORE_NS = "cartablanca";</script>
 <script src="shared/storage.js"></script>
+<script src="shared/cards.js"></script>
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
@@ -864,23 +863,7 @@ function el(tag, cls, html) {
   if (html != null) e.innerHTML = html;
   return e;
 }
-function cardFace(card) {
-  var s = SUIT[card.suit].symbol;
-  return '<div class="idx"><span class="r">' + RANK_LABEL[card.rank] + '</span><span class="s">' + s + '</span></div>' +
-         '<div class="pip">' + s + '</div>';
-}
-function rankName(r) {
-  return (r === 1 || r === 14) ? "As" : r === 11 ? "Jota" : r === 12 ? "Reina" : r === 13 ? "Rey" : String(r);
-}
-function cardLabel(card) { return rankName(card.rank) + " de " + SUIT[card.suit].name; }
-function makeCardEl(card, selected) {
-  var e = el("div", "card up " + card.suit + (selected ? " sel" : ""));
-  e.innerHTML = cardFace(card);
-  // Accesibilidad: los ♠♥♦♣ decorativos se leen mal; el lector usa esta etiqueta.
-  e.setAttribute("role", "img");
-  e.setAttribute("aria-label", cardLabel(card));
-  return e;
-}
+// cardFace, rankName, cardLabel y makeCardEl viven en shared/cards.js.
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
   elem.addEventListener("pointerdown", function (e) { onPointerDown(e, src, elem); });

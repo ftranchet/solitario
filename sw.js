@@ -17,7 +17,7 @@
  * Todas las rutas se resuelven relativas a la ubicación del SW (self.location),
  * así funciona igual servido en la raíz o en un subdirectorio (GitHub Pages).
  */
-const VERSION = "v1.1.0";
+const VERSION = "v1.2.0";
 const PREFIX = "juegos-clasicos-";
 const CACHE = PREFIX + VERSION;
 
@@ -30,6 +30,8 @@ const ASSETS = [
   "buscaminas.html",
   "estadisticas.html",
   "shared/storage.js",
+  "shared/cards.js",
+  "styles/cards.css",
   "favicon.svg",
   "manifest.webmanifest",
   "icons/icon-192.png",

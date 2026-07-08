@@ -207,9 +207,9 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 
 | Fase | Alcance | Estado |
 |---|---|:---:|
-| 0 | Estructura de carpetas (`/shared`) + design tokens/CSS | 🟡 |
+| 0 | Estructura de carpetas (`/shared`, `/styles`) + design tokens | 🟡 |
 | 1 | `storage.js` (persistencia compartida) | ✅ |
-| 2 | `cards.js` + `cards.css` | 💡 |
+| 2 | `cards.js` + `cards.css` (chrome) | ✅ |
 | 3 | `ui.js` | 💡 |
 | 4 | Contrato + registro de juegos | 💡 |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | 💡 |
@@ -223,8 +223,17 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   declara su namespace (`window.STORE_NS`). Se eliminaron ~30 líneas duplicadas
   por juego, sin cambios de comportamiento: **39/39 tests verdes**, incluida la
   verificación de que el módulo se sirve **offline** desde la caché del SW.
-- **Fase 0 (en curso).** Ya existe `/shared`. Falta extraer los design tokens y
-  el CSS base/cartas a `/styles`.
+- **Fase 2 (hecha).** El componente de carta (`cardFace`, `rankName`,
+  `cardLabel`, `makeCardEl`) se extrajo a `shared/cards.js`, y el "chrome"
+  idéntico de la carta (fondo, colores de palo, dorso) a `styles/cards.css`,
+  compartidos por los 3 juegos con cartas. **Sin cambios visuales** (verificado
+  por screenshots antes/después) ni de comportamiento (39/39 tests).
+  El layout del índice (`.idx`/`.pip`) sigue por juego porque **varía a
+  propósito** (Corazones apila rango y palo; Solitario/Carta Blanca los ponen en
+  fila). Unificarlo cambiaría el aspecto de Corazones: es una **decisión de
+  diseño** que queda para la Fase 6.
+- **Fase 0 (en curso).** Ya existen `/shared` y `/styles`. Falta extraer los
+  design tokens (colores, radios, sombras, escalas) a `styles/tokens.css`.
 
 ### Criterios de aceptación (cuando esté todo)
 
