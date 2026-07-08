@@ -2,9 +2,10 @@
 
 Suite de juegos clásicos al estilo de los que traía Windows, hechos para jugar
 en el navegador (celular o escritorio). Sin build ni dependencias externas:
-cada juego es una página HTML que enlaza una capa compartida propia del
-proyecto (`shared/`, `styles/`, `games/registry.js`) — ver
-[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+cada juego es una página HTML delgada que enlaza una capa compartida propia
+del proyecto (`shared/`, `styles/`, `games/registry.js`) y su propio motor en
+`games/<juego>.js` — ver [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) y
+[`docs/PLAN.md`](docs/PLAN.md).
 
 La pantalla de inicio (`index.html`) es un launcher con los cuatro juegos,
 generado a partir de `games/registry.js`.

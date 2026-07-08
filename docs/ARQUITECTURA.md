@@ -98,19 +98,21 @@ real con esbuild.
 > Refleja lo **realmente implementado** (la versión original de esta sección
 > era aspiracional; §10 explica cada diferencia — `msdeal.js` y `a11y.js` no se
 > crearon como archivos aparte a propósito). Externalizar `games/*.js` con el
-> motor de cada juego es la **Fase 1 de [PLAN.md](./PLAN.md)**, todavía no
-> implementada.
+> motor de cada juego, la **Fase 1 de [PLAN.md](./PLAN.md)**, ya está hecha.
 
 ```
 /
   index.html                 launcher (se arma desde games/registry.js)
   estadisticas.html          agrega stats leyendo el registro
-  solitario.html             motor todavía inline (se externaliza en PLAN.md, Fase 1)
-  carta-blanca.html
-  corazones.html
-  buscaminas.html
+  solitario.html             página delgada; motor en games/solitario.js
+  carta-blanca.html          página delgada; motor en games/carta-blanca.js
+  corazones.html             página delgada; motor en games/corazones.js
+  buscaminas.html            página delgada; motor en games/buscaminas.js
   games/
     registry.js              lista declarativa de juegos (el contrato liviano, §5.2)
+    solitario.js / carta-blanca.js / corazones.js / buscaminas.js
+                              motor de cada juego (PLAN.md, Fase 1); <script src>
+                              clásico, mismo scope global que antes inline
   shared/
     cards.js                 SUIT/RANK, mazo, mezcla (LCG), makeCardEl, cardLabel (a11y)
     storage.js               candado multi-pestaña, gameSet/gameDel, aviso, validación
@@ -186,8 +188,10 @@ Cada fase es mergeable por separado y no debe romper los 39 tests.
 > Estado real tras la auditoría de la Fase 5: ver el detalle en §10. Resumen:
 > la suite ya escapaba correctamente el único input de usuario que existe
 > (nombres de rivales en Corazones); se agregó CSP estricta en todas las
-> páginas salvo `script-src` en los 4 juegos (brecha documentada, ligada a no
-> haber migrado el motor de cada juego fuera del `<script>` inline).
+> páginas salvo `script-src` en los 4 juegos (brecha ligada a no haber migrado
+> el motor de cada juego fuera del `<script>` inline). **Esa brecha se cerró**
+> al externalizar el motor a `games/<juego>.js` — ver Fase 1 de
+> [PLAN.md](./PLAN.md).
 
 - **XSS / `innerHTML`.** Los juegos arman HTML por concatenación. Hay input de
   usuario (los **nombres editables de rivales en Corazones**). `renderOpp`,
@@ -195,10 +199,11 @@ Cada fase es mergeable por separado y no debe romper los 39 tests.
   cuatro puntos donde un nombre llega a `innerHTML`; dos usos adicionales sin
   `esc()` son seguros porque bajan por `.textContent`. Test de regresión con
   un payload `<img onerror=...>` cubre las 4 superficies.
-- **CSP.** Aplicada vía `<meta>` en las 6 páginas. `index.html`/
-  `estadisticas.html`: estricta (sin `unsafe-inline` en ningún directive). Los
-  4 juegos: `script-src` necesita `'unsafe-inline'` (motor todavía inline,
-  decisión de la Fase 4); `style-src` y el resto son estrictos en las 6.
+- **CSP.** Aplicada vía `<meta>` en las 6 páginas, **estricta sin excepción**
+  (sin `unsafe-inline` en ningún directive en ninguna página). Los 4 juegos
+  necesitaban `'unsafe-inline'` en `script-src` mientras su motor fuera un
+  `<script>` inline; se cerró al externalizarlo a `games/<juego>.js` (PLAN.md,
+  Fase 1).
 - **Superficie ya buena:** sin backend, sin dependencias de terceros, sin CDNs;
   validación defensiva del estado al cargar; SW con caché por prefijo.
 
@@ -361,6 +366,11 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
     inline a propósito (ver Fase 4 — migrarlo sería el mismo riesgo alto que
     ya se descartó). Todo lo demás (`style-src`, `img-src`, `object-src
     'none'`, `base-uri`, `form-action`) es estricto en las 6 páginas.
+    **Actualización:** esta brecha se cerró en la Fase 1 de
+    [PLAN.md](./PLAN.md) — el motor se movió a `games/<juego>.js` sin
+    cambiar una línea de lógica (un `<script src>` clásico no arriesga el
+    "mismo riesgo alto" de migrar a otra interfaz), así que la CSP es
+    estricta en las 6 páginas sin excepción.
   - **Verificación real, no aspiracional:** correr la suite completa CON la
     CSP aplicada sirve de red de seguridad — cualquier violación real
     (recurso bloqueado, script no permitido) aparece como `console.error` y
@@ -472,10 +482,8 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   a "persiste y restaura" y "queda cacheado offline" el día que el registro
   también describa la persistencia de cada juego (hoy eso lo cubren los tests
   específicos de cada juego, no el test de contrato).
-- Una CSP estricta activa en las 6 páginas. ✅ (Fase 5) — completa en
-  `index.html`/`estadisticas.html`; en los 4 juegos, estricta salvo
-  `'unsafe-inline'` en `script-src` (brecha documentada, ligada a no migrar el
-  motor de cada juego — ver Fase 4).
+- Una CSP estricta activa en las 6 páginas, **sin excepción**. ✅ (Fase 5 +
+  cierre de la brecha `unsafe-inline` en la Fase 1 de [PLAN.md](./PLAN.md)).
 - Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos. ✅ (Fases 0-3)
 
 ## 11. Decisión

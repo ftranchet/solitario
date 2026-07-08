@@ -10,6 +10,28 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+### Cambiado
+
+- **Arquitectura (Fase 1 de PLAN.md): motor de cada juego externalizado + CSP
+  estricta.** El `<script>` inline de Solitario, Carta Blanca, Corazones y
+  Buscaminas (900-1400 líneas cada uno) se movió a `games/<juego>.js` como
+  `<script src>` clásico (mismo scope global, sin ES Modules), byte-idéntico
+  al bloque original — verificado por `diff`, sin cambiar una línea de lógica.
+  Al no quedar JS inline, `script-src` de las 4 páginas de juego quitó
+  `'unsafe-inline'`: **CSP estricta en las 6 páginas sin excepción**. `sw.js`
+  precachea los 4 archivos nuevos y sube a `v1.8.0`. Sin cambios de
+  comportamiento ni visuales (53 tests verdes, `tsc -p .` limpio; capturas
+  comparadas contra el baseline de la Fase 0). Ver [PLAN.md](./PLAN.md),
+  Fase 1.
+
+### Agregado
+
+- **Fase 0 de PLAN.md: base y red de seguridad.** Capturas de referencia de
+  las 6 páginas en 4 breakpoints (`docs/screenshots/baseline/`, generadas con
+  `tests/screenshot.js`) para detectar regresiones visuales en las próximas
+  fases. Nuevo test de precache: compara el filesystem contra la lista
+  `ASSETS` de `sw.js` y falla si se sirve un archivo no cacheado.
+
 ### Corregido
 
 - **Buscaminas:** `onLong()` (bandera por toque largo / clic derecho) ahora
