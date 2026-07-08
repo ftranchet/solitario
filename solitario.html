@@ -364,6 +364,8 @@
   </div>
 </div>
 
+<script>window.STORE_NS = "solitario";</script>
+<script src="shared/storage.js"></script>
 <script>
 /* ---------- Datos básicos ---------- */
 var SUIT = {
@@ -1249,35 +1251,8 @@ function toast(msg) {
 }
 
 /* ---------- Persistencia (preferencias y partida) ---------- */
-var PREFS_KEY = "solitario.prefs", GAME_KEY = "solitario.game";
-
-/* Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la "dueña"
-   persiste la partida. Así dos pestañas no se pisan la misma clave de localStorage.
-   El dueño renueva un "candado" con marca de tiempo; si se cierra, otra pestaña lo toma. */
-var TAB_ID = (function () {
-  var v; try { v = sessionStorage.getItem("solitario.tab"); } catch (e) {}
-  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { sessionStorage.setItem("solitario.tab", v); } catch (e) {} }
-  return v;
-})();
-var LOCK_KEY = "solitario.lock", saveOwner = false, saveWarned = false;
-function refreshSaveLock() {
-  var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
-  var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
-  if (!alive || l.id === TAB_ID) {
-    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
-    try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
-    saveOwner = !!(l && l.id === TAB_ID);
-  } else saveOwner = false;
-}
-refreshSaveLock();
-setInterval(refreshSaveLock, 2500);
-function gameSet(v) {
-  refreshSaveLock();
-  if (!saveOwner) return;
-  try { localStorage.setItem(GAME_KEY, v); }
-  catch (e) { if (!saveWarned) { saveWarned = true; toast("No se pudo guardar el progreso (almacenamiento lleno o restringido)."); } }
-}
-function gameDel() { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } }
+var PREFS_KEY = "solitario.prefs";
+// El candado multi-pestaña y gameSet/gameDel/GAME_KEY viven en shared/storage.js.
 function savePrefs() {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify({ draw: settings.draw })); } catch (e) {}
 }

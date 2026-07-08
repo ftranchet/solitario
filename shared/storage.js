@@ -1,0 +1,65 @@
+/*
+ * shared/storage.js — Persistencia común de la suite: candado multi-pestaña +
+ * guardado de la partida en curso.
+ *
+ * Se carga como <script> CLÁSICO (no módulo) ANTES del script del juego, así
+ * define variables/funciones GLOBALES —igual que cuando esto estaba embebido en
+ * cada juego— y tanto el juego como los tests las siguen viendo:
+ *   window.GAME_KEY, LOCK_KEY, TAB_ID, saveOwner, saveWarned,
+ *   refreshSaveLock(), gameSet(), gameDel().
+ *
+ * La página debe declarar su namespace antes de cargar este archivo:
+ *   <script>window.STORE_NS = "solitario";</script>
+ *   <script src="shared/storage.js"></script>
+ *
+ * PREFS_KEY y STATS_KEY siguen en cada juego (no todos las usan igual).
+ *
+ * Coordinación multi-pestaña: si abrís dos pestañas del mismo juego, sólo la
+ * "dueña" persiste la partida (renueva un candado con marca de tiempo). Así dos
+ * pestañas no se pisan la misma clave de localStorage.
+ */
+(function () {
+  var NS = window.STORE_NS;
+  if (!NS) throw new Error("shared/storage.js: falta window.STORE_NS");
+
+  window.GAME_KEY = NS + ".game";
+  window.LOCK_KEY = NS + ".lock";
+  var TAB_KEY = NS + ".tab";
+
+  window.TAB_ID = (function () {
+    var v; try { v = sessionStorage.getItem(TAB_KEY); } catch (e) {}
+    if (!v) {
+      v = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      try { sessionStorage.setItem(TAB_KEY, v); } catch (e) {}
+    }
+    return v;
+  })();
+
+  window.saveOwner = false;
+  window.saveWarned = false;
+
+  window.refreshSaveLock = function () {
+    var l = null; try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+    var alive = l && typeof l.t === "number" && (Date.now() - l.t) < 6000;
+    if (!alive || l.id === TAB_ID) {
+      try { localStorage.setItem(LOCK_KEY, JSON.stringify({ id: TAB_ID, t: Date.now() })); } catch (e) {}
+      try { l = JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) {}
+      saveOwner = !!(l && l.id === TAB_ID);
+    } else saveOwner = false;
+  };
+  refreshSaveLock();
+  setInterval(refreshSaveLock, 2500);
+
+  window.gameSet = function (v) {
+    refreshSaveLock();
+    if (!saveOwner) return;
+    try { localStorage.setItem(GAME_KEY, v); }
+    catch (e) {
+      if (!saveWarned) {
+        saveWarned = true;
+        if (typeof toast === "function") toast("No se pudo guardar el progreso (almacenamiento lleno o restringido).");
+      }
+    }
+  };
+  window.gameDel = function () { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } };
+})();

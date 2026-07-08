@@ -10,7 +10,14 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-- Nada por ahora.
+### Cambiado
+
+- **Arquitectura (Fase 1).** La persistencia (candado multi-pestaña + guardado
+  de la partida en curso) se extrajo a un módulo compartido `shared/storage.js`,
+  usado por los cuatro juegos. Elimina ~30 líneas duplicadas por juego; cada
+  juego sólo declara su namespace (`window.STORE_NS`). Sin cambios de
+  comportamiento (39 tests verdes; el módulo se sirve también sin conexión).
+  Ver [ARQUITECTURA.md](./ARQUITECTURA.md).
 
 ## [1.2.0] — 2026-07-07
 

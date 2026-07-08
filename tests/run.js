@@ -850,10 +850,12 @@ test("PWA: sin conexión sirve la página correcta, no index (MPA)", async funct
   try {
     await p.page.goto(url("corazones.html"), { waitUntil: "load" });
     var info = await p.page.evaluate(function () {
-      return { title: document.title, hasHand: !!document.getElementById("hand") };
+      return { title: document.title, hasHand: !!document.getElementById("hand"), sharedOk: typeof gameSet === "function" };
     });
     assert(info.title.indexOf("Corazones") >= 0 && info.hasHand,
       "offline debería servir corazones.html, no index (title=" + info.title + ")");
+    assert(info.sharedOk, "shared/storage.js debería cargarse desde la caché del SW sin conexión");
+    assertNoErrors(p.errors);
   } finally {
     await ctx.setOffline(false);
   }

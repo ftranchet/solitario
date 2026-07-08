@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Propuesta** (a revisar) |
-| Versión | 0.1 |
+| Estado | **Aceptada** — en ejecución |
+| Versión | 0.2 |
 | Fecha | 2026-07-08 |
 | Autor | Francisco Tranchet + IA |
 | Relacionado | [PRD](./PRD.md) · [CHANGELOG](./CHANGELOG.md) |
@@ -207,13 +207,24 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 
 | Fase | Alcance | Estado |
 |---|---|:---:|
-| 0 | Estructura + design tokens/CSS | 💡 |
-| 1 | `storage.js` (persistencia compartida) | 💡 |
+| 0 | Estructura de carpetas (`/shared`) + design tokens/CSS | 🟡 |
+| 1 | `storage.js` (persistencia compartida) | ✅ |
 | 2 | `cards.js` + `cards.css` | 💡 |
 | 3 | `ui.js` | 💡 |
 | 4 | Contrato + registro de juegos | 💡 |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | 💡 |
 | 6 | Temas, responsive, a11y por teclado | 💡 |
+
+**Progreso**
+
+- **Fase 1 (hecha).** El candado multi-pestaña + `gameSet`/`gameDel`/`GAME_KEY`
+  se extrajeron a `shared/storage.js`, cargado como `<script>` clásico (para
+  preservar el acceso global del que dependen juegos y tests). Cada juego sólo
+  declara su namespace (`window.STORE_NS`). Se eliminaron ~30 líneas duplicadas
+  por juego, sin cambios de comportamiento: **39/39 tests verdes**, incluida la
+  verificación de que el módulo se sirve **offline** desde la caché del SW.
+- **Fase 0 (en curso).** Ya existe `/shared`. Falta extraer los design tokens y
+  el CSS base/cartas a `/styles`.
 
 ### Criterios de aceptación (cuando esté todo)
 
@@ -225,7 +236,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 - Una CSP estricta (sin `unsafe-inline`) activa.
 - Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos.
 
-## 11. Decisión pendiente
+## 11. Decisión
 
-Este documento queda en estado **Propuesta**. Al aprobarse, se pasa a
-**Aceptada**, se marca la Fase 0 como 🟡 y se abre el trabajo por fases.
+**Aceptada.** El trabajo se ejecuta por fases (ver §10). Cada fase es mergeable
+por separado y mantiene los 39 tests verdes como puerta.
