@@ -509,6 +509,7 @@ function stopConfetti() {
 }
 function celebrate() {
   stopConfetti();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var canvas = el("canvas", "confetti-canvas");
   document.body.appendChild(canvas);
   var ctx = canvas.getContext("2d");
@@ -638,6 +639,7 @@ function el(tag, cls, html) {
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
   elem.addEventListener("pointerdown", function (e) { onPointerDown(e, src, elem); });
+  keyActivate(elem, function () { handleCardClick(src.pile, src.col, src.index, src.card); });
 }
 
 function render() {
@@ -650,11 +652,13 @@ function render() {
   if (state.stock.length) {
     var sc = el("div", "card down stock-card");
     sc.onclick = dealStock;
+    keyActivate(sc, dealStock);
     stockSlot.appendChild(sc);
     stockSlot.appendChild(el("div", "badge", String(state.stock.length)));
   } else {
     var rec = el("div", "recycle stock-card", "\u21bb");
     rec.onclick = dealStock;
+    keyActivate(rec, dealStock);
     stockSlot.appendChild(rec);
   }
   top.appendChild(stockSlot);
@@ -703,6 +707,7 @@ function render() {
     } else {
       var fph = el("div", "foundation-ph", "A");
       fph.onclick = handleFoundationClick;
+      keyActivate(fph, handleFoundationClick);
       fslot.appendChild(fph);
     }
     top.appendChild(fslot);
@@ -715,7 +720,11 @@ function render() {
     var pile = state.tableau[col];
     if (pile.length === 0) {
       var ph = el("div", "placeholder");
-      (function (cc) { ph.onclick = function () { handleEmptyColumn(cc); }; })(col);
+      (function (cc) {
+        var handler = function () { handleEmptyColumn(cc); };
+        ph.onclick = handler;
+        keyActivate(ph, handler);
+      })(col);
       colEl.appendChild(ph);
     } else {
       var y = 0, lastOff = OFFSET_UP;
@@ -769,7 +778,10 @@ function setSizes() {
   var cwByHeight = ((availH - 14) / 3.0) / 1.42;
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
-  CW = Math.max(36, Math.min(CW, 110));
+  // Techo más alto en pantallas anchas: si no, en desktop el tablero queda
+  // chico y descentrado con mucho espacio libre alrededor.
+  var cwCap = window.innerWidth >= 1100 ? 150 : 110;
+  CW = Math.max(36, Math.min(CW, cwCap));
   CH = Math.round(CW * 1.42);
   OFFSET_DOWN = Math.max(10, Math.round(CH * 0.16));
   OFFSET_UP = Math.max(24, Math.round(CH * 0.34));

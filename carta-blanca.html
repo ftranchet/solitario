@@ -536,6 +536,7 @@ function stopConfetti() {
 }
 function celebrate() {
   stopConfetti();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var canvas = el("canvas", "confetti-canvas");
   document.body.appendChild(canvas);
   var ctx = canvas.getContext("2d");
@@ -638,6 +639,7 @@ function el(tag, cls, html) {
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
   elem.addEventListener("pointerdown", function (e) { onPointerDown(e, src, elem); });
+  keyActivate(elem, function () { handleCardClick(src.pile, src.col, src.index); });
 }
 
 function render() {
@@ -658,7 +660,11 @@ function render() {
       cell.appendChild(ce);
     } else {
       var fph = el("div", "free-ph");
-      (function (c) { fph.onclick = function () { handleFreeClick(c); }; })(fc);
+      (function (c) {
+        var handler = function () { handleFreeClick(c); };
+        fph.onclick = handler;
+        keyActivate(fph, handler);
+      })(fc);
       cell.appendChild(fph);
     }
     top.appendChild(cell);
@@ -680,6 +686,7 @@ function render() {
     } else {
       var fph2 = el("div", "foundation-ph", "A");
       fph2.onclick = handleFoundationClick;
+      keyActivate(fph2, handleFoundationClick);
       fslot.appendChild(fph2);
     }
     top.appendChild(fslot);
@@ -692,7 +699,11 @@ function render() {
     var pile = state.tableau[col];
     if (pile.length === 0) {
       var ph = el("div", "placeholder");
-      (function (cc) { ph.onclick = function () { handleEmptyColumn(cc); }; })(col);
+      (function (cc) {
+        var handler = function () { handleEmptyColumn(cc); };
+        ph.onclick = handler;
+        keyActivate(ph, handler);
+      })(col);
       colEl.appendChild(ph);
     } else {
       var y = 0;
@@ -741,7 +752,10 @@ function setSizes() {
   var cwByHeight = ((availH - 14) / 3.0) / 1.42;
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
-  CW = Math.max(30, Math.min(CW, 104));
+  // Techo más alto en pantallas anchas: si no, en desktop el tablero queda
+  // chico y descentrado con mucho espacio libre alrededor.
+  var cwCap = window.innerWidth >= 1100 ? 145 : 104;
+  CW = Math.max(30, Math.min(CW, cwCap));
   CH = Math.round(CW * 1.42);
   OFFSET = Math.max(22, Math.round(CH * 0.32));
   root.style.setProperty("--cw", CW + "px");

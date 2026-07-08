@@ -56,6 +56,7 @@ declare global {
   function makeCardEl(card: Card, selected?: boolean): HTMLDivElement;
 
   function toast(msg: string): void;
+  function keyActivate(el: HTMLElement, handler: () => void): void;
 
   var GAME_KEY: string;
   var LOCK_KEY: string;

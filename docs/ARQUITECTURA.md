@@ -199,14 +199,31 @@ Cada fase es mergeable por separado y no debe romper los 39 tests.
 
 ## 8. Diseño y multi-pantalla
 
+> Estado real tras la Fase 6: ver el detalle en §10. Resumen: se implementó
+> navegación por teclado completa, foco visible y `prefers-reduced-motion`
+> completo; se corrigió un desperdicio de espacio real en desktop. Los temas
+> claro/oscuro quedan deliberadamente **sin implementar** (decisión de diseño
+> que requiere criterio visual humano, no una extracción mecánica); la opción
+> de paleta apta para daltónicos se **reevaluó como de menor prioridad** de lo
+> que se pensaba al escribir este documento.
+
 - **Design tokens** en `tokens.css` (colores de marca, radios, sombras, escalas
   de espaciado y tipografía) → consistencia real y temas fáciles.
-- **Temas:** claro/oscuro (respetando `prefers-color-scheme`), alto contraste y
-  opción de **palos aptos para daltónicos** (4 colores en vez de 2).
-- **Responsive:** container queries para el tablero; mejores layouts en apaisado
-  y en pantallas grandes (hoy se capa el ancho y se desaprovecha el desktop);
-  `prefers-reduced-motion` para las animaciones.
-- **Componente de carta** único con variantes; opción de figuras J/Q/K para pulir.
+- **Temas:** claro/oscuro (respetando `prefers-color-scheme`) — **no
+  implementado**, ver §10. Alto contraste y **palos aptos para daltónicos** (4
+  colores en vez de 2) — **repriorizado hacia abajo**, ver §10.
+- **Responsive:** mejores layouts en pantallas grandes (antes se capaba el
+  ancho y se desaprovechaba el desktop) — **hecho** con un ajuste acotado
+  (subir el techo de tamaño de carta/celda en pantallas anchas), no con
+  container queries (no hicieron falta para resolver el defecto real
+  encontrado). `prefers-reduced-motion` — **hecho**, completo en los 4 juegos.
+- **Navegación por teclado y foco visible** (ítem "Alta prioridad" del
+  roadmap) — **hecho**: las cartas/celdas son alcanzables por teclado y
+  Enter/Espacio reproduce la misma acción que un click, sin duplicar reglas
+  de juego. Ver §10 para el detalle, en particular el caso de Buscaminas
+  (roving tabindex, no 480 tab-stops).
+- **Componente de carta** único con variantes; opción de figuras J/Q/K para
+  pulir — no abordado, queda como pulido menor a futuro.
 
 ## 9. Riesgos y mitigaciones
 
@@ -230,7 +247,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 | 3 | `ui.js` (toast) | ✅ |
 | 4 | Contrato + registro de juegos | ✅ (alcance acotado) |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | ✅ (alcance acotado) |
-| 6 | Temas, responsive, a11y por teclado | 💡 |
+| 6 | Temas, responsive, a11y por teclado | ✅ (alcance acotado; temas afuera) |
 
 **Progreso**
 
@@ -368,6 +385,78 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   beneficio incierto hoy, y typarlos mal sería peor que no typarlos. Es la
   misma decisión de "no tocar el motor" de la Fase 4, aplicada a tipos en vez
   de a la interfaz de juego.
+- **Fase 6 (hecha, alcance deliberadamente acotado).** Navegación por teclado,
+  foco visible, `prefers-reduced-motion` y un ajuste responsive concreto.
+
+  **Navegación por teclado (el gap más grande y real: hoy no existía en
+  absoluto).** Se auditó primero: cero `tabindex` en cartas/celdas, cero
+  `keydown` en los 4 juegos — ni siquiera Tab llegaba a una carta. Se agregó
+  `keyActivate(el, handler)` a `shared/ui.js`: da `tabindex="0"` a un elemento
+  y activa `handler` con Enter/Espacio. La regla que se mantuvo en los 4
+  juegos: `handler` es siempre la **misma función que ya usa el click/tap**
+  (`handleCardClick`, `humanPlay`, `togglePass`, `onTap`…), nunca una reimplementación
+  — así el teclado no puede desincronizarse de las reglas de juego.
+  - Solitario / Carta Blanca: `keyActivate` en `attachDrag()` (cartas) y en
+    los 3 huecos clickeables (fundaciones vacías, columnas vacías, mazo).
+  - Corazones: `keyActivate` en las cartas `.playable` de `renderHand()`,
+    mismo callback que ya usa el click delegado en `#hand`.
+  - Buscaminas: **no** se usó `keyActivate` (tabindex fijo por celda). Un
+    tablero Experto tiene 480 celdas; darles tabindex="0" a todas habría hecho
+    Tab inutilizable. Se implementó el patrón WAI-ARIA de **roving
+    tabindex**: una sola celda (`focusedCell`) tiene `tabindex="0"` en un
+    momento dado, las flechas mueven el foco real del DOM entre celdas
+    vecinas (sin disparar ninguna acción), y Enter/Espacio llama a
+    `onTap(r, c)` — la misma función que ya usa el mouse. Como Buscaminas
+    reconstruye `board.innerHTML` en cada `render()` (perdiendo el foco del
+    DOM), `render()` restaura el foco a `focusedCell` después de reemplazar
+    el HTML si el tablero lo tenía antes.
+  - **Verificación real, no aspiracional:** 4 tests nuevos, uno por juego,
+    que enfocan un elemento con `.focus()` y disparan `page.keyboard.press
+    ("Enter"/"ArrowRight"/...)` — no llaman a la función de juego
+    directamente, pasan por el evento de teclado real y verifican que el
+    estado cambia igual que con mouse (o, en Buscaminas, que el foco del DOM
+    se mueve y sólo una celda es tabbable a la vez).
+  - **Foco visible:** `:focus-visible` (sólo aparece con teclado, no al
+    clickear con mouse/touch) en `.btn` (`base.css`), `.card`
+    (`cards.css`) y `.cell` (`buscaminas.css`), con el dorado de marca.
+    Verificado por screenshot en los 3 casos.
+
+  **`prefers-reduced-motion` completo.** Antes sólo cubría `.card.land` en
+  Solitario/Carta Blanca y la animación de recoger baza en Corazones. Se
+  extendió a las animaciones decorativas restantes en los 4 juegos
+  (`.btn.attention`, `.win-emoji`, `.card.hint`/`.hint-target`,
+  `.cell.hint`) y al confeti (JS, no CSS): `celebrate()` corta antes de
+  dibujar nada si `matchMedia("(prefers-reduced-motion: reduce)").matches`.
+
+  **Responsive: un defecto real, no un rediseño especulativo.** Se
+  capturaron screenshots en 3 breakpoints adicionales (apaisado de celular,
+  tablet, desktop ancho) para buscar defectos concretos antes de tocar nada.
+  Se encontró uno real: en desktop ancho, los 4 juegos topeaban el tamaño de
+  carta/celda con un máximo fijo en px pensado para no verse "gigante" en
+  pantallas grandes, dejando el tablero chico y descentrado con mucho espacio
+  vacío (Buscaminas era el peor caso: 9×9 celdas de 44px en una pantalla de
+  1600px). Se subió ese techo cuando `window.innerWidth >= 1100` (mismo
+  breakpoint que ya usaba el CSS para tipografía), verificado con
+  screenshots antes/después en los 4 juegos y en los otros 2 breakpoints
+  (para confirmar que no se rompió el caso angosto/apaisado). **No** se
+  implementaron container queries: no hicieron falta para resolver el
+  defecto real encontrado.
+
+  **Lo que NO se hizo, a propósito.**
+  - **Temas claro/oscuro.** Es una decisión de **diseño estético**, no una
+    extracción mecánica como las de las Fases 0-5: requiere criterio visual
+    humano sobre decenas de colores, y la identidad actual (mesa de fieltro
+    verde) no tiene un "modo claro" obvio sin una sesión de diseño real.
+    Implementarlo sin esa validación arriesgaba entregar algo que se ve mal,
+    que es peor que no tenerlo. Queda como propuesta, no como código.
+  - **Paleta apta para daltónicos (4 colores de palo).** Al planificar esta
+    fase se revisó el argumento original del ADR y se lo encontró más débil
+    de lo que parecía: los palos ya se distinguen por **forma** (♠♥♦♣ son
+    glifos distintos, no sólo puntos de color), y la distinción real
+    rojo-vs-negro (sin matiz) no es el caso típicamente problemático para las
+    formas más comunes de daltonismo (protanopia/deuteranopia, que confunden
+    rojo-verde, no rojo-negro). Se repriorizó por debajo de la navegación por
+    teclado, que era una falla dura (cero soporte) y no parcial.
 
 ### Criterios de aceptación (cuando esté todo)
 

@@ -93,8 +93,6 @@ html, body { margin: 0; height: 100%; }
     0% { transform: scale(1.3); box-shadow: 0 0 0 3px rgba(232,180,74,0.9), 0 6px 14px rgba(0,0,0,0.4); }
     100% { transform: scale(1); }
   }
-  @media (prefers-reduced-motion: reduce) { .card.land { animation: none; } }
-
   .slot-ph, .placeholder, .foundation-ph, .recycle {
     width: var(--cw); height: var(--ch);
     border-radius: calc(var(--cw) * 0.14);
@@ -104,6 +102,8 @@ html, body { margin: 0; height: 100%; }
     font-size: calc(var(--cw) * 0.5);
   }
   .recycle, .foundation-ph, .placeholder { cursor: pointer; }
+  .recycle:focus-visible, .foundation-ph:focus-visible, .placeholder:focus-visible,
+  .stock-card:focus-visible { outline: 3px solid #e8b44a; outline-offset: 2px; }
 
   .badge {
     position: absolute; bottom: -3px; right: -3px;
@@ -209,4 +209,12 @@ html, body { margin: 0; height: 100%; }
     header { padding: calc(5px + env(safe-area-inset-top, 0px)) 12px 5px; }
     #controls { padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px)); }
     .title { font-size: 16px; }
+  }
+
+  /* Movimiento reducido: apaga las animaciones decorativas (no las que son
+     la única señal de estado, como el resaltado por color de .card.sel). */
+  @media (prefers-reduced-motion: reduce) {
+    .card.land, .btn.attention, .win-emoji, .card.hint, .hint-target {
+      animation: none !important;
+    }
   }

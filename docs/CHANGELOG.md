@@ -70,6 +70,31 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
     TypeScript: 0 errores. Paso nuevo en el CI (`.github/workflows/tests.yml`).
   - Sin cambios visuales (screenshots de las 6 páginas) ni de comportamiento.
     47 tests verdes en total.
+- **Arquitectura (Fase 6): navegación por teclado, foco visible y responsive.**
+  - **Teclado (RNF-08):** antes no existía ningún soporte (cero `tabindex`,
+    cero `keydown`). Nuevo `keyActivate()` en `shared/ui.js` da `tabindex="0"`
+    a un elemento y activa Enter/Espacio llamando a la **misma función que ya
+    usa el click** — nunca una reimplementación de reglas. Aplicado a cartas y
+    huecos clickeables en Solitario/Carta Blanca, a las cartas jugables de
+    Corazones. Buscaminas usa el patrón WAI-ARIA de **roving tabindex** (una
+    sola celda alcanzable por Tab a la vez, flechas para moverse, Enter para
+    cavar) en vez de dar tabindex a las 480 celdas de un tablero Experto.
+  - **Foco visible:** `:focus-visible` (dorado de marca) en botones, cartas y
+    celdas.
+  - **`prefers-reduced-motion` completo:** extendido a todas las animaciones
+    decorativas de los 4 juegos (antes sólo cubría una) y al confeti (JS):
+    `celebrate()` no dibuja nada si el usuario lo prefiere así.
+  - **Responsive:** se encontró y corrigió un desperdicio real de espacio en
+    pantallas anchas (el tablero de Buscaminas, por ejemplo, quedaba diminuto
+    en una esquina en desktop) subiendo el techo de tamaño de carta/celda a
+    partir de 1100px de ancho.
+  - **No implementado, a propósito:** temas claro/oscuro (decisión de diseño
+    que requiere validación visual humana) y paleta apta para daltónicos
+    (repriorizada hacia abajo: los palos ya se distinguen por forma, no sólo
+    por color).
+  - Verificado con screenshots (foco visible, breakpoints responsive) y 4
+    tests nuevos que disparan eventos de teclado reales (no llaman a la
+    función de juego directamente). 51 tests verdes en total.
 
 ## [1.2.0] — 2026-07-07
 

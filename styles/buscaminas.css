@@ -59,6 +59,8 @@
     border-radius: calc(var(--cell) * 0.16);
     overflow: hidden;
   }
+  /* Foco visible por teclado (Tab a una celda, ver docs/ARQUITECTURA.md Fase 6). */
+  .cell:focus-visible { outline: 3px solid var(--gold); outline-offset: -2px; z-index: 6; }
   .cell.covered {
     background: linear-gradient(160deg, #2f9d63, #1a7044);
     border: 1px solid rgba(0,0,0,0.18);
@@ -159,4 +161,9 @@
     #facebar { padding: 4px; }
     .smiley { width: 38px; height: 38px; font-size: 20px; }
     .title { font-size: 16px; }
+  }
+
+  /* Movimiento reducido: apaga las animaciones decorativas. */
+  @media (prefers-reduced-motion: reduce) {
+    .cell.hint, .win-emoji { animation: none !important; }
   }

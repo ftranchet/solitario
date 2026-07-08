@@ -151,6 +151,7 @@ var seconds = 0, timerId = null;
 var flagMode = false;
 var noGuess = true;        // generar tableros resolubles por lógica (sin adivinar)
 var hintTimer = null;
+var focusedCell = { r: 0, c: 0 };   // celda con tabindex="0" (roving tabindex, ver render())
 
 /* ---------- Construcción ---------- */
 function makeGrid() {
@@ -424,8 +425,16 @@ function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 function fmtTime(s) { var m = Math.floor(s / 60), x = s % 60; return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x; }
 
 /* ---------- Render ---------- */
+// Navegación por teclado: "roving tabindex" (patrón WAI-ARIA para grillas).
+// Sólo UNA celda tiene tabindex="0" a la vez (focusedCell); las flechas mueven
+// el foco del DOM entre celdas vecinas y Enter/Espacio dispara onTap(r, c), la
+// misma acción que un tap. El resto del tablero queda con tabindex="-1": así
+// Tab no obliga a recorrer cientos de celdas para salir del tablero.
 function render() {
   var board = document.getElementById("board");
+  var hadFocus = board.contains(document.activeElement);
+  if (focusedCell.r >= rows) focusedCell.r = rows - 1;
+  if (focusedCell.c >= cols) focusedCell.c = cols - 1;
   var html = [];
   for (var r = 0; r < rows; r++) {
     for (var c = 0; c < cols; c++) {
@@ -439,10 +448,15 @@ function render() {
         cls += " covered";
         if (cell.flagged) content = cell.wrong ? "❌" : "🚩";
       }
-      html.push('<div class="' + cls + '" data-r="' + r + '" data-c="' + c + '">' + content + '</div>');
+      var ti = (r === focusedCell.r && c === focusedCell.c) ? "0" : "-1";
+      html.push('<div class="' + cls + '" data-r="' + r + '" data-c="' + c + '" tabindex="' + ti + '">' + content + '</div>');
     }
   }
   board.innerHTML = html.join("");
+  if (hadFocus) {
+    var fe = board.querySelector('.cell[data-r="' + focusedCell.r + '"][data-c="' + focusedCell.c + '"]');
+    if (fe) fe.focus();
+  }
   document.documentElement.style.setProperty("--cols", cols);
   updateHUD();
   document.getElementById("smiley").textContent = generating ? "⏳" : (won ? "😎" : (dead ? "😵" : "🙂"));
@@ -465,7 +479,12 @@ function setSizes() {
   var byW = (availW - (cols - 1) * gap) / cols;
   var byH = (availH - (rows - 1) * gap) / rows;
   var cell = Math.floor(Math.min(byW, byH));
-  cell = Math.max(16, Math.min(cell, 44));
+  // Techo más alto en pantallas anchas: si no, en desktop (sobre todo en
+  // Principiante) el tablero queda chico y descentrado con mucho espacio
+  // libre alrededor. En Experto el límite real sigue siendo el ancho/alto
+  // disponible, así que esto no lo agranda de más.
+  var cellCap = window.innerWidth >= 1100 ? 60 : 44;
+  cell = Math.max(16, Math.min(cell, cellCap));
   document.documentElement.style.setProperty("--cell", cell + "px");
   document.documentElement.style.setProperty("--cols", cols);
 }
@@ -517,6 +536,7 @@ function stopConfetti() {
 }
 function celebrate() {
   stopConfetti();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var canvas = document.createElement("canvas");
   canvas.className = "confetti-canvas";
   document.body.appendChild(canvas);
@@ -631,6 +651,7 @@ function newGame() {
   var d = DIFFS[difficulty];
   rows = d.rows; cols = d.cols; mines = d.mines;
   makeGrid();
+  focusedCell = { r: 0, c: 0 };
   started = false; dead = false; won = false;
   flags = 0; revealedCount = 0; seconds = 0;
   document.getElementById("win").hidden = true;
@@ -665,6 +686,32 @@ board.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 window.addEventListener("pointerup", onPointerUp);
 window.addEventListener("pointermove", onPointerMoveDoc);
 window.addEventListener("pointercancel", onPointerCancel);
+
+// Navegación por teclado (roving tabindex, ver comentario en render()).
+board.addEventListener("focusin", function (e) {
+  var rc = cellOf(e.target);
+  if (!rc) return;
+  if (focusedCell.r === rc[0] && focusedCell.c === rc[1]) return;
+  var prev = board.querySelector('.cell[tabindex="0"]');
+  if (prev) prev.tabIndex = -1;
+  e.target.tabIndex = 0;
+  focusedCell = { r: rc[0], c: rc[1] };
+});
+board.addEventListener("keydown", function (e) {
+  var rc = cellOf(e.target);
+  if (!rc) return;
+  var r = rc[0], c = rc[1];
+  if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") { e.preventDefault(); onTap(r, c); return; }
+  var nr = r, nc = c;
+  if (e.key === "ArrowUp") nr = Math.max(0, r - 1);
+  else if (e.key === "ArrowDown") nr = Math.min(rows - 1, r + 1);
+  else if (e.key === "ArrowLeft") nc = Math.max(0, c - 1);
+  else if (e.key === "ArrowRight") nc = Math.min(cols - 1, c + 1);
+  else return;
+  e.preventDefault();
+  var target = board.querySelector('.cell[data-r="' + nr + '"][data-c="' + nc + '"]');
+  if (target) target.focus();   // el "focusin" de arriba actualiza tabindex/focusedCell
+});
 
 document.getElementById("smiley").onclick = newGame;
 document.getElementById("btn-new").onclick = newGame;

@@ -78,6 +78,7 @@
   #trick.collect.to-east  .play .card { transform: translateX(90px) scale(0.65); opacity: 0; }
   @media (prefers-reduced-motion: reduce) {
     #trick .play .card, #trick.collect .play .card { animation: none !important; transition: none !important; }
+    .win-emoji, .hand .card.hint { animation: none !important; }
   }
 
   /* Oponentes: un dorso con efecto de pila + ficha con nombre y puntos */

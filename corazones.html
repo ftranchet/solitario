@@ -540,9 +540,12 @@ function renderHand() {
     if (phase === "pass") {
       ce.classList.add("playable");
       if (humanPass.indexOf(card.id) >= 0) ce.classList.add("picked");
+      keyActivate(ce, (function (c) { return function () { togglePass(c); }; })(card));
     } else if (myTurn) {
-      if (legalSet[card.id]) { ce.classList.add("playable"); }
-      else { ce.classList.add("dim"); }
+      if (legalSet[card.id]) {
+        ce.classList.add("playable");
+        keyActivate(ce, (function (c) { return function () { humanPlay(c); }; })(card));
+      } else { ce.classList.add("dim"); }
     } else { ce.classList.add("dim"); }
     hand.appendChild(ce);
   }
@@ -706,6 +709,7 @@ function stopConfetti() {
 }
 function celebrate() {
   stopConfetti();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var canvas = el("canvas", "confetti-canvas");
   document.body.appendChild(canvas);
   var ctx = canvas.getContext("2d");
@@ -753,7 +757,10 @@ function setSizes() {
   var w = board.clientWidth || window.innerWidth;
   var h = board.clientHeight || window.innerHeight;
   var cw = Math.min(w / 6.2, h / 6.6);
-  CW = Math.round(Math.max(42, Math.min(cw, 92)));
+  // Techo más alto en pantallas anchas: si no, en desktop la mesa queda chica
+  // y descentrada con mucho espacio libre alrededor.
+  var cwCap = window.innerWidth >= 1100 ? 125 : 92;
+  CW = Math.round(Math.max(42, Math.min(cw, cwCap)));
   CH = Math.round(CW * 1.42);
   OW = Math.round(CW * 0.62);
   var root = document.documentElement;

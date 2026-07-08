@@ -5,9 +5,9 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.2 |
+| Versión del documento | 1.3 |
 | Estado | Vigente |
-| Última actualización | 2026-07-07 |
+| Última actualización | 2026-07-08 |
 | Responsable | Francisco Tranchet |
 | Repositorio | `ftranchet/solitario` |
 
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.3 | 2026-07-08 | F. Tranchet + IA | Se completa RNF-08 (accesibilidad): navegación por teclado y foco visible en los 4 juegos. Se retira "temas claro/oscuro" del roadmap de alta prioridad (pasa a decisión de diseño pendiente). |
 | 1.2 | 2026-07-07 | F. Tranchet + IA | Refinamientos de PWA (safe-area iOS, caché por prefijo, offline por página) y mejoras del feedback: accesibilidad (RNF-08), aviso de fallback en Buscaminas (RF-BM-06) y aviso de guardado (RNF-04). |
 | 1.1 | 2026-07-07 | F. Tranchet + IA | Se agregan los requisitos de PWA (RF-PWA-*, RNF-05) y offline; se documenta el estado actual del producto. |
 | 1.0 | 2026-07-07 | F. Tranchet + IA | Primera versión del PRD: visión, alcance, requisitos funcionales de los cuatro juegos, no funcionales y matriz de seguimiento. |
@@ -178,10 +179,12 @@ inicio y jugable completamente offline.
   HTML reales; CI en cada push/PR. Cero errores de consola al cargar.
 - **RNF-07 · Compatibilidad.** Navegadores modernos (Chromium, Firefox, Safari)
   en sus versiones actuales.
-- **RNF-08 · Accesibilidad (a11y).** Primera pasada: las cartas exponen
-  `aria-label` legible para lectores de pantalla (sin revelar las cartas boca
-  abajo) y los avisos/estado se anuncian (`role="status"` / `aria-live`).
-  Pendiente: navegación por teclado completa.
+- **RNF-08 · Accesibilidad (a11y).** Las cartas exponen `aria-label` legible
+  para lectores de pantalla (sin revelar las cartas boca abajo) y los
+  avisos/estado se anuncian (`role="status"` / `aria-live`). Navegación por
+  teclado completa: cartas y celdas alcanzables por Tab (roving tabindex en
+  Buscaminas) y operables con Enter/Espacio, igual que un click; foco visible
+  (`:focus-visible`) en botones, cartas y celdas.
 
 ## 7. Arquitectura y decisiones técnicas
 
@@ -202,7 +205,7 @@ inicio y jugable completamente offline.
 
 | Prioridad | Idea |
 |---|---|
-| Alta | Accesibilidad: navegación por teclado completa y foco visible (completar RNF-08). |
+| Media | Temas claro/oscuro (decisión de diseño, requiere validación visual humana). |
 | Media | Aviso «hay una versión nueva, recargá» cuando el service worker se actualiza. |
 | Media | Captura de pantalla y `screenshots` en el manifest para una ficha de instalación más rica. |
 | Baja | Sonido opcional y vibración táctil. |
@@ -231,8 +234,8 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 | RNF-05 | Offline-first | ✅ | 1.1.0 |
 | RNF-06 | Tests + CI | ✅ | 0.9.0 |
 | RNF-07 | Compatibilidad navegadores modernos | ✅ | — |
-| RNF-08 | Accesibilidad (primera pasada: etiquetas y anuncios) | 🟡 | 1.2.0 |
-| — | Navegación por teclado completa (a11y) | ⬜ | roadmap |
+| RNF-08 | Accesibilidad (etiquetas, anuncios, teclado, foco visible) | ✅ | Fase 6 |
+| — | Temas claro/oscuro | ⬜ | roadmap |
 | — | Aviso de actualización del SW | ⬜ | roadmap |
 
 ## 10. Referencias

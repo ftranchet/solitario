@@ -305,6 +305,32 @@ test("Carta Blanca: autocompletar aparece y autoWinnable no muta el estado", asy
   assertNoErrors(p.errors);
 });
 
+/* 11b) Carta Blanca — selecciona y mueve una carta con el teclado (Enter en
+   vez de click), reutilizando el mismo handleCardClick que usa el mouse. */
+test("Carta Blanca: selecciona y mueve una carta con el teclado (Enter)", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    state = {
+      free: [c("hearts", 9, 500), null, null, null],
+      foundations: [[], [], [], []],
+      tableau: [[c("spades", 10, 501)], [], [], [], [], [], [], []],
+      moves: 0
+    };
+    selection = null; undoStack = []; render();
+  });
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="free"]').focus(); });
+  await p.page.keyboard.press("Enter");   // selecciona el 9♥ del pozo libre
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="tableau"][data-col="0"]').focus(); });
+  await p.page.keyboard.press(" ");        // mueve el 9♥ sobre el 10♠ (Espacio = Enter)
+  var r = await p.page.evaluate(function () {
+    return { col0: state.tableau[0].length, free0: state.free[0], moves: state.moves };
+  });
+  assert(r.col0 === 2 && r.free0 === null && r.moves === 1,
+    "el teclado debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
 /* 12) Buscaminas — al restaurar una partida guardada el reloj espera la próxima
    jugada (#12). Bug: loadGame arrancaba el reloj al abrir la pestaña. */
 test("Buscaminas: al restaurar una partida el reloj espera la próxima jugada (#12)", async function (ctx) {
@@ -562,6 +588,27 @@ test("Corazones: disparar a la luna puntúa según el modo (+26 demás / −26 t
   assertNoErrors(p.errors);
 });
 
+/* 21b) Corazones — juega una carta con el teclado (Tab + Enter en vez de
+   click), reutilizando la misma humanPlay() que dispara el click delegado. */
+test("Corazones: juega una carta con el teclado (Enter)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  await p.page.evaluate(function () {
+    window.AI_DELAY = 5; window.TRICK_HOLD = 5;
+    function mk(s, r) { return { suit: s, rank: r, color: SUIT[s].color, id: s + "-" + r }; }
+    players[0].hand = [mk("clubs", 5)]; players[1].hand = [mk("clubs", 6)];
+    players[2].hand = [mk("hearts", 9)]; players[3].hand = [mk("clubs", 8)];
+    tricksPlayed = 12; trick = []; heartsBroken = true; phase = "play";
+    leadSeat = 3; turn = 3; busy = false; handNumber = 1; render(); advance();
+  });
+  await p.page.waitForFunction(function () { return (turn === 0 && trick.length === 3) || phase !== "play"; }, null, { timeout: 4000 });
+  await p.page.evaluate(function () { document.querySelector(".hand .card.playable").focus(); });
+  await p.page.keyboard.press("Enter");
+  await p.page.waitForFunction(function () { return trick.length === 4 || phase !== "play"; }, null, { timeout: 4000 });
+  var r = await p.page.evaluate(function () { return { hand: players[0].hand.length, trick: trick.length }; });
+  assert(r.hand === 0 && r.trick === 4, "el Enter debería jugar la carta igual que un click: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
 /* 22) Buscaminas — el primer toque nunca es mina (zona 3×3 protegida). */
 test("Buscaminas: el primer toque nunca es mina (zona 3×3 segura)", async function (ctx) {
   var p = await open(ctx, "buscaminas.html");
@@ -580,6 +627,38 @@ test("Buscaminas: el primer toque nunca es mina (zona 3×3 segura)", async funct
     return { ok: true };
   });
   assert(r.ok, r.why);
+  assertNoErrors(p.errors);
+});
+
+/* 22b) Buscaminas — navegación por teclado (roving tabindex): una sola celda
+   es alcanzable por Tab a la vez, las flechas mueven el foco entre celdas
+   vecinas y Enter cava, igual que un tap. Sin esto, Tab tendría que recorrer
+   las 480 celdas del modo Experto para llegar a la última. */
+test("Buscaminas: roving tabindex — flechas mueven el foco, Enter cava", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  await p.page.evaluate(function () { noGuess = false; newGame(); });
+  var before = await p.page.evaluate(function () {
+    var cells = document.querySelectorAll(".cell");
+    var tabbable = Array.prototype.filter.call(cells, function (c) { return c.tabIndex === 0; });
+    return { total: cells.length, tabbableCount: tabbable.length, firstIsFocused: tabbable[0] === cells[0] };
+  });
+  assert(before.tabbableCount === 1, "sólo una celda debería tener tabindex=0, hay " + before.tabbableCount);
+  assert(before.firstIsFocused, "la celda (0,0) debería ser la alcanzable por Tab al empezar");
+
+  await p.page.evaluate(function () { document.querySelector('.cell[data-r="0"][data-c="0"]').focus(); });
+  await p.page.keyboard.press("ArrowRight");
+  var moved = await p.page.evaluate(function () {
+    return {
+      focusedIsRight: document.activeElement === document.querySelector('.cell[data-r="0"][data-c="1"]'),
+      onlyOneTabbable: document.querySelectorAll('.cell[tabindex="0"]').length === 1
+    };
+  });
+  assert(moved.focusedIsRight, "ArrowRight debería mover el foco del DOM a la celda de la derecha");
+  assert(moved.onlyOneTabbable, "sólo debe quedar una celda con tabindex=0 tras mover el foco");
+
+  await p.page.keyboard.press("Enter");
+  var dug = await p.page.evaluate(function () { return { started: started, revealed: grid[0][1].revealed }; });
+  assert(dug.started && dug.revealed, "Enter debería cavar la celda enfocada, igual que un tap");
   assertNoErrors(p.errors);
 });
 
@@ -744,6 +823,29 @@ test("Solitario: arrastrar del descarte a una columna (drag & drop real)", async
   assert(r.col0 === 2 && r.waste === 0,
     "el 9♥ debería quedar sobre el 10♠ (col0=" + r.col0 + ", waste=" + r.waste + ")");
   assert(r.moves === 1, "debería contarse 1 movimiento (fue " + r.moves + ")");
+  assertNoErrors(p.errors);
+});
+
+/* 27b) Solitario — la misma jugada de arriba, pero por teclado (Tab + Enter en
+   vez de mouse): navegación por teclado real, sin simular clicks. */
+test("Solitario: selecciona y mueve una carta con el teclado (Enter)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    state = { stock: [], waste: [c("hearts", 9, 500)], foundations: [[], [], [], []],
+              tableau: [[c("spades", 10, 501)], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; stuckCheckMoves = -1;
+    render();
+  });
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="waste"]').focus(); });
+  await p.page.keyboard.press("Enter");   // selecciona el 9♥
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="tableau"][data-col="0"]').focus(); });
+  await p.page.keyboard.press(" ");        // mueve el 9♥ sobre el 10♠ (Espacio = Enter)
+  var r = await p.page.evaluate(function () {
+    return { col0: state.tableau[0].length, waste: state.waste.length, moves: state.moves };
+  });
+  assert(r.col0 === 2 && r.waste === 0 && r.moves === 1,
+    "el teclado debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
   assertNoErrors(p.errors);
 });
 
