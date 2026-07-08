@@ -13,9 +13,7 @@ html, body { margin: 0; height: 100%; }
     overflow: hidden;
   }
 
-  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-
-  /* header -> styles/base.css */
+  /* #app / header -> styles/base.css */
   .brand { display: flex; flex-direction: column; line-height: 1.1; }
   .title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
   .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }

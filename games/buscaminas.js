@@ -322,6 +322,7 @@ function render() {
     if (fe) fe.focus();
   }
   document.documentElement.style.setProperty("--cols", cols);
+  document.documentElement.style.setProperty("--rows", rows);
   updateHUD();
   document.getElementById("smiley").textContent = generating ? "⏳" : (won ? "😎" : (dead ? "😵" : "🙂"));
   var mode = document.getElementById("btn-mode");
@@ -332,25 +333,6 @@ function render() {
 function updateHUD() {
   document.getElementById("time").textContent = fmtTime(seconds);
   document.getElementById("mines").textContent = mines - flags;
-}
-
-/* ---------- Tamaños ---------- */
-function setSizes() {
-  var wrap = document.getElementById("boardWrap");
-  var availW = (wrap.clientWidth || window.innerWidth) - 12;
-  var availH = (wrap.clientHeight || window.innerHeight) - 12;
-  var gap = 2;
-  var byW = (availW - (cols - 1) * gap) / cols;
-  var byH = (availH - (rows - 1) * gap) / rows;
-  var cell = Math.floor(Math.min(byW, byH));
-  // Techo más alto en pantallas anchas: si no, en desktop (sobre todo en
-  // Principiante) el tablero queda chico y descentrado con mucho espacio
-  // libre alrededor. En Experto el límite real sigue siendo el ancho/alto
-  // disponible, así que esto no lo agranda de más.
-  var cellCap = window.innerWidth >= 1100 ? 60 : 44;
-  cell = Math.max(16, Math.min(cell, cellCap));
-  document.documentElement.style.setProperty("--cell", cell + "px");
-  document.documentElement.style.setProperty("--cols", cols);
 }
 
 /* ---------- Pista ---------- */
@@ -502,7 +484,7 @@ function loadGame() {
     started = true; dead = false; won = false;
     // El reloj no arranca acá: se reanuda con la próxima jugada (onTap/onLong),
     // así abrir la pestaña para mirar no suma tiempo.
-    setSizes(); render();
+    render();
     return true;
   } catch (e) { return false; }
 }
@@ -519,7 +501,7 @@ function newGame() {
   started = false; dead = false; won = false;
   flags = 0; revealedCount = 0; seconds = 0;
   document.getElementById("win").hidden = true;
-  setSizes(); render();
+  render();
 }
 function setDifficulty(diff) {
   if (!DIFFS[diff]) return;
@@ -600,10 +582,3 @@ document.getElementById("win-close").onclick = function () { document.getElement
     btn.onclick = function () { setNoGuess(btn.dataset.noguess === "1"); };
   })(ng[i]);
 })();
-
-// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
-var resizeTimer = null;
-window.addEventListener("resize", function () {
-  if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); }, 120);
-});

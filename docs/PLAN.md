@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente (Fases 0-1 hechas) |
-| Versión | 1.1 |
+| Estado | Vigente (Fases 0-2 hechas) |
+| Versión | 1.2 |
 | Fecha | 2026-07-08 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
@@ -153,7 +153,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 |---|---|:---:|:---:|
 | 0 | Baseline visual + test de precache automático | 1 | ✅ |
 | 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ✅ |
-| 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ⬜ |
+| 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ✅ |
 | 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ⬜ |
 | 4 | Modo oscuro (paleta a elegir) | 3 | ⬜ |
 | 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
@@ -192,3 +192,61 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     capturas después de la fase comparadas contra el baseline de la Fase 0
     (mismo layout y estilos; sólo difieren las cartas repartidas, que son
     aleatorias en cada carga).
+- **Fase 2 (hecha).**
+  - **Riel lateral en apaisado corto.** Nueva regla compartida en
+    `styles/base.css` bajo `@media (orientation: landscape) and
+    (max-height: 500px)`: `#app` pasa de columna a fila, el `header` se
+    convierte en el riel izquierdo y `#controls` (footer) en el riel derecho
+    (ambos al 100% del alto, ancho fijo ~112px), así el tablero (`#board`/
+    `#play`, el hijo del medio) usa el alto completo en vez de quedar
+    apretado entre dos barras horizontales. Los selectores usan el ancestro
+    (`header .actions`, `#controls .btn.pill`, etc.) para ganarle en
+    especificidad a las reglas `.brand`/`.hud`/`.actions`/`.pill` que cada
+    juego declara sin media query, sin tener que duplicar la regla 4 veces.
+    - **Bug encontrado y corregido en el camino:** `#app` estaba redefinido
+      *idéntico* en las 4 hojas de estilo de cada juego (no sólo en
+      `base.css`); por regla de cascada (igual especificidad, orden de
+      archivo), esa copia le ganaba a mi `@media` en `base.css` y el layout
+      no rotaba a fila. Se resolvió consolidando `#app` en `base.css` (una
+      sola definición) y quitando la copia de las 4 hojas — de paso, un
+      dedupe real.
+    - **Ajuste:** "Buscaminas" es una sola palabra que no entra en 112px;
+      se le agregó `overflow-wrap: break-word` al título del riel para que
+      parta en dos líneas en vez de desbordar (Solitario/Corazones ya
+      entraban en una línea).
+    - Verificado con capturas en los 4 breakpoints de los 4 juegos: en
+      vertical/tablet/desktop-ancho el layout es **byte-idéntico** al
+      baseline de la Fase 0 (la media query no aplica fuera de apaisado
+      corto); en apaisado corto, los 4 juegos muestran el riel con todos
+      los botones visibles y el tablero usando el alto completo.
+  - **Buscaminas a CSS.** `setSizes()` (JS: medía `#boardWrap` en cada
+    resize y fijaba `--cell` en px) se eliminó junto con su listener de
+    `resize` — 20 líneas menos en `games/buscaminas.js`. El tamaño de celda
+    ahora lo calcula CSS puro en `styles/buscaminas.css`:
+    - `#boardWrap` es un *query container* (`container-type: size`).
+    - `--cell` es un `min()`/`max()` en `calc()` con unidades de container
+      query (`cqw`/`cqh`) que replica **la misma fórmula** que tenía el JS
+      (ajusta por ancho y por alto disponibles, con el mismo piso de 16px y
+      el mismo techo de 44px/60px — 60px vía `@container boardwrap
+      (min-width: 1100px)`, el equivalente en container query del viejo
+      `window.innerWidth >= 1100`).
+    - `.cell` usa `aspect-ratio: 1` en vez de `width`+`height` explícitos
+      (mencionado en el plan original).
+    - JS sólo sigue declarando `--cols`/`--rows` (la **forma** del tablero,
+      no un tamaño en píxeles — eso no es sizing, es estado del juego).
+    - **Mejora de correctitud, no buscada a propósito:** el techo de 60px
+      ahora se decide por el ancho del *contenedor* (`boardwrap`), no de la
+      ventana entera. Con el riel lateral de este mismo Fase 2, el JS viejo
+      (`window.innerWidth >= 1100`) habría usado el ancho de ventana
+      completo para decidir el techo aunque el tablero tuviera bastante
+      menos espacio real (por los rieles) — el CSS nuevo no tiene ese
+      problema.
+    - Verificado: tamaños de celda calculados (siempre cuadrados, por
+      `getBoundingClientRect`) en los 4 breakpoints × 3 dificultades
+      coinciden con los que calculaba el JS viejo; capturas idénticas en
+      apariencia a las de antes de la migración.
+  - **Puerta:** 53/53 tests verdes (repetido 3 veces para descartar el flake
+    intermitente ya conocido de un test de teclado de Corazones, ajeno a
+    esta fase) + capturas comparadas en los 4 breakpoints. `docs/screenshots/
+    baseline/` se regeneró con el estado post-Fase 2 (nueva referencia para
+    la Fase 3).

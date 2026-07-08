@@ -20,6 +20,9 @@ body {
   background: radial-gradient(120% 90% at 50% -10%, var(--felt-1) 0%, var(--felt-2) 45%, var(--felt-3) 100%);
 }
 
+/* ---------- Layout raíz de los 4 juegos (idéntico en las 4 páginas) ---------- */
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
 /* ---------- Cabecera y barra inferior de los juegos ---------- */
 header {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -60,3 +63,44 @@ header {
   opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 200; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Riel lateral: apaisado de celular con poca altura ----------
+   El header pasa a riel izquierdo y el footer (#controls) a riel derecho,
+   así el tablero (el hijo del medio de #app: #board en los juegos de
+   cartas, #play en Buscaminas) usa el alto completo en vez de quedar
+   apretado entre dos barras horizontales (ver docs/PLAN.md, Fase 2).
+   Selectores con el ancestro "header"/"#controls" para pisar con más
+   especificidad las reglas .brand/.hud/.actions/.pill que cada juego
+   declara sin media query (evita duplicar esto en las 4 hojas de estilo). */
+@media (orientation: landscape) and (max-height: 500px) {
+  #app { flex-direction: row; }
+
+  header {
+    flex-direction: column; flex-wrap: nowrap; align-items: stretch;
+    justify-content: flex-start; gap: 10px; overflow-y: auto;
+    width: 112px; height: 100%;
+    padding: 8px 6px 8px calc(6px + env(safe-area-inset-left, 0px));
+    border-bottom: none;
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }
+  header .brand { text-align: center; min-width: 0; }
+  header .brand .title { font-size: 15px; overflow-wrap: break-word; }
+  header .brand .credit { display: none; }
+  header .hud { flex-direction: column; margin-left: 0; gap: 4px; align-items: center; }
+  header .actions { flex-direction: column; gap: 6px; }
+  header .actions .btn { width: 100%; font-size: 12px; padding: 7px 4px; }
+  header .actions .btn.ghost { width: 100%; }
+
+  #controls {
+    flex-direction: column; justify-content: center; align-items: stretch;
+    gap: 8px; overflow-y: auto;
+    width: 112px; height: 100%;
+    padding: 8px calc(6px + env(safe-area-inset-right, 0px)) 8px 6px;
+    border-top: none;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+  #controls .btn.pill {
+    width: 100%; white-space: normal; line-height: 1.25;
+    padding: 8px 6px; font-size: 11.5px;
+  }
+}
