@@ -913,6 +913,83 @@ test("Arquitectura: shared/ui.js expone toast() igual en los 4 juegos", async fu
   }
 });
 
+/* ==================== ARQUITECTURA: contrato de juego ==================== */
+
+/* 36) Registro — games/registry.js declara los 4 juegos reales con href válido
+   y su STORE_NS coincide con el id del registro (candado multi-pestaña y
+   estadísticas comparten el mismo namespace). */
+test("Registro: games/registry.js declara los 4 juegos con datos consistentes", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  var r = await p.page.evaluate(function () {
+    var ids = window.GAMES.map(function (g) { return g.id; });
+    var hasFields = window.GAMES.every(function (g) {
+      return g.id && g.title && g.href && g.icon && g.statsKey && typeof g.body === "function";
+    });
+    return { count: window.GAMES.length, ids: ids, hasFields: hasFields };
+  });
+  assert(r.count === 4, "esperaba 4 juegos en el registro, hay " + r.count);
+  assert(r.ids.join(",") === "solitario,cartablanca,corazones,buscaminas",
+    "orden/ids inesperados: " + r.ids.join(","));
+  assert(r.hasFields, "todas las entradas del registro deben tener id/title/href/icon/statsKey/body");
+  assertNoErrors(p.errors);
+});
+
+/* 37) Launcher — el menú de inicio se genera desde el registro: agregar un
+   juego nuevo sólo requiere sumarlo a games/registry.js. */
+test("Registro: el launcher se genera desde games/registry.js", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  var r = await p.page.evaluate(function () {
+    var tiles = Array.prototype.slice.call(document.querySelectorAll("#tiles .tile"));
+    return {
+      count: tiles.length,
+      hrefs: tiles.map(function (t) { return t.getAttribute("href"); }),
+      titles: tiles.map(function (t) { return t.querySelector(".tname").textContent; }),
+      matchesRegistry: tiles.length === window.GAMES.length &&
+        tiles.every(function (t, i) { return t.getAttribute("href") === window.GAMES[i].href; })
+    };
+  });
+  assert(r.count === 4, "el launcher debería mostrar 4 tiles, mostró " + r.count);
+  assert(r.matchesRegistry, "los href de los tiles deben coincidir 1:1 con games/registry.js");
+  assert(r.titles.join(",") === "Solitario,Carta Blanca,Corazones,Buscaminas",
+    "títulos inesperados: " + r.titles.join(","));
+  assertNoErrors(p.errors);
+});
+
+/* 38) Estadísticas — las tarjetas se generan desde el registro, en el mismo
+   orden y con el mismo statsKey que usa cada juego para guardar. */
+test("Registro: estadísticas se generan desde games/registry.js", async function (ctx) {
+  var p = await open(ctx, "estadisticas.html");
+  var r = await p.page.evaluate(function () {
+    var cards = Array.prototype.slice.call(document.querySelectorAll("#cards .card"));
+    return {
+      count: cards.length,
+      titles: cards.map(function (c) { return c.querySelector("h2").textContent.trim(); }),
+      statsKeys: window.GAMES.map(function (g) { return g.statsKey; })
+    };
+  });
+  assert(r.count === 4, "estadísticas debería mostrar 4 tarjetas, mostró " + r.count);
+  assert(r.statsKeys.join(",") === "solitario.stats,cartablanca.stats,corazones.stats,buscaminas.stats",
+    "statsKeys inesperados: " + r.statsKeys.join(","));
+  assertNoErrors(p.errors);
+});
+
+/* 39) Contrato — el registro y el manifest de la PWA no divergen: cada juego
+   del registro tiene un shortcut en el manifest que apunta al mismo href. */
+test("Contrato: games/registry.js y manifest.webmanifest no divergen", async function (ctx) {
+  var p = await open(ctx, "index.html");
+  var r = await p.page.evaluate(async function () {
+    var link = document.querySelector('link[rel="manifest"]');
+    var m = await (await fetch(link.href)).json();
+    var shortcutHrefs = (m.shortcuts || []).map(function (s) { return s.url; }).sort();
+    var registryHrefs = window.GAMES.map(function (g) { return g.href; }).sort();
+    return { shortcutHrefs: shortcutHrefs, registryHrefs: registryHrefs };
+  });
+  assert(JSON.stringify(r.shortcutHrefs) === JSON.stringify(r.registryHrefs),
+    "el manifest y el registro deben listar los mismos juegos: " +
+    JSON.stringify(r.shortcutHrefs) + " vs " + JSON.stringify(r.registryHrefs));
+  assertNoErrors(p.errors);
+});
+
 /* ========================= RUNNER ========================= */
 (async function () {
   var srv = await startServer(ROOT);

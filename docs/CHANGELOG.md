@@ -37,6 +37,17 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   generalizaron: su contenido difiere de verdad entre juegos; unificarlos queda
   para cuando exista el contrato de juego (Fase 4), para no introducir
   abstracción prematura. 40 tests verdes.
+- **Arquitectura (Fase 4).** Nuevo `games/registry.js`: registro declarativo de
+  los 4 juegos (`id`, `title`, `href`, `icon`, `statsKey`, `body()`). El
+  launcher (`index.html`) y `estadisticas.html` ahora **generan** sus
+  tiles/tarjetas desde el registro en vez de tenerlos hardcodeados; agregar un
+  juego a esas dos pantallas pasa a ser una sola edición. Cuatro tests nuevos
+  de "contrato" verifican que el registro, el launcher, estadísticas y los
+  `shortcuts` del manifest no divergen. **No** se migró el motor de cada juego
+  a una interfaz `mount/newGame/serialize/restore` (ver ARQUITECTURA.md, Fase 4,
+  para la justificación: sería el cambio de mayor riesgo del proyecto para
+  beneficio externo nulo hoy). Sin cambios visuales (screenshots del launcher y
+  de estadísticas con datos). 44 tests verdes.
 
 ## [1.2.0] — 2026-07-07
 

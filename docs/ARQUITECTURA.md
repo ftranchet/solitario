@@ -146,6 +146,16 @@ persistencia, PWA, header, stats y a11y “gratis”.
 registro + implementar el contrato.** El launcher y la pantalla de estadísticas
 se generan a partir del registro (no se editan a mano por cada juego nuevo).
 
+> **Nota (post-Fase 4):** lo implementado es un contrato **más liviano** que el
+> boceto de arriba: `{ id, title, href, icon, statsKey, body(stats, h) }` (ver
+> `games/registry.js`). Cubre exactamente lo que hoy es responsabilidad del
+> launcher/estadísticas. Los campos `mount`/`newGame`/`serialize`/`restore`/
+> `destroy` quedan como diseño de referencia para el día que se agregue un
+> juego que realmente necesite compartir el ciclo de vida con el shell — no se
+> implementaron para los 4 juegos actuales porque hacerlo hoy no resuelve
+> ningún problema real y sí introduce el riesgo más alto de todo este trabajo
+> (ver el detalle en Fase 4, §10).
+
 ## 6. Plan por fases (incremental, tests verdes en cada paso)
 
 Cada fase es mergeable por separado y no debe romper los 39 tests.
@@ -211,7 +221,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 | 1 | `storage.js` (persistencia compartida) | ✅ |
 | 2 | `cards.js` + `cards.css` (chrome) | ✅ |
 | 3 | `ui.js` (toast) | ✅ |
-| 4 | Contrato + registro de juegos | 💡 |
+| 4 | Contrato + registro de juegos | ✅ (alcance acotado) |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | 💡 |
 | 6 | Temas, responsive, a11y por teclado | 💡 |
 
@@ -253,16 +263,53 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   ayuda); forzar una interfaz común ahí sería una abstracción prematura antes de
   tener el contrato de juego (Fase 4). Se decidió honestamente **no** incluirlos
   para no acumular complejidad sin un beneficio real todavía.
+- **Fase 4 (hecha, alcance deliberadamente acotado).** Se creó
+  `games/registry.js`: un array declarativo (`window.GAMES`) con `id`, `title`,
+  `href`, `icon`, `statsKey` y `body(stats, helpers)` (el HTML de la tarjeta de
+  Estadísticas de ESE juego). `index.html` (launcher) y `estadisticas.html`
+  ahora **generan** sus tiles/tarjetas iterando el registro, en vez de tenerlos
+  hardcodeados; el botón "Reiniciar estadísticas" también itera el registro
+  para borrar las claves. **Esto sí resuelve una duplicación real y de alto
+  riesgo:** antes, agregar un 5.º juego exigía editar a mano `index.html`,
+  `estadisticas.html` y `manifest.webmanifest` (shortcuts) por separado, sin
+  nada que avisara si se olvidaba uno o quedaban desincronizados. Ahora sólo
+  hay que sumarlo a `games/registry.js` (el manifest de la PWA sigue siendo un
+  archivo aparte porque su *sintaxis* la define el estándar de Web App
+  Manifest, pero un **test de contrato** nuevo verifica que registro y
+  manifest listen exactamente los mismos juegos, así que una futura
+  desincronización la detecta la suite, no un usuario).
+
+  **Lo que NO se hizo, a propósito.** El boceto original de §5.2 (interfaz
+  `Game` con `mount(root)`, `newGame()`, `serialize()`, `restore()`,
+  `destroy()`) **no se implementó** para los 4 juegos existentes. Migrar el
+  motor de cada juego (~900 a ~1400 líneas por archivo) a esa interfaz habría
+  sido, por lejos, el cambio de mayor riesgo de todo este trabajo — reescribir
+  cómo cada juego arranca, consulta el DOM y guarda su estado, para un
+  beneficio externo nulo hoy: los 4 juegos ya andan, ya están testeados y no
+  necesitan "montarse" en ningún otro lado. Esa interfaz sólo paga su costo el
+  día que se agregue un **5.º juego real**: ahí, si conviene compartir más que
+  el registro (por ejemplo un layout de tablero o un bucle de turnos), se
+  define recién en base a lo que ese juego concreto necesita — no antes, por
+  las dudas. Hacerlo ahora habría sido la abstracción prematura que este mismo
+  documento advierte evitar en la sección de No-objetivos.
+- **Test de contrato (nuevo).** Cuatro tests verifican: (1) el registro declara
+  los 4 juegos con todos los campos requeridos; (2) el launcher se genera desde
+  el registro (mismos hrefs/títulos, mismo orden); (3) estadísticas se genera
+  desde el registro (mismos `statsKey`); (4) el registro y los `shortcuts` del
+  manifest **no divergen**. 44/44 tests verdes; sin cambios visuales
+  (screenshots del launcher y de estadísticas con datos).
 
 ### Criterios de aceptación (cuando esté todo)
 
-- Agregar un juego = implementar el contrato + registrarlo; **cero** ediciones
-  en los otros juegos.
-- Un **test de contrato** verifica que todo juego del registro: carga sin
-  errores, persiste y restaura, registra stats, tiene shortcut en el manifest y
-  queda cacheado offline.
-- Una CSP estricta (sin `unsafe-inline`) activa.
-- Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos.
+- Agregar un juego al **launcher y a estadísticas** = sumarlo a
+  `games/registry.js`; **cero** ediciones en las otras páginas. ✅ (Fase 4)
+- Un **test de contrato** verifica que el registro no diverge del launcher, de
+  estadísticas ni del manifest (shortcuts). ✅ (Fase 4) — pendiente extenderlo
+  a "persiste y restaura" y "queda cacheado offline" el día que el registro
+  también describa la persistencia de cada juego (hoy eso lo cubren los tests
+  específicos de cada juego, no el test de contrato).
+- Una CSP estricta (sin `unsafe-inline`) activa. ⬜ (Fase 5)
+- Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos. ✅ (Fases 0-3)
 
 ## 11. Decisión
 

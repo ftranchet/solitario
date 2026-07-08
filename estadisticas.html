@@ -20,6 +20,7 @@
     });
   }
 </script>
+<script src="games/registry.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
 <style>
@@ -86,61 +87,28 @@ function fmtTime(s) {
 }
 function rate(won, played) { return played > 0 ? Math.round(won / played * 100) + "%" : "—"; }
 function row(label, value) { return '<div class="row"><span>' + label + '</span><b>' + value + '</b></div>'; }
-
-var CB_ICO = '<svg viewBox="0 0 32 32" width="1em" height="1em" aria-hidden="true"><rect x="9" y="6" width="17" height="23" rx="3" fill="rgba(0,0,0,0.13)"/><rect x="6" y="3.5" width="18" height="24" rx="3" fill="#fff" stroke="#c9a44a" stroke-width="1.4"/><text x="15" y="21" text-anchor="middle" font-family="Georgia, serif" font-weight="bold" font-size="16" fill="#1a1a1a">♠</text></svg>';
-function cardCommon(title, ico, st, extra) {
+function rowPlayed(st) {
   var played = n(st.played), won = n(st.won);
-  var html = '<div class="card"><h2><span class="ico">' + ico + '</span> ' + title + '</h2>';
-  if (!played) { html += '<div class="empty">Todavía no jugaste ninguna partida.</div>'; }
-  else {
-    html += row("Partidas jugadas", played);
-    html += row("Ganadas", won + " (" + rate(won, played) + ")");
-    if (extra) html += extra(st);
-  }
-  return html + '</div>';
+  return row("Partidas jugadas", played) + row("Ganadas", won + " (" + rate(won, played) + ")");
 }
+// Helpers que recibe el body(stats, h) de cada juego en games/registry.js.
+var statHelpers = { n: n, fmtTime: fmtTime, rate: rate, row: row, rowPlayed: rowPlayed };
 
+// Las tarjetas se arman a partir de games/registry.js: agregar un juego nuevo
+// sólo requiere sumarlo ahí (ver docs/ARQUITECTURA.md, Fase 4).
 function render() {
-  var sol = g("solitario.stats"), cb = g("cartablanca.stats"), cor = g("corazones.stats"), bm = g("buscaminas.stats");
-  var out = "";
-
-  out += cardCommon("Solitario", "🃏", sol, function (s) {
-    return row("Mejor tiempo", fmtTime(s.bestTime)) +
-           (s.bestMoves ? row("Menos movimientos", s.bestMoves) : "");
-  });
-
-  out += cardCommon("Carta Blanca", CB_ICO, cb, function (s) {
-    return row("Mejor tiempo", fmtTime(s.bestTime));
-  });
-
-  out += cardCommon("Corazones", "❤️", cor, function (s) {
-    return row("Menor puntaje final", (s.bestScore != null ? s.bestScore : "—")) +
-           row("Lunas disparadas", n(s.moons));
-  });
-
-  // Buscaminas: por dificultad
-  var diffs = [["beginner", "Principiante"], ["intermediate", "Intermedio"], ["expert", "Experto"]];
-  var anyBm = diffs.some(function (d) { return bm[d[0]] && n(bm[d[0]].played); });
-  var h = '<div class="card"><h2><span class="ico">💣</span> Buscaminas</h2>';
-  if (!anyBm) { h += '<div class="empty">Todavía no jugaste ninguna partida.</div>'; }
-  else {
-    h += '<table><thead><tr><th>Nivel</th><th class="num">Jugadas</th><th class="num">Ganadas</th><th class="num">Mejor</th></tr></thead><tbody>';
-    for (var i = 0; i < diffs.length; i++) {
-      var d = bm[diffs[i][0]] || {};
-      h += '<tr><td>' + diffs[i][1] + '</td><td class="num">' + n(d.played) + '</td><td class="num">' +
-           n(d.won) + " (" + rate(n(d.won), n(d.played)) + ')</td><td class="num">' + fmtTime(d.best) + '</td></tr>';
-    }
-    h += '</tbody></table>';
-  }
-  out += h + '</div>';
-
+  var out = window.GAMES.map(function (game) {
+    var stats = g(game.statsKey);
+    var body = game.body(stats, statHelpers) || '<div class="empty">Todavía no jugaste ninguna partida.</div>';
+    return '<div class="card"><h2><span class="ico">' + game.icon + '</span> ' + game.title + '</h2>' + body + '</div>';
+  }).join("");
   document.getElementById("cards").innerHTML = out;
 }
 
 document.getElementById("reset").onclick = function () {
   if (!confirm("¿Borrar todas las estadísticas? No se puede deshacer.")) return;
-  ["solitario.stats", "cartablanca.stats", "corazones.stats", "buscaminas.stats"].forEach(function (k) {
-    try { localStorage.removeItem(k); } catch (e) {}
+  window.GAMES.forEach(function (game) {
+    try { localStorage.removeItem(game.statsKey); } catch (e) {}
   });
   render();
 };
