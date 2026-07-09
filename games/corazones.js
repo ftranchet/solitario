@@ -296,12 +296,7 @@ function endHand() {
 }
 
 /* ---------- Render ---------- */
-function el(tag, cls, html) {
-  var e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (html != null) e.innerHTML = html;
-  return e;
-}
+// el() vive en shared/ui.js.
 function esc(s) {
   return String(s).replace(/[&<>"]/g, function (c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -567,9 +562,9 @@ function loadPrefs() {
 /* ---------- Persistencia ---------- */
 var PREFS_KEY = "corazones.prefs", STATS_KEY = "corazones.stats";
 // El candado multi-pestaña y gameSet/gameDel/GAME_KEY viven en shared/storage.js.
-function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
-function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
-function bumpStat(key) { var s = loadStats(); s[key] = (s[key] || 0) + 1; saveStats(s); }
+// loadStats/saveStats/bumpStat vienen de makeStats() en shared/storage.js.
+var _stats = makeStats(STATS_KEY);
+var loadStats = _stats.load, saveStats = _stats.save, bumpStat = _stats.bump;
 function recordMatchEnd() {
   var s = loadStats();
   s.played = (s.played || 0) + 1;
@@ -744,9 +739,6 @@ document.getElementById("win-close").onclick = function () { document.getElement
   })(ni[i]);
 })();
 
-// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
-var resizeTimer = null;
-window.addEventListener("resize", function () {
-  if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); render(); }, 120);
-});
+// debounce() vive en shared/ui.js (en móvil el resize dispara en ráfagas:
+// barra del navegador, rotación).
+window.addEventListener("resize", debounce(function () { setSizes(); render(); }, 120));

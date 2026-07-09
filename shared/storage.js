@@ -68,3 +68,29 @@
   };
   window.gameDel = function () { if (saveOwner) { try { localStorage.removeItem(GAME_KEY); } catch (e) {} } };
 })();
+
+/**
+ * makeStats(key) — fábrica mínima de lectura/escritura de estadísticas.
+ * `loadStats`/`saveStats`/`bumpStat(field)` eran idénticas en los 4 juegos
+ * (leer JSON de localStorage, reescribirlo, sumar 1 a un contador); se
+ * extraen acá. `recordWin`/`recordMatchEnd` (qué campos agrega cada juego al
+ * ganar: tiempo+movimientos, sólo tiempo, puntaje de partida, récord por
+ * dificultad) siguen por juego a propósito — difieren de verdad, así que
+ * generalizarlos sería forzar una interfaz común sin un beneficio real.
+ * @param {string} key
+ */
+function makeStats(key) {
+  /** @returns {Record<string, any>} */
+  function load() {
+    try { return JSON.parse(/** @type {string} */ (localStorage.getItem(key))) || {}; }
+    catch (e) { return {}; }
+  }
+  /** @param {Record<string, any>} s */
+  function save(s) { try { localStorage.setItem(key, JSON.stringify(s)); } catch (e) {} }
+  return {
+    load: load,
+    save: save,
+    /** @param {string} field */
+    bump: function (field) { var s = load(); s[field] = (s[field] || 0) + 1; save(s); }
+  };
+}

@@ -51,6 +51,41 @@ function keyActivate(el, handler) {
   });
 }
 
+/*
+ * el() — helper de creación de nodos DOM, idéntico en Solitario, Carta
+ * Blanca y Corazones (Buscaminas no lo necesita: no lo usaba). Reemplaza
+ * `document.createElement` + asignar className/innerHTML a mano.
+ */
+/**
+ * @param {string} tag
+ * @param {string} [cls]
+ * @param {string} [html]
+ */
+function el(tag, cls, html) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+
+/**
+ * Devuelve una versión "debounced" de `fn`: sólo corre `ms` después del
+ * último llamado, cancelando el timer del llamado anterior. Los 3 juegos de
+ * cartas la usaban igual para el resize (en móvil dispara en ráfagas: barra
+ * del navegador, rotación); Buscaminas no la necesita desde que su tamaño
+ * pasó a CSS puro (ver docs/PLAN.md, Fase 2).
+ * @param {() => void} fn
+ * @param {number} ms
+ * @returns {() => void}
+ */
+function debounce(fn, ms) {
+  var timer = 0;
+  return function () {
+    if (timer) clearTimeout(timer);
+    timer = window.setTimeout(function () { timer = 0; fn(); }, ms);
+  };
+}
+
 /**
  * Asigna `handler` como click Y como activación por teclado (keyActivate),
  * para los "huecos" clickeables que no son cartas (mazo, columna vacía,
@@ -88,11 +123,15 @@ function celebrate() {
   var ctx = maybeCtx;   // narrowing explícito: adentro de frame() ya no es null
   function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
   resize();
-  window.addEventListener("resize", resize);
+  // Debounced: sin esto, arrastrar el borde de la ventana (o rotar el
+  // celular) durante los ~4.5s de confeti reasigna canvas.width/height
+  // decenas de veces por segundo, cada una un reflow costoso.
+  var debouncedResize = debounce(resize, 120);
+  window.addEventListener("resize", debouncedResize);
   var raf = 0;
   confettiCleanup = function () {
     if (raf) cancelAnimationFrame(raf);
-    window.removeEventListener("resize", resize);
+    window.removeEventListener("resize", debouncedResize);
     canvas.remove();
   };
   var colors = ["#e8b44a", "#c62828", "#1f7a46", "#1f6fd0", "#ffffff", "#ff7ab6"];

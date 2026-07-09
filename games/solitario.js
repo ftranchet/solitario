@@ -21,9 +21,9 @@ var winRecorded = false;   // ¿ya se registró la victoria? (deshacer y rehacer
 
 /* ---------- Estadísticas ---------- */
 var STATS_KEY = "solitario.stats";
-function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
-function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
-function bumpStat(key) { var s = loadStats(); s[key] = (s[key] || 0) + 1; saveStats(s); }
+// loadStats/saveStats/bumpStat vienen de makeStats() en shared/storage.js.
+var _stats = makeStats(STATS_KEY);
+var loadStats = _stats.load, saveStats = _stats.save, bumpStat = _stats.bump;
 function recordWin() {
   var s = loadStats();
   s.won = (s.won || 0) + 1;
@@ -450,12 +450,7 @@ function updateStuckState() {
 }
 
 /* ---------- Render ---------- */
-function el(tag, cls, html) {
-  var e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (html != null) e.innerHTML = html;
-  return e;
-}
+// el() vive en shared/ui.js.
 // cardFace, rankName, cardLabel y makeCardEl viven en shared/cards.js.
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
@@ -919,9 +914,6 @@ document.getElementById("board").addEventListener("click", function (e) {
   if (e.target.closest(".card, .slot-ph, .placeholder, .foundation-ph, .recycle, .badge, button")) return;
   if (selection) { selection = null; render(); }
 });
-// Debounce: en móvil el resize dispara en ráfagas (barra del navegador, rotación)
-var resizeTimer = null;
-window.addEventListener("resize", function () {
-  if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function () { resizeTimer = null; setSizes(); render(); }, 120);
-});
+// debounce() vive en shared/ui.js (en móvil el resize dispara en ráfagas:
+// barra del navegador, rotación).
+window.addEventListener("resize", debounce(function () { setSizes(); render(); }, 120));

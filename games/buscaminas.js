@@ -382,8 +382,10 @@ function onHint() {
 /* ---------- Persistencia ---------- */
 var PREFS_KEY = "buscaminas.prefs", STATS_KEY = "buscaminas.stats";
 // El candado multi-pestaña y gameSet/gameDel/GAME_KEY viven en shared/storage.js.
-function loadStats() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch (e) { return {}; } }
-function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
+// loadStats/saveStats vienen de makeStats() en shared/storage.js (Buscaminas
+// no usa bump: agrupa por dificultad con statFor(), no por contador simple).
+var _stats = makeStats(STATS_KEY);
+var loadStats = _stats.load, saveStats = _stats.save;
 function statFor(s, d) { if (!s[d]) s[d] = { played: 0, won: 0 }; return s[d]; }
 function recordPlayed() { var s = loadStats(); statFor(s, difficulty).played++; saveStats(s); }
 function recordWin() {

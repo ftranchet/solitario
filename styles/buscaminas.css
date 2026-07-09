@@ -57,13 +57,34 @@
     ));
   }
 }
-/* Respaldo para navegadores sin unidades de container query (cqw/cqh; el
-   soporte es de ~2022 en adelante). Sin esto, --cell quedaría inválida y el
-   tablero se rompería. Tamaño fijo razonable (dentro del rango que daba el
-   JS viejo): menos ajustado, pero funcional — un tablero grande scrollea
-   dentro de #boardWrap, que ya tiene overflow: auto. */
+/* Respaldo EN CAPAS para navegadores sin unidades de container query
+   (cqw/cqh; soporte desde ~2022). Sin esto, --cell quedaría inválida y el
+   tablero se rompería.
+   1) Piso incondicional: 32px fijo. Funciona en CUALQUIER navegador, incluso
+      uno sin min()/max() en CSS (~pre-2020): sin este primer nivel, un
+      navegador de esa antigüedad se quedaría sin --cell del todo.
+   2) Si además soporta min()/max() (la mayoría del hueco 2020-2022 que
+      todavía no tenía cqw), se refina con una fórmula basada en el ancho de
+      VENTANA — sin container queries no hay forma de leer el ancho real del
+      contenedor, así que en el riel lateral apaisado (Fase 2) esto
+      sobreestima el espacio disponible; el techo de 44px acota el daño y
+      #boardWrap ya tiene overflow: auto para el resto. Evita el caso real
+      de la variante fija (32px): un tablero Intermedio (16 columnas) en un
+      celular angosto pasaba de 512px fijos a ajustarse sin scroll. Un
+      tablero Experto (30 columnas) sigue pudiendo necesitar scroll aun con
+      la fórmula: el piso de 16px por celda (legibilidad) no da para 30
+      columnas en un viewport de celular — mismo trade-off que ya acepta el
+      camino principal con cqw (§Fase 2 de docs/PLAN.md). */
 @supports not (width: 1cqw) {
   #board { --cell: 32px; }
+  @supports (width: min(1px, 2px)) {
+    #board {
+      --cell: max(16px, min(
+        calc((100vw - 8px - (var(--cols) - 1) * 2px) / var(--cols)),
+        44px
+      ));
+    }
+  }
 }
 .cell {
   width: var(--cell); aspect-ratio: 1;

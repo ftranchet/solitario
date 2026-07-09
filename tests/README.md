@@ -106,7 +106,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Registro · launcher | El menú de inicio se genera iterando el registro (mismos hrefs/títulos) |
 | Registro · estadísticas | Las tarjetas de estadísticas se generan iterando el registro |
 | Contrato · registro vs. manifest | Los `shortcuts` del manifest y el registro no divergen |
-| Contrato · menú de juegos | El menú (🎮) de cada página de juego lista los mismos juegos que el registro, en el mismo orden y con los mismos href (el menú es HTML estático repetido en las 4 páginas: sin este test, olvidarse una al agregar un juego pasaba en silencio) |
+| Contrato · menú de juegos | El menú (🎮) de cada página de juego se GENERA desde el registro (`shared/menu.js`); el test abre el menú con un click real en `#btn-menu` y verifica los enlaces resultantes (mismo orden, mismos href, el actual marcado) |
 | Precache | Todo archivo servido (HTML, CSS, JS, íconos) está en la lista `ASSETS` de `sw.js`; un archivo nuevo fuera de la lista rompe el test (ver docs/PLAN.md, Fase 0) |
 
 **Seguridad y tipos**
@@ -117,6 +117,13 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | CSP | Las 6 páginas declaran una `Content-Security-Policy` estricta, sin `unsafe-inline` en ningún directive (el motor de cada juego vive en `games/<juego>.js` desde la Fase 1 de docs/PLAN.md) |
 | Tipos | Los módulos compartidos (`shared/*.js`, `games/registry.js`) mantienen `// @ts-check` (`tsc -p .` los valida en CI); el motor de cada juego en `games/<juego>.js` queda deliberadamente fuera (ver docs/PLAN.md, Fase 1) |
 | Tema claro/oscuro | El toggle de tema aplica los tokens oscuros (`data-theme="dark"`), marca el botón activo, persiste al recargar (la preferencia manual gana sobre el sistema) y es global entre páginas |
+| Tema · auto | Con la preferencia en "auto" (el default), `shared/theme.js` reacciona en vivo al cambio de `prefers-color-scheme` del sistema (simulado con `page.emulateMedia`), sin que el usuario toque nada |
+
+**Responsive**
+
+| Test | Qué valida |
+|------|-----------|
+| Riel lateral | A 844×390 (apaisado corto, el breakpoint de docs/PLAN.md Fase 2), `#app` pasa a `flex-direction: row` en los 4 juegos |
 
 **Accesibilidad (navegación por teclado)**
 

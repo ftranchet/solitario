@@ -1230,13 +1230,14 @@ test("Contrato: games/registry.js y manifest.webmanifest no divergen", async fun
   assertNoErrors(p.errors);
 });
 
-/* 39b) Contrato — el menú de juegos (🎮) de cada página de juego coincide con
-   games/registry.js. El menú es HTML estático repetido en las 4 páginas (no se
-   puede generar sin JS extra), así que al agregar un juego nuevo hay que
-   editarlo a mano en cada una; este test convierte un olvido o una divergencia
-   (juego que falta, orden distinto, href equivocado) en un fallo de CI —
-   mismo mecanismo que ya usa el contrato registro vs. manifest. */
-test("Contrato: el menú de juegos de cada juego coincide con games/registry.js", async function (ctx) {
+/* 39b) Contrato — el menú de juegos (🎮) de cada página de juego se GENERA
+   desde games/registry.js (shared/menu.js). Antes era HTML estático repetido
+   en las 4 páginas, con el riesgo de que se desincronizara al agregar un
+   juego; ahora agregarlo al registro alcanza. Este test abre el menú con un
+   click real en #btn-menu (no lee el DOM oculto directo) y verifica que la
+   cantidad de enlaces generados sea exactamente GAMES.length + 2 (Inicio +
+   juegos + Estadísticas), además del contenido/orden/marcado del actual. */
+test("Contrato: el menú de juegos de cada juego se genera desde games/registry.js", async function (ctx) {
   var p0 = await open(ctx, "index.html");
   var registry = await p0.page.evaluate(function () {
     return window.GAMES.map(function (g) { return { href: g.href, title: g.title }; });
@@ -1244,22 +1245,29 @@ test("Contrato: el menú de juegos de cada juego coincide con games/registry.js"
   for (var i = 0; i < registry.length; i++) {
     var file = registry[i].href;
     var p = await open(ctx, file);
+    await p.page.click("#btn-menu");
     var menu = await p.page.evaluate(function () {
+      var overlayHidden = document.getElementById("menu").hidden;
       var links = Array.prototype.slice.call(document.querySelectorAll("#menu .game-list .game-link"));
-      return links.map(function (l) {
-        return {
-          href: l.getAttribute("href"),
-          text: l.textContent.replace(/\s+/g, " ").trim(),
-          current: l.classList.contains("current")
-        };
-      });
+      return {
+        overlayHidden: overlayHidden,
+        entries: links.map(function (l) {
+          return {
+            href: l.getAttribute("href"),
+            text: l.textContent.replace(/\s+/g, " ").trim(),
+            current: l.classList.contains("current")
+          };
+        })
+      };
     });
-    assert(menu.length === registry.length + 2,
-      file + ": el menú debería listar Inicio + " + registry.length + " juegos + Estadísticas, tiene " + menu.length);
-    assert(menu[0].href === "index.html", file + ": la primera entrada del menú debería ser Inicio");
-    assert(menu[menu.length - 1].href === "estadisticas.html", file + ": la última entrada debería ser Estadísticas");
+    var menuEntries = menu.entries;
+    assert(!menu.overlayHidden, file + ": el click en #btn-menu debería abrir el menú");
+    assert(menuEntries.length === registry.length + 2,
+      file + ": el menú generado debería tener GAMES.length + 2 = " + (registry.length + 2) + " enlaces, tiene " + menuEntries.length);
+    assert(menuEntries[0].href === "index.html", file + ": la primera entrada del menú debería ser Inicio");
+    assert(menuEntries[menuEntries.length - 1].href === "estadisticas.html", file + ": la última entrada debería ser Estadísticas");
     for (var j = 0; j < registry.length; j++) {
-      var entry = menu[j + 1], game = registry[j];
+      var entry = menuEntries[j + 1], game = registry[j];
       assert(entry.text.indexOf(game.title) >= 0,
         file + ": la entrada " + (j + 1) + " del menú debería ser '" + game.title + "', es '" + entry.text + "'");
       if (game.href === file) {
@@ -1397,7 +1405,7 @@ test("CSP: las 6 páginas declaran una Content-Security-Policy estricta", async 
 test("Tipos: los módulos compartidos declaran // @ts-check", async function () {
   var files = [
     "shared/storage.js", "shared/cards.js", "shared/ui.js", "shared/pwa.js",
-    "shared/theme.js", "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
+    "shared/theme.js", "shared/menu.js", "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
   ];
   for (var i = 0; i < files.length; i++) {
     var content = fs.readFileSync(path.join(ROOT, files[i]), "utf8");
@@ -1437,6 +1445,53 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
   await p.page.goto(url("buscaminas.html"), { waitUntil: "load" });
   var t3 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
   assert(t3 === "dark", "el tema debería ser global entre páginas, en buscaminas quedó " + t3);
+  assertNoErrors(p.errors);
+});
+
+/* 45b) Responsive — riel lateral en apaisado corto: a 844×390 (celular
+   apaisado, el breakpoint real de docs/PLAN.md Fase 2), #app debe pasar de
+   columna a fila. Ya hubo una regresión real de cascada acá (un `#app`
+   duplicado en las 4 hojas de cada juego le ganaba al media query
+   compartido de styles/base.css); este test la convierte en un fallo de CI
+   si una edición futura la reintroduce. */
+test("Responsive: el riel lateral activa flex-direction:row en apaisado corto", async function (ctx) {
+  var pages = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
+  for (var i = 0; i < pages.length; i++) {
+    var p = await newPage(ctx);
+    await p.page.setViewportSize({ width: 844, height: 390 });
+    await p.page.goto(url(pages[i]), { waitUntil: "load" });
+    await p.page.waitForTimeout(100);
+    var dir = await p.page.evaluate(function () {
+      return getComputedStyle(document.getElementById("app")).flexDirection;
+    });
+    assert(dir === "row", pages[i] + ": #app debería quedar en flex-direction:row a 844x390 (apaisado corto), es '" + dir + "'");
+    assertNoErrors(p.errors);
+  }
+});
+
+/* 45c) Tema "auto" — con la preferencia en "auto" (el default: nadie tocó el
+   toggle), el tema debe reaccionar EN VIVO al cambio de
+   prefers-color-scheme del SISTEMA, sin intervención del usuario (ver el
+   listener "change" del matchMedia en shared/theme.js). El test anterior
+   sólo cubre la preferencia MANUAL (botón Oscuro); éste cubre el modo que
+   usan todos los usuarios que nunca abrieron Opciones. */
+test("Tema 'auto': sigue el prefers-color-scheme del sistema en vivo", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.emulateMedia({ colorScheme: "light" });
+  await p.page.goto(url("solitario.html"), { waitUntil: "load" });
+  await p.page.waitForTimeout(100);
+  var t0 = await p.page.evaluate(function () {
+    return { theme: document.documentElement.dataset.theme, pref: getThemePref() };
+  });
+  assert(t0.pref === "auto", "sin preferencia guardada, getThemePref() debería ser 'auto' (fue '" + t0.pref + "')");
+  assert(t0.theme === "light", "con el sistema en claro y preferencia auto, data-theme debería ser 'light' (fue '" + t0.theme + "')");
+
+  // Cambiar la preferencia del SISTEMA (no del usuario, ver el toggle de arriba):
+  // theme.js debe reaccionar solo, sin recargar ni tocar ningún control.
+  await p.page.emulateMedia({ colorScheme: "dark" });
+  await p.page.waitForFunction(function () { return document.documentElement.dataset.theme === "dark"; }, null, { timeout: 2000 });
+  var stored = await p.page.evaluate(function () { return localStorage.getItem("theme"); });
+  assert(stored === null, "el cambio del sistema no debe grabar una preferencia manual en localStorage (quedó '" + stored + "')");
   assertNoErrors(p.errors);
 });
 

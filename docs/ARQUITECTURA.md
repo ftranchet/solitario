@@ -115,9 +115,13 @@ real con esbuild.
                               clásico, mismo scope global que antes inline
   shared/
     cards.js                 SUIT/RANK, mazo, mezcla (LCG), makeCardEl, cardLabel (a11y)
-    storage.js               candado multi-pestaña, gameSet/gameDel, aviso, validación
-    ui.js                    toast, keyActivate/clickActivate (a11y de teclado)
+    storage.js               candado multi-pestaña, gameSet/gameDel, aviso,
+                             validación, makeStats() (estadísticas)
+    ui.js                    toast, keyActivate/clickActivate (a11y de teclado),
+                             el()/debounce() (helpers), celebrate() (confeti)
     pwa.js                   registro del service worker
+    menu.js                  menú de juegos (🎮) de las 4 páginas de juego,
+                             generado desde games/registry.js
     launcher.js              lógica propia de index.html
     estadisticas-page.js     lógica propia de estadisticas.html
     global.d.ts              declaraciones ambientales para @ts-check
@@ -492,8 +496,8 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 
 **Aceptada e implementada.** El refactor se ejecutó por fases (§10), cada una
 mergeable por separado y con la suite de tests verde como puerta (52 tests al
-cerrar el refactor; 59 tras las fases de PLAN.md y la auditoría de merge —
-ver el [CHANGELOG](./CHANGELOG.md)). El resultado: la duplicación transversal (persistencia, cartas, UI,
+cerrar el refactor; 61 tras las fases de PLAN.md y las dos rondas de
+auditoría de merge — ver el [CHANGELOG](./CHANGELOG.md)). El resultado: la duplicación transversal (persistencia, cartas, UI,
 stats, PWA, diseño) vive en un solo lugar, y agregar un juego al launcher/
 estadísticas es una sola edición en `games/registry.js`.
 

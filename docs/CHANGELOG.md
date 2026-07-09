@@ -12,6 +12,73 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.5.0] — 2026-07-09
+
+Segunda pasada de la auditoría de merge (1.4.0): cierra el hueco real que
+quedaba en "agregar un juego sin romper nada" (el menú de navegación seguía
+hardcodeado) y deduplica boilerplate menor de los 4 motores. Sin cambios
+visuales: verificado comparando los estilos computados de las 6 páginas
+(3 viewports × claro/oscuro) contra la versión 1.4.0 — cero diferencias.
+
+### Cambiado
+
+- **El menú de juegos (🎮) ahora se GENERA desde `games/registry.js`.** Era el
+  único lugar donde "agregar un juego = una sola edición en el registro" no
+  se cumplía todavía: el `<div id="menu">` de las 4 páginas de juego tenía el
+  listado de juegos escrito a mano, con el SVG de Carta Blanca duplicado 4
+  veces. Nuevo `shared/menu.js` arma `.game-list` iterando `window.GAMES`
+  (marca el juego actual comparando `data-store-ns` de `<html>` contra el
+  `id` del registro, que ya coincidían 1:1). Las 4 páginas suman
+  `<script src="games/registry.js">` (mismo lugar que ya tenía
+  `index.html`/`estadisticas.html`) y `<script src="shared/menu.js">` antes
+  del motor. El test de contrato del menú (antes leía HTML estático) ahora
+  hace un click real en `#btn-menu` y verifica el DOM generado.
+- **`el()` y el debounce del `resize` a `shared/ui.js`.** `function el(tag,
+  cls, html)` estaba duplicada idéntica en Solitario, Carta Blanca y
+  Corazones (Buscaminas no la usa); el patrón `resizeTimer` +
+  `clearTimeout`/`setTimeout` del listener de `resize` estaba duplicado
+  idéntico en los mismos 3 motores. Se extraen a `el()` y `debounce(fn, ms)`
+  compartidas (`@ts-check` estricto).
+- **`loadStats`/`saveStats`/`bumpStat` a `shared/storage.js`.** Nueva
+  `makeStats(key)` (fábrica mínima: `{load, save, bump}`) reemplaza la
+  implementación idéntica que repetían los 4 motores. `recordWin`/
+  `recordMatchEnd` siguen por juego a propósito: agregan campos distintos
+  (tiempo+movimientos, sólo tiempo, puntaje de partida, récord por
+  dificultad) y generalizarlos sería forzar una interfaz común sin beneficio
+  real.
+- **`VERSION` de `sw.js` a `v1.15.0`** (asset nuevo `shared/menu.js`).
+
+### Corregido
+
+- **`celebrate()` (confeti) reasignaba el tamaño del canvas en cada evento
+  `resize` sin debounce.** Arrastrar el borde de la ventana (o rotar el
+  celular) durante los ~4.5s de animación disparaba `canvas.width =
+  window.innerWidth` decenas de veces por segundo — cada asignación fuerza
+  un reflow del canvas. Ahora usa el `debounce()` compartido (mismo criterio
+  que ya aplicaba el `resize` de cada motor).
+- **Buscaminas: el respaldo para navegadores sin container queries (`cqw`)
+  podía forzar scroll horizontal en pantallas angostas.** El respaldo fijaba
+  `--cell: 32px` sin importar el ancho disponible; un tablero Intermedio (16
+  columnas) en un celular común ya desbordaba (16 × 32px = 512px). Ahora es
+  un respaldo en capas: el piso incondicional de 32px se mantiene para
+  navegadores sin `min()`/`max()` en CSS (~pre-2020), y donde sí hay
+  `min()`/`max()` (la mayoría del hueco 2020-2022 sin `cqw` todavía) se
+  refina con una fórmula basada en el ancho de ventana con el mismo piso de
+  legibilidad (16px) y techo (44px) que ya usa el camino principal. Un
+  tablero Experto (30 columnas) puede seguir necesitando scroll — el piso de
+  legibilidad no da para 30 columnas en un celular — igual que ya acepta el
+  camino principal con `cqw`.
+
+### Agregado
+
+- **Tests (61 en total):** riel lateral (`#app` debe quedar en
+  `flex-direction: row` a 844×390, el breakpoint apaisado corto de
+  docs/PLAN.md Fase 2 — ya hubo una regresión real de cascada ahí) y tema
+  "auto" (con `page.emulateMedia({ colorScheme })`, verifica que
+  `shared/theme.js` reacciona en vivo al cambio de `prefers-color-scheme`
+  del sistema sin que el usuario toque nada, cubriendo el modo por defecto
+  que usan todos los usuarios que nunca abrieron Opciones).
+
 ## [1.4.0] — 2026-07-09
 
 Cierre de las fases del [PLAN.md](./PLAN.md) (0-5) más una auditoría general
