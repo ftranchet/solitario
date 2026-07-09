@@ -10,6 +10,24 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+### Agregado
+
+- **Modo oscuro (Fase 4 de PLAN.md), paleta "Esmeralda oscuro".** La suite
+  ahora tiene tema claro/oscuro. Nuevo módulo `shared/theme.js` (cargado
+  primero en el `<head>`, sin flash) que fija `data-theme` en `<html>` según
+  una preferencia **global** en `localStorage`: `auto` (sigue el sistema, por
+  defecto), `light` o `dark`. Los tokens oscuros viven en un único bloque
+  `:root[data-theme="dark"]` de `styles/tokens.css` (fieltro más oscuro,
+  carta en blanco cálido para no encandilar); como todo el CSS ya leía esos
+  tokens, el tema se propaga solo. Se agregó un control **Tema (Auto/Claro/
+  Oscuro)** al modal de Opciones de los 4 juegos. Se eligió la paleta
+  Esmeralda —de tres presentadas con capturas— por ser la más fiel a la
+  identidad y de menor riesgo; las otras son un cambio de un bloque de tokens.
+  Modo claro **byte-idéntico** al anterior (los overrides sólo aplican en
+  oscuro). 56 tests verdes (uno nuevo verifica que el toggle aplica los
+  tokens, persiste y es global), `tsc -p .` limpio. Ver [PLAN.md](./PLAN.md),
+  Fase 4.
+
 ### Corregido
 
 - **Service worker servía CSS/JS viejo con HTML nuevo (íconos rotos tras

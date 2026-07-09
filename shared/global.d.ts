@@ -69,4 +69,8 @@ declare global {
   function gameDel(): void;
 
   var GAMES: GameEntry[];
+
+  // shared/theme.js
+  function getThemePref(): string;
+  function setThemePref(p: string): void;
 }

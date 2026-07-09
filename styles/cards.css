@@ -10,7 +10,7 @@
  */
 
 .card.up {
-  background: linear-gradient(160deg, #ffffff, var(--paper-2));
+  background: linear-gradient(160deg, var(--card-face-top), var(--paper-2));
   border: 1px solid var(--paper-border);
 }
 
