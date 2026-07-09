@@ -112,6 +112,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Seguridad · XSS | Un nombre de rival con HTML (`<img onerror=...>`) se muestra como texto, nunca se inyecta, en las 4 superficies de Corazones |
 | CSP | Las 6 páginas declaran una `Content-Security-Policy` estricta, sin `unsafe-inline` en ningún directive (el motor de cada juego vive en `games/<juego>.js` desde la Fase 1 de docs/PLAN.md) |
 | Tipos | Los módulos compartidos (`shared/*.js`, `games/registry.js`) mantienen `// @ts-check` (`tsc -p .` los valida en CI); el motor de cada juego en `games/<juego>.js` queda deliberadamente fuera (ver docs/PLAN.md, Fase 1) |
+| Íconos · degradación | **Regresión**: cada `<svg class="icon">` lleva atributos de presentación (`fill="none"`, `width/height`, `stroke`) para degradar a un trazo chico —no a un bloque negro— si el CSS de `.icon` no llega |
 
 **Accesibilidad (navegación por teclado)**
 

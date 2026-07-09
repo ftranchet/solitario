@@ -24,10 +24,26 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   desincronizarse aunque se olvide subir `VERSION`; sin conexión se sirve la
   copia cacheada—; los binarios estáticos (íconos, favicon, manifest) siguen
   *stale-while-revalidate* porque casi nunca cambian y una copia vieja no rompe
-  nada. (2) Se subió `VERSION` a `v1.9.0` para que el SW nuevo reemplace al
-  viejo y re-precachee limpio en los clientes que ya tenían la caché
+  nada. (2) Se subió `VERSION` (ahora `v1.10.0`) para que el SW nuevo reemplace
+  al viejo y re-precachee limpio en los clientes que ya tenían la caché
   envenenada. **Test de regresión nuevo**: envenena la caché con un `base.css`
   sin `.icon` y verifica que la recarga en línea igual sirve el CSS fresco.
+- **Íconos rotos aunque el CSS esté viejo/ausente (defensa en profundidad).**
+  Además del arreglo del service worker, se blindó el problema en dos capas
+  más para que un "bloque negro" no vuelva a pasar aunque el CSS de `.icon` no
+  llegue:
+  - **Atributos de presentación en cada `<svg class="icon">`** (`width`,
+    `height`, `fill="none"`, `stroke="currentColor"`, `stroke-width`): sin la
+    regla CSS de `.icon`, el ícono ahora degrada a un trazo chico en vez de
+    renderizar como un bloque negro a tamaño intrínseco. Con el CSS presente
+    la regla gana y el aspecto no cambia (capturas byte-idénticas al baseline).
+    **Test nuevo** que verifica que los 63 íconos llevan esos atributos.
+  - **Auto-actualización del SW en `shared/pwa.js`**: se registra con
+    `updateViaCache: "none"` (el navegador siempre chequea `sw.js` contra la
+    red, no contra su caché HTTP) y, cuando un SW nuevo toma el control tras
+    una actualización, la página se **recarga una sola vez** sola. Así un
+    visitante que quedó con un SW viejo se recupera sin tener que borrar la
+    caché a mano.
 - **Buscaminas se rompía en navegadores sin container queries.** Al pasar el
   dimensionado del tablero a CSS (Fase 2) quedó dependiendo 100% de las
   unidades `cqw`/`cqh` (soporte desde ~2022), sin respaldo tras eliminar el

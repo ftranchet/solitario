@@ -1286,6 +1286,35 @@ test("Tipos: los módulos compartidos declaran // @ts-check", async function () 
   }
 });
 
+/* 44) Íconos — cada <svg class="icon"> lleva atributos de presentación
+   (width/height/fill="none"/stroke) además de la clase CSS. Así, si por
+   cualquier motivo el CSS de .icon no está (p. ej. un service worker sirviendo
+   un base.css viejo), el ícono degrada a un trazo chico en vez de renderizar
+   como un bloque negro gigante (fill por defecto + tamaño intrínseco). Es la
+   regresión que rompía la UI tras actualizar. No abre navegador: lee el
+   markup del filesystem. */
+test("Íconos: cada svg.icon tiene atributos de degradación (fill=none, tamaño)", async function () {
+  var files = [
+    "index.html", "estadisticas.html", "solitario.html", "carta-blanca.html",
+    "corazones.html", "buscaminas.html",
+    "games/registry.js", "games/buscaminas.js", "games/corazones.js"
+  ];
+  var re = /<svg class="icon"[^>]*>/g;
+  var totalIcons = 0;
+  for (var i = 0; i < files.length; i++) {
+    var content = fs.readFileSync(path.join(ROOT, files[i]), "utf8");
+    var m;
+    while ((m = re.exec(content))) {
+      var tag = m[0];
+      totalIcons++;
+      assert(/fill="none"/.test(tag), files[i] + ": un svg.icon sin fill=\"none\" puede renderizar como bloque negro sin CSS: " + tag);
+      assert(/\bwidth="/.test(tag) && /\bheight="/.test(tag), files[i] + ": un svg.icon sin width/height crece a su tamaño intrínseco sin CSS: " + tag);
+      assert(/stroke="currentColor"/.test(tag), files[i] + ": un svg.icon sin stroke no se ve sin CSS: " + tag);
+    }
+  }
+  assert(totalIcons >= 60, "esperaba encontrar los svg.icon de toda la suite, encontré " + totalIcons);
+});
+
 /* ========================= RUNNER ========================= */
 (async function () {
   var srv = await startServer(ROOT);
