@@ -45,13 +45,13 @@
   // Familia de íconos SVG minimalista (Fase 3 de docs/PLAN.md), estilo trazo
   // sin relleno, en vez de emoji (se ven distinto en iOS/Android/Windows).
   var SOLITARIO_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
     '<rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M12 8v3"/><circle cx="12" cy="14.5" r="1.6"/></svg>';
   var CORAZONES_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
     '<path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.4 0 4.2 1.4 6 4 1.8-2.6 3.6-4 6-4 4 0 5.5 4 4 7.7-2.5 4.7-10 9.3-10 9.3Z"/></svg>';
   var BUSCAMINAS_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
     '<circle cx="11" cy="15" r="6.5"/><path d="M11 8.5C10.3 7 12.7 6.6 12.2 4.8"/><circle cx="12.2" cy="4.2" r="1"/></svg>';
 
   /** @type {GameEntry[]} */

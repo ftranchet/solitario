@@ -289,14 +289,14 @@ function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 function fmtTime(s) { var m = Math.floor(s / 60), x = s % 60; return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x; }
 
 /* ---------- Íconos SVG (Fase 3 de docs/PLAN.md, reemplazan a los emojis) ---------- */
-var ICON_MINE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="15" r="6.5"/><path d="M11 8.5C10.3 7 12.7 6.6 12.2 4.8"/><circle cx="12.2" cy="4.2" r="1"/></svg>';
-var ICON_FLAG = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18"/><path d="M6 4h11l-3 3.5L17 11H6"/></svg>';
-var ICON_FLAG_WRONG = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
-var ICON_FACE_IDLE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="9.5" r="1"/></svg>';
-var ICON_FACE_WON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><rect x="6.5" y="8.3" width="4.5" height="2.6" rx="1"/><rect x="13" y="8.3" width="4.5" height="2.6" rx="1"/><line x1="11" y1="9.6" x2="13" y2="9.6"/></svg>';
-var ICON_FACE_DEAD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 16.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5"/><line x1="7.8" y1="8.3" x2="10.2" y2="10.7"/><line x1="10.2" y1="8.3" x2="7.8" y2="10.7"/><line x1="13.8" y1="8.3" x2="16.2" y2="10.7"/><line x1="16.2" y1="8.3" x2="13.8" y2="10.7"/></svg>';
-var ICON_FACE_BUSY = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 2"/></svg>';
-var ICON_DIG = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 22 9 15"/><path d="M13 5.5 18.5 11l-8 8L5 13.5Z"/><path d="M15.5 3 21 8.5"/></svg>';
+var ICON_MINE = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="15" r="6.5"/><path d="M11 8.5C10.3 7 12.7 6.6 12.2 4.8"/><circle cx="12.2" cy="4.2" r="1"/></svg>';
+var ICON_FLAG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3v18"/><path d="M6 4h11l-3 3.5L17 11H6"/></svg>';
+var ICON_FLAG_WRONG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
+var ICON_FACE_IDLE = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="9.5" r="1"/></svg>';
+var ICON_FACE_WON = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><rect x="6.5" y="8.3" width="4.5" height="2.6" rx="1"/><rect x="13" y="8.3" width="4.5" height="2.6" rx="1"/><line x1="11" y1="9.6" x2="13" y2="9.6"/></svg>';
+var ICON_FACE_DEAD = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 16.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5"/><line x1="7.8" y1="8.3" x2="10.2" y2="10.7"/><line x1="10.2" y1="8.3" x2="7.8" y2="10.7"/><line x1="13.8" y1="8.3" x2="16.2" y2="10.7"/><line x1="16.2" y1="8.3" x2="13.8" y2="10.7"/></svg>';
+var ICON_FACE_BUSY = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 2"/></svg>';
+var ICON_DIG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 22 9 15"/><path d="M13 5.5 18.5 11l-8 8L5 13.5Z"/><path d="M15.5 3 21 8.5"/></svg>';
 
 /* ---------- Render ---------- */
 // Navegación por teclado: "roving tabindex" (patrón WAI-ARIA para grillas).
