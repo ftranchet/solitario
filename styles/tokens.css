@@ -26,10 +26,35 @@
   --paper-border: #d9cdb4;
   --ink: #2a2a26;
 
+  /* Cara de la carta (degradado de arriba hacia --paper-2). Tokenizado para
+     poder atenuar el blanco puro en modo oscuro sin tocar cards.css. */
+  --card-face-top: #ffffff;
+
   /* Color de palo (cartas): dos colores clásicos, rojo y negro */
   --suit-red: #c62828;
   --suit-black: #1a1a1a;
 
   /* Aviso flotante (toast) */
   --toast-bg: rgba(20, 20, 20, 0.92);
+}
+
+/* ===== Modo oscuro (Fase 4 de docs/PLAN.md) — paleta "Esmeralda oscuro" =====
+ * Se activa con data-theme="dark" en <html>, que pone shared/theme.js según la
+ * preferencia guardada o el sistema (prefers-color-scheme). Todo el resto del
+ * CSS lee estos mismos tokens, así que el tema cambia acá y se propaga solo.
+ *
+ * Esta paleta es una evolución del look de siempre (fieltro verde, cartas
+ * claras) mucho más oscura, no un "modo oscuro" total. Para PROBAR OTRA paleta
+ * (p. ej. cartas gris carbón), alcanza con cambiar los valores de este bloque.
+ */
+:root[data-theme="dark"] {
+  --felt-1: #1e5940;
+  --felt-2: #0f3826;
+  --felt-3: #071e15;
+
+  --gold: #eab958;
+
+  /* La carta sigue clara, pero un blanco cálido en vez de puro: sobre el
+     fieltro oscuro, el blanco #fff encandila. */
+  --card-face-top: #f7f2e6;
 }

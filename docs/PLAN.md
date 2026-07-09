@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente (Fases 0-3 hechas) |
-| Versión | 1.3 |
+| Estado | Vigente (Fases 0-4 hechas) |
+| Versión | 1.4 |
 | Fecha | 2026-07-08 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
@@ -155,7 +155,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ✅ |
 | 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ✅ |
 | 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ✅ |
-| 4 | Modo oscuro (paleta a elegir) | 3 | ⬜ |
+| 4 | Modo oscuro (paleta a elegir) | 3 | ✅ |
 | 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
 
 ## Progreso
@@ -293,3 +293,50 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     victoria, celda con mina/bandera, las 4 caritas de Buscaminas) revisadas
     una por una. `docs/screenshots/baseline/` se regeneró como nueva
     referencia para la Fase 4.
+  - **Post-Fase 3 (feedback):** dos íconos de juego no se leían bien
+    (Solitario parecía un termómetro; la bomba de Buscaminas, una paleta). Se
+    rediseñaron: Solitario → **cartas en abanico**, Buscaminas → **mina con
+    púas** clásica (usada también en las celdas reveladas). El resto del set
+    quedó igual. También se blindó el problema de "íconos rotos tras
+    actualizar" (ver CHANGELOG): el service worker pasó a **network-first**
+    para HTML/CSS/JS (antes el CSS iba cache-first y podía servirse viejo con
+    un HTML nuevo), los SVG llevan atributos de degradación (`fill="none"` +
+    tamaño, así sin CSS caen a un trazo chico y no a un bloque negro), y
+    `shared/pwa.js` auto-actualiza el SW (registro con `updateViaCache:"none"`
+    + recarga única al tomar control un SW nuevo).
+- **Fase 4 (hecha) — paleta "Esmeralda oscuro".** Modo claro/oscuro con la
+  arquitectura de tokens ya existente:
+  - **`shared/theme.js`** (módulo nuevo, `@ts-check`): resuelve la
+    preferencia global (`localStorage["theme"]`: `auto`/`light`/`dark`,
+    default `auto`) y fija `data-theme` en `<html>`. Se carga **primero** en
+    el `<head>` de las 6 páginas (antes de las hojas de estilo) para que el
+    tema quede aplicado **antes del primer pintado** — sin flash. En `auto`
+    sigue `prefers-color-scheme` y escucha cambios del sistema en vivo. Expone
+    `getThemePref()`/`setThemePref()` y cablea solo cualquier control
+    `[data-theme-pref]` de la página.
+  - **`styles/tokens.css`**: un único bloque `:root[data-theme="dark"]` con la
+    paleta Esmeralda (fieltro más oscuro + `--card-face-top` cálido para que
+    la carta no encandile). Todo el CSS ya leía estos tokens, así que el tema
+    se propaga solo. **Cambiar de paleta = editar sólo ese bloque.** Se
+    tokenizó el blanco de la cara de la carta (`--card-face-top`, antes
+    `#fff` hardcodeado en `cards.css`) para poder atenuarlo en oscuro sin
+    tocar el componente.
+  - **Toggle en Opciones**: un segmented `Tema: Auto / Claro / Oscuro` (con
+    `data-theme-pref`) en el modal de Opciones de los 4 juegos, consistente
+    con el control de "Dificultad". La preferencia es **global** (una sola
+    para toda la suite) y las 6 páginas la respetan (todas cargan
+    `theme.js`), aunque el launcher y Estadísticas no tengan su propio toggle
+    (siguen la preferencia guardada o el sistema).
+  - **Por qué Esmeralda y no las otras dos:** se presentaron 3 paletas con
+    capturas reales (Esmeralda oscuro, Grafito nocturno, Oscuro total). Se
+    eligió **Esmeralda** por ser la de menor riesgo y más fiel a la identidad
+    (mesa de fieltro, cartas claras): en oscuro sólo cambian el fieltro y el
+    tono de la carta, sin tocar modales/botones. Las otras dos quedan como
+    variantes triviales de intercambiar (un bloque de tokens) si se prefiere
+    después.
+  - **Puerta:** 56/56 tests verdes (2 nuevos: el toggle aplica los tokens
+    oscuros + persiste + es global entre páginas; y `theme.js` sumado al test
+    de `@ts-check` y al de precache), `tsc -p .` limpio, **modo claro
+    byte-idéntico** al baseline (los tokens oscuros sólo aplican con
+    `data-theme="dark"`), y capturas claro/oscuro de las 6 páginas
+    (`docs/screenshots/dark/`) + el modal de Opciones con el control de tema.

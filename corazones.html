@@ -18,6 +18,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Corazones">
 <title>Corazones</title>
+<script src="shared/theme.js"></script>
 <script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
@@ -135,6 +136,15 @@
       <div class="name-row"><label>Enfrente</label><input class="name-input" data-seat="2" maxlength="12" placeholder="Beto"></div>
       <div class="name-row"><label>Derecha</label><input class="name-input" data-seat="1" maxlength="12" placeholder="Carla"></div>
     </div>
+    <div class="opt">
+      <div class="opt-label">Tema</div>
+      <div class="seg">
+        <button class="seg-btn" data-theme-pref="auto">Auto</button>
+        <button class="seg-btn" data-theme-pref="light">Claro</button>
+        <button class="seg-btn" data-theme-pref="dark">Oscuro</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
     </div>

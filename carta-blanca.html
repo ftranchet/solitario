@@ -18,6 +18,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Carta Blanca">
 <title>Carta Blanca</title>
+<script src="shared/theme.js"></script>
 <script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
@@ -104,6 +105,15 @@
         <button id="game-go" class="btn primary">Jugar</button>
       </div>
       <div class="hint">Cada número da siempre el mismo reparto (igual que en el FreeCell de Windows). Empezar una partida nueva acá descarta la actual.</div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-label">Tema</div>
+      <div class="seg">
+        <button class="seg-btn" data-theme-pref="auto">Auto</button>
+        <button class="seg-btn" data-theme-pref="light">Claro</button>
+        <button class="seg-btn" data-theme-pref="dark">Oscuro</button>
+      </div>
     </div>
 
     <div class="modal-actions">

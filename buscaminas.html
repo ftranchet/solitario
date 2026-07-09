@@ -18,6 +18,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Buscaminas">
 <title>Buscaminas</title>
+<script src="shared/theme.js"></script>
 <script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
@@ -110,6 +111,15 @@
       </div>
       <div class="hint-txt">Garantiza que el tablero se puede resolver con pura lógica, sin tener que adivinar. En Experto puede tardar un instante al primer toque.</div>
     </div>
+    <div class="opt">
+      <div class="opt-label">Tema</div>
+      <div class="seg">
+        <button class="seg-btn" data-theme-pref="auto">Auto</button>
+        <button class="seg-btn" data-theme-pref="light">Claro</button>
+        <button class="seg-btn" data-theme-pref="dark">Oscuro</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button id="settings-close" class="btn primary">Listo</button>
     </div>

@@ -1278,12 +1278,47 @@ test("CSP: las 6 páginas declaran una Content-Security-Policy estricta", async 
 test("Tipos: los módulos compartidos declaran // @ts-check", async function () {
   var files = [
     "shared/storage.js", "shared/cards.js", "shared/ui.js", "shared/pwa.js",
-    "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
+    "shared/theme.js", "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
   ];
   for (var i = 0; i < files.length; i++) {
     var content = fs.readFileSync(path.join(ROOT, files[i]), "utf8");
     assert(content.indexOf("// @ts-check") === 0, files[i] + ": debería empezar con // @ts-check");
   }
+});
+
+/* 45) Tema — el toggle claro/oscuro (Fase 4) aplica los tokens oscuros, marca
+   el botón activo, persiste al recargar (la preferencia manual gana sobre el
+   sistema) y es global entre páginas (una sola clave en localStorage). */
+test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var t0 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
+  assert(t0 === "light" || t0 === "dark", "theme.js debería fijar data-theme; quedó " + t0);
+
+  // Elegir "Oscuro" desde el modal de Opciones.
+  await p.page.click("#btn-settings");
+  await p.page.click('[data-theme-pref="dark"]');
+  var r = await p.page.evaluate(function () {
+    var active = document.querySelector('[data-theme-pref].active');
+    return {
+      theme: document.documentElement.dataset.theme,
+      felt: getComputedStyle(document.documentElement).getPropertyValue("--felt-3").trim(),
+      active: active ? active.getAttribute("data-theme-pref") : null
+    };
+  });
+  assert(r.theme === "dark", "elegir Oscuro debería poner data-theme=dark, quedó " + r.theme);
+  assert(r.felt === "#071e15", "en oscuro --felt-3 debería ser el token oscuro, es " + r.felt);
+  assert(r.active === "dark", "el botón Oscuro debería quedar marcado activo");
+
+  // Persiste al recargar (aunque el sistema esté en claro).
+  await p.page.reload({ waitUntil: "load" });
+  var t2 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
+  assert(t2 === "dark", "la preferencia de tema debería persistir al recargar, quedó " + t2);
+
+  // Global: otra página del mismo origen respeta la misma preferencia.
+  await p.page.goto(url("buscaminas.html"), { waitUntil: "load" });
+  var t3 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
+  assert(t3 === "dark", "el tema debería ser global entre páginas, en buscaminas quedó " + t3);
+  assertNoErrors(p.errors);
 });
 
 /* 44) Íconos — cada <svg class="icon"> lleva atributos de presentación
