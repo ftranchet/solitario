@@ -483,9 +483,7 @@ function showWin() {
     body += scoreRow(s, null, players[s].score, (s === HUMAN ? "me " : "") + (i === 0 ? "lead" : ""));
   }
   document.getElementById("win-body").innerHTML = body;
-  document.getElementById("win-emoji").innerHTML = winner === HUMAN
-    ? '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3h10v6a5 5 0 0 1-10 0Z"/><path d="M7 4H4.5A1.5 1.5 0 0 0 3 5.5v1A3.5 3.5 0 0 0 6.5 10"/><path d="M17 4h2.5A1.5 1.5 0 0 1 21 5.5v1A3.5 3.5 0 0 1 17.5 10"/><path d="M12 14v3.5"/><path d="M8 21h8"/><path d="M9 21c0-1.8 1.3-3.5 3-3.5s3 1.7 3 3.5"/></svg>'
-    : '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="9.5" r="1"/></svg>';
+  document.getElementById("win-emoji").textContent = winner === HUMAN ? "🏆" : "🙂";
   document.getElementById("win-title").textContent = winner === HUMAN ? "¡Ganaste!" : "Fin del juego";
   // playerName() sin esc(): seguro porque baja por .textContent (ver nota en showRound).
   document.getElementById("win-congrats").textContent =

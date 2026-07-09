@@ -38,23 +38,73 @@
   --toast-bg: rgba(20, 20, 20, 0.92);
 }
 
-/* ===== Modo oscuro (Fase 4 de docs/PLAN.md) — paleta "Esmeralda oscuro" =====
+/* ===== Modo oscuro (Fase 4 de docs/PLAN.md) — paleta "Oscuro total" =====
  * Se activa con data-theme="dark" en <html>, que pone shared/theme.js según la
- * preferencia guardada o el sistema (prefers-color-scheme). Todo el resto del
- * CSS lee estos mismos tokens, así que el tema cambia acá y se propaga solo.
+ * preferencia guardada o el sistema (prefers-color-scheme).
  *
- * Esta paleta es una evolución del look de siempre (fieltro verde, cartas
- * claras) mucho más oscura, no un "modo oscuro" total. Para PROBAR OTRA paleta
- * (p. ej. cartas gris carbón), alcanza con cambiar los valores de este bloque.
- */
+ * Modo oscuro "de verdad": la mesa, las CARTAS (gris carbón, no blancas), los
+ * modales y los controles van todos oscuros; el texto y los palos se invierten
+ * a claro. La mayoría se propaga sola porque todo el CSS lee estos tokens; las
+ * superficies con color hardcodeado (modales, botones, inputs, dorso de la
+ * carta) se ajustan en el bloque de overrides de más abajo.
+ *
+ * Para PROBAR OTRA paleta alcanza con cambiar los valores de este bloque (y,
+ * si cambia el criterio claro/oscuro de las cartas, el bloque de overrides). */
 :root[data-theme="dark"] {
-  --felt-1: #1e5940;
-  --felt-2: #0f3826;
-  --felt-3: #071e15;
+  --felt-1: #1a4a34;
+  --felt-2: #0d2e1f;
+  --felt-3: #071811;
 
   --gold: #eab958;
+  --gold-ink: #1a1203;
 
-  /* La carta sigue clara, pero un blanco cálido en vez de puro: sobre el
-     fieltro oscuro, el blanco #fff encandila. */
-  --card-face-top: #f7f2e6;
+  /* Superficies: la "carta" y los modales pasan a gris carbón. */
+  --paper: #2e2d2a;
+  --paper-2: #262523;
+  --paper-border: #55524a;
+  --ink: #ece7da;
+  --card-face-top: #3a3a37;
+
+  /* Palos: sobre carta oscura, el rojo y el negro clásicos no contrastan;
+     se aclaran (rojo más vivo, "negro" a gris muy claro). */
+  --suit-red: #ef5a5a;
+  --suit-black: #d8d4c8;
+
+  --toast-bg: rgba(0, 0, 0, 0.92);
+}
+
+/* --- Overrides de superficies con color hardcodeado (sólo en oscuro) ---
+ * Estas reglas NO tocan el modo claro (van con el atributo data-theme="dark",
+ * que le gana en especificidad a la regla base). Cubren los modales y sus
+ * controles, que en el CSS de cada juego están con hex claros fijos. */
+:root[data-theme="dark"] .card-modal {
+  background: var(--paper); color: var(--ink);
+}
+:root[data-theme="dark"] .card-modal .btn {
+  background: #3a3a37; color: var(--ink); border-color: var(--paper-border);
+}
+:root[data-theme="dark"] .card-modal .btn.primary {
+  background: var(--gold); color: var(--gold-ink); border-color: var(--gold);
+}
+:root[data-theme="dark"] .seg-btn,
+:root[data-theme="dark"] .num-input,
+:root[data-theme="dark"] .name-input {
+  background: #3a3a37; color: var(--ink); border-color: var(--paper-border);
+}
+:root[data-theme="dark"] .seg-btn.active {
+  background: #1f7a46; color: #fff; border-color: #1f7a46;
+}
+:root[data-theme="dark"] .game-link {
+  background: #3a3a37; color: var(--ink); border-color: var(--paper-border);
+}
+:root[data-theme="dark"] .game-link.current {
+  background: #1f7a46; color: #fff; border-color: #1f7a46;
+}
+/* Tarjetas de Estadísticas (mismo rol que un modal claro). */
+:root[data-theme="dark"] #cards .card {
+  background: var(--paper); color: var(--ink);
+}
+/* Dorso de la carta: el verde claro del patrón se oscurece para el fieltro. */
+:root[data-theme="dark"] .card.down {
+  background: repeating-linear-gradient(45deg, #12463a 0 8px, #0e3a2f 8px 16px);
 }

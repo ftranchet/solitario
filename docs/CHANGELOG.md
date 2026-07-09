@@ -12,56 +12,44 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Agregado
 
-- **Modo oscuro (Fase 4 de PLAN.md), paleta "Esmeralda oscuro".** La suite
-  ahora tiene tema claro/oscuro. Nuevo módulo `shared/theme.js` (cargado
-  primero en el `<head>`, sin flash) que fija `data-theme` en `<html>` según
-  una preferencia **global** en `localStorage`: `auto` (sigue el sistema, por
+- **Modo oscuro (Fase 4 de PLAN.md), paleta "Oscuro total".** La suite ahora
+  tiene tema claro/oscuro. Nuevo módulo `shared/theme.js` (cargado primero en
+  el `<head>`, sin flash) que fija `data-theme` en `<html>` según una
+  preferencia **global** en `localStorage`: `auto` (sigue el sistema, por
   defecto), `light` o `dark`. Los tokens oscuros viven en un único bloque
-  `:root[data-theme="dark"]` de `styles/tokens.css` (fieltro más oscuro,
-  carta en blanco cálido para no encandilar); como todo el CSS ya leía esos
-  tokens, el tema se propaga solo. Se agregó un control **Tema (Auto/Claro/
-  Oscuro)** al modal de Opciones de los 4 juegos. Se eligió la paleta
-  Esmeralda —de tres presentadas con capturas— por ser la más fiel a la
-  identidad y de menor riesgo; las otras son un cambio de un bloque de tokens.
-  Modo claro **byte-idéntico** al anterior (los overrides sólo aplican en
-  oscuro). 56 tests verdes (uno nuevo verifica que el toggle aplica los
-  tokens, persiste y es global), `tsc -p .` limpio. Ver [PLAN.md](./PLAN.md),
-  Fase 4.
+  `:root[data-theme="dark"]` de `styles/tokens.css` + un bloque de overrides
+  para las superficies con color hardcodeado (modales, controles); como el
+  resto del CSS ya leía los tokens, el tema se propaga solo. Se agregó un
+  control **Tema (Auto/Claro/Oscuro)** al modal de Opciones de los 4 juegos.
+  De tres paletas presentadas con capturas se eligió **"Oscuro total"**: un
+  modo oscuro de verdad, con **cartas gris carbón** (no blancas), modales
+  oscuros y texto/palos claros. Modo claro **byte-idéntico** al anterior (los
+  overrides sólo aplican con `data-theme="dark"`). 55 tests verdes (uno nuevo
+  verifica que el toggle aplica los tokens, persiste y es global), `tsc -p .`
+  limpio. Ver [PLAN.md](./PLAN.md), Fase 4.
 
 ### Corregido
 
-- **Service worker servía CSS/JS viejo con HTML nuevo (íconos rotos tras
+- **Service worker servía CSS/JS viejo junto con HTML nuevo (UI rota tras
   actualizar).** El SW cacheaba el CSS/JS con estrategia *stale-while-
   revalidate* (copia de caché primero). Al cambiar estilos en varias fases sin
   subir `VERSION`, un visitante que ya tenía la app cacheada recibía el HTML
-  nuevo (con íconos SVG) junto al `styles/base.css` viejo (sin la regla
-  `.icon`): los íconos se renderizaban a su tamaño intrínseco (~62px, negros,
-  desbordando los botones) y la interfaz se veía rota. Se corrigió de dos
-  formas: (1) el código del app shell (HTML, CSS y JS) pasa a **network-first**
-  —en línea, las tres piezas se traen siempre de la misma versión y no pueden
-  desincronizarse aunque se olvide subir `VERSION`; sin conexión se sirve la
-  copia cacheada—; los binarios estáticos (íconos, favicon, manifest) siguen
-  *stale-while-revalidate* porque casi nunca cambian y una copia vieja no rompe
-  nada. (2) Se subió `VERSION` (ahora `v1.10.0`) para que el SW nuevo reemplace
-  al viejo y re-precachee limpio en los clientes que ya tenían la caché
-  envenenada. **Test de regresión nuevo**: envenena la caché con un `base.css`
-  sin `.icon` y verifica que la recarga en línea igual sirve el CSS fresco.
-- **Íconos rotos aunque el CSS esté viejo/ausente (defensa en profundidad).**
-  Además del arreglo del service worker, se blindó el problema en dos capas
-  más para que un "bloque negro" no vuelva a pasar aunque el CSS de `.icon` no
-  llegue:
-  - **Atributos de presentación en cada `<svg class="icon">`** (`width`,
-    `height`, `fill="none"`, `stroke="currentColor"`, `stroke-width`): sin la
-    regla CSS de `.icon`, el ícono ahora degrada a un trazo chico en vez de
-    renderizar como un bloque negro a tamaño intrínseco. Con el CSS presente
-    la regla gana y el aspecto no cambia (capturas byte-idénticas al baseline).
-    **Test nuevo** que verifica que los 63 íconos llevan esos atributos.
-  - **Auto-actualización del SW en `shared/pwa.js`**: se registra con
+  nuevo junto a un `styles/base.css` viejo, y la interfaz se veía rota. Se
+  corrigió en varias capas:
+  - **Network-first para el código del app shell** (HTML, CSS y JS): en línea
+    las tres piezas se traen siempre de la misma versión y no pueden
+    desincronizarse aunque se olvide subir `VERSION`; sin conexión se sirve la
+    copia cacheada. Los binarios (íconos, favicon, manifest) siguen
+    *stale-while-revalidate* (casi nunca cambian, desincronizarse no rompe
+    nada). **Test de regresión** que envenena la caché con un `base.css` viejo
+    (con un centinela) y verifica que la recarga en línea igual trae el fresco.
+  - **Auto-actualización del SW en `shared/pwa.js`**: registro con
     `updateViaCache: "none"` (el navegador siempre chequea `sw.js` contra la
     red, no contra su caché HTTP) y, cuando un SW nuevo toma el control tras
     una actualización, la página se **recarga una sola vez** sola. Así un
-    visitante que quedó con un SW viejo se recupera sin tener que borrar la
-    caché a mano.
+    visitante que quedó con un SW viejo se recupera sin borrar la caché a mano.
+  - Se sube `VERSION` en cada cambio de assets para forzar el re-precache
+    limpio en clientes con la caché vieja.
 - **Buscaminas se rompía en navegadores sin container queries.** Al pasar el
   dimensionado del tablero a CSS (Fase 2) quedó dependiendo 100% de las
   unidades `cqw`/`cqh` (soporte desde ~2022), sin respaldo tras eliminar el
@@ -71,23 +59,15 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Cambiado
 
-- **Diseño (Fase 3 de PLAN.md): íconos SVG en vez de emoji.** Los emojis de
-  la interfaz "de chrome" (menú de juegos, opciones, pista, nueva, deshacer,
-  victoria, navegación entre pantallas, y el estado de Buscaminas —mina,
-  bandera, caritas—) se reemplazaron por una familia de íconos SVG
-  minimalista inline (trazo, sin CDN de íconos, respeta la CSP estricta).
-  Antes se veían distinto en iOS/Android/Windows (los emojis usan la fuente
-  del sistema); ahora son consistentes en todas las plataformas. Nueva clase
-  `.icon` compartida en `styles/base.css`. Los palos de las cartas (♠♥♦♣) y
-  los contadores del HUD (⏱🃏💣) quedan fuera de este cambio a propósito.
-  **Refinamiento de dos íconos** tras revisión: el de Solitario (era una
-  carta con una marca que se leía como termómetro) pasó a **cartas en
-  abanico**, y el de Buscaminas (era una bomba que se leía como una paleta)
-  pasó a la **mina con púas** clásica del juego, que además se usa ahora en
-  las celdas reveladas para que el ícono de la app y el del tablero sean el
-  mismo. Sin cambios de comportamiento (53 tests verdes, `tsc -p .` limpio;
-  ninguno de los tests dependía del texto de los emojis reemplazados). Ver
-  [PLAN.md](./PLAN.md), Fase 3.
+- **Íconos: se probó pasarlos a SVG (Fase 3) y se volvió a emojis.** La Fase 3
+  reemplazó los emojis de la interfaz por un set de íconos SVG minimalista
+  (para verse igual en iOS/Android/Windows), pero el resultado no convenció
+  estéticamente, así que se **revirtió a los emojis** de siempre. Queda
+  pendiente una solución superadora (un set de íconos que sea a la vez
+  minimalista y lindo) antes de volver a intentarlo. La Fase 3 dejó igual dos
+  aprendizajes que **sí se conservan**: el arreglo del service worker
+  (network-first) y la auto-actualización del SW (ver arriba), que nacieron de
+  depurar el problema de "íconos rotos tras actualizar".
 - **Arquitectura (Fase 2 de PLAN.md): riel lateral en apaisado corto +
   Buscaminas a CSS.** En `@media (orientation: landscape) and (max-height:
   500px)`, el header y el footer de los 4 juegos pasan de barras horizontales

@@ -990,42 +990,40 @@ test("PWA: sin conexión sirve la página correcta, no index (MPA)", async funct
 
 /* 32b) PWA — el código del app shell (CSS/JS) se sirve NETWORK-FIRST: en línea,
    una copia vieja en la caché del SW NO puede pisar la de la red. Regresión de
-   un bug real: con stale-while-revalidate para el CSS, un HTML nuevo (íconos
-   SVG) quedaba con un base.css viejo (sin la regla .icon) y los íconos se
-   veían gigantes/rotos. Envenenamos la caché a propósito y verificamos que la
-   recarga en línea igual trae el CSS fresco. */
+   un bug real: con stale-while-revalidate para el CSS, un HTML nuevo quedaba
+   con un base.css viejo (sin reglas nuevas) y la UI se veía rota. Envenenamos
+   la caché con un base.css "viejo" (con un centinela) y verificamos que la
+   recarga en línea igual trae el CSS fresco (sin el centinela). */
 test("PWA: CSS/JS se sirven network-first (una caché vieja no gana en línea)", async function (ctx) {
   var p = await open(ctx, "solitario.html");
   await p.page.evaluate(function () { return navigator.serviceWorker.ready; });
   await p.page.waitForFunction(function () { return !!navigator.serviceWorker.controller; }, null, { timeout: 6000 });
 
-  // Envenenar la caché: reemplazar el base.css cacheado por una versión SIN la
-  // regla .icon (simula el CSS previo a la Fase 3 que tendría un visitante).
+  // Envenenar la caché: guardar en styles/base.css una versión con un centinela
+  // (:root { --sw-stale: 1 }) que el archivo real NO tiene. Simula el CSS viejo
+  // que tendría un visitante que ya había cacheado la app.
   var poisoned = await p.page.evaluate(async function () {
     var keys = await caches.keys();
     var name = keys.filter(function (k) { return k.indexOf("juegos-clasicos-") === 0; })[0];
     if (!name) return false;
     var cache = await caches.open(name);
     var real = await (await fetch("styles/base.css")).text();
-    var stale = real.replace(/\.icon\s*\{[^}]*\}/g, "/* stale */");
+    var stale = real + "\n:root { --sw-stale: 1; }\n";
     var target = new URL("styles/base.css", location.href).toString();
     await cache.put(new Request(target), new Response(stale, { headers: { "content-type": "text/css" } }));
     var check = await cache.match(new Request(target));
-    return !/\.icon\s*\{/.test(await check.text());   // true si el poison quedó aplicado
+    return /--sw-stale/.test(await check.text());   // true si el poison quedó aplicado
   });
   assert(poisoned, "no se pudo envenenar la caché del SW para la prueba");
 
-  // Recargar EN LÍNEA: network-first debe traer el base.css fresco (con .icon),
-  // así el ícono del header vuelve a su tamaño chico (~1em) en vez de 62px.
+  // Recargar EN LÍNEA: network-first debe traer el base.css fresco, SIN el
+  // centinela, aunque la caché tenga la copia envenenada.
   await p.page.reload({ waitUntil: "load" });
   await p.page.waitForTimeout(200);
-  var size = await p.page.evaluate(function () {
-    var svg = document.querySelector("header svg");
-    var r = svg.getBoundingClientRect();
-    return { w: Math.round(r.width), h: Math.round(r.height) };
+  var stale = await p.page.evaluate(function () {
+    return getComputedStyle(document.documentElement).getPropertyValue("--sw-stale").trim();
   });
-  assert(size.w > 0 && size.w <= 24 && size.h <= 24,
-    "el ícono debería medir ~1em (CSS fresco); midió " + JSON.stringify(size) + " (caché vieja servida)");
+  assert(stale === "", "se sirvió el base.css viejo de la caché (--sw-stale='" + stale + "'); debería venir fresco de la red");
   assertNoErrors(p.errors);
 });
 
@@ -1306,7 +1304,7 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
     };
   });
   assert(r.theme === "dark", "elegir Oscuro debería poner data-theme=dark, quedó " + r.theme);
-  assert(r.felt === "#071e15", "en oscuro --felt-3 debería ser el token oscuro, es " + r.felt);
+  assert(r.felt === "#071811", "en oscuro --felt-3 debería ser el token oscuro, es " + r.felt);
   assert(r.active === "dark", "el botón Oscuro debería quedar marcado activo");
 
   // Persiste al recargar (aunque el sistema esté en claro).
@@ -1319,35 +1317,6 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
   var t3 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
   assert(t3 === "dark", "el tema debería ser global entre páginas, en buscaminas quedó " + t3);
   assertNoErrors(p.errors);
-});
-
-/* 44) Íconos — cada <svg class="icon"> lleva atributos de presentación
-   (width/height/fill="none"/stroke) además de la clase CSS. Así, si por
-   cualquier motivo el CSS de .icon no está (p. ej. un service worker sirviendo
-   un base.css viejo), el ícono degrada a un trazo chico en vez de renderizar
-   como un bloque negro gigante (fill por defecto + tamaño intrínseco). Es la
-   regresión que rompía la UI tras actualizar. No abre navegador: lee el
-   markup del filesystem. */
-test("Íconos: cada svg.icon tiene atributos de degradación (fill=none, tamaño)", async function () {
-  var files = [
-    "index.html", "estadisticas.html", "solitario.html", "carta-blanca.html",
-    "corazones.html", "buscaminas.html",
-    "games/registry.js", "games/buscaminas.js", "games/corazones.js"
-  ];
-  var re = /<svg class="icon"[^>]*>/g;
-  var totalIcons = 0;
-  for (var i = 0; i < files.length; i++) {
-    var content = fs.readFileSync(path.join(ROOT, files[i]), "utf8");
-    var m;
-    while ((m = re.exec(content))) {
-      var tag = m[0];
-      totalIcons++;
-      assert(/fill="none"/.test(tag), files[i] + ": un svg.icon sin fill=\"none\" puede renderizar como bloque negro sin CSS: " + tag);
-      assert(/\bwidth="/.test(tag) && /\bheight="/.test(tag), files[i] + ": un svg.icon sin width/height crece a su tamaño intrínseco sin CSS: " + tag);
-      assert(/stroke="currentColor"/.test(tag), files[i] + ": un svg.icon sin stroke no se ve sin CSS: " + tag);
-    }
-  }
-  assert(totalIcons >= 60, "esperaba encontrar los svg.icon de toda la suite, encontré " + totalIcons);
 });
 
 /* ========================= RUNNER ========================= */
