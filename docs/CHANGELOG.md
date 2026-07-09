@@ -12,6 +12,24 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Agregado
 
+- **Aviso "hay una versión nueva" (Fase 5 de PLAN.md).** `sw.js` ya no llama
+  `self.skipWaiting()` en `install`: un SW nuevo queda **en espera**
+  (`registration.waiting`) en vez de tomar el control solo, así el SW viejo
+  sigue sirviendo la pestaña hasta que el usuario decide actualizar.
+  `shared/pwa.js` detecta ese estado (al registrar, o vía `updatefound` →
+  `installing` llega a `"installed"` con un `controller` ya activo) y muestra
+  un aviso flotante con botón **"Recargar"** (nueva variante `.toast-action`
+  en `styles/base.css`, interactiva y sin autodescarte — se arma con DOM
+  plano en `pwa.js` en vez de reusar `toast()` de `shared/ui.js`, porque
+  `pwa.js` se carga igual en las 6 páginas y dos de ellas no enlazan
+  `shared/ui.js`). Al tocar "Recargar" se manda `"skip-waiting"` al SW en
+  espera (el listener de `message` en `sw.js` existía sin usar) y la página
+  recarga cuando ese SW toma el control; si otra pestaña dispara la
+  actualización primero, ésta también recarga al recibir el mismo evento, así
+  todas quedan sincronizadas en la misma versión. Reemplaza el auto-reload
+  silencioso que se había agregado como parche durante la Fase 3. Dos tests
+  nuevos (57 en total), `tsc -p .` limpio, `VERSION` de `sw.js` a `v1.13.0`.
+  Ver [PLAN.md](./PLAN.md), Fase 5.
 - **Modo oscuro (Fase 4 de PLAN.md), paleta "Oscuro total".** La suite ahora
   tiene tema claro/oscuro. Nuevo módulo `shared/theme.js` (cargado primero en
   el `<head>`, sin flash) que fija `data-theme` en `<html>` según una
@@ -59,6 +77,20 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Cambiado
 
+- **View Transitions API: se probó y se descartó (Fase 5 de PLAN.md), con
+  evidencia.** Se intentó envolver el `render()` de los 4 motores en
+  `document.startViewTransition()` como mejora progresiva. Rompió tests de
+  teclado/drag de inmediato; una reproducción mínima aislada confirmó la
+  causa raíz: el callback de `startViewTransition()` no corre
+  sincrónicamente (el navegador lo encola para una tarea posterior), y los 4
+  motores —además de varios tests— dependen del patrón "actuar y verificar
+  el DOM ya actualizado en el mismo tick". Forzarlo habría exigido un
+  refactor bastante más grande que "pulido progresivo" y en tensión directa
+  con la puerta de la fase (no alterar ningún test existente). Los dos casos
+  que motivaban el pedido (carta → fundación, recoger baza) ya tienen
+  animación dedicada y probada (`.card.land`, `#trick.collect.to-*`), así que
+  el costo no se justificaba. Se revirtió por completo, sin dejar código
+  muerto. Ver [PLAN.md](./PLAN.md), Fase 5.
 - **Íconos: se probó pasarlos a SVG (Fase 3) y se volvió a emojis.** La Fase 3
   reemplazó los emojis de la interfaz por un set de íconos SVG minimalista
   (para verse igual en iOS/Android/Windows), pero el resultado no convenció
