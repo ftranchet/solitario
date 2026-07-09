@@ -22,10 +22,18 @@
  * usuarios en línea ya reciben lo último aunque se olvide subir VERSION; el
  * bump sólo hace falta para refrescar la copia OFFLINE.)
  *
+ * Actualización con aviso (Fase 5 de docs/PLAN.md): a propósito NO llamamos
+ * self.skipWaiting() en "install". Así, cuando hay un SW nuevo, el navegador
+ * lo deja "esperando" (registration.waiting) mientras el viejo sigue
+ * controlando las pestañas abiertas — es el flujo estándar. shared/pwa.js
+ * detecta ese estado de espera y muestra un toast con botón "Recargar"; sólo
+ * al tocarlo le mandamos el mensaje "skip-waiting" de más abajo, que activa
+ * el nuevo SW y dispara controllerchange.
+ *
  * Todas las rutas se resuelven relativas a la ubicación del SW (self.location),
  * así funciona igual servido en la raíz o en un subdirectorio (GitHub Pages).
  */
-const VERSION = "v1.12.0";
+const VERSION = "v1.13.0";
 const PREFIX = "juegos-clasicos-";
 const CACHE = PREFIX + VERSION;
 
@@ -72,7 +80,12 @@ self.addEventListener("install", (event) => {
     const cache = await caches.open(CACHE);
     const urls = ASSETS.map((p) => new URL(p, self.location).toString());
     await cache.addAll(urls);
-    await self.skipWaiting();
+    // No self.skipWaiting() acá: en la PRIMERA visita (sin SW previo) el
+    // navegador activa este SW solo, sin esperar. En una ACTUALIZACIÓN, sin
+    // este llamado el SW nuevo queda "esperando" hasta que el cliente pida
+    // skip-waiting (ver el listener de "message" y shared/pwa.js) — es lo
+    // que habilita mostrar el aviso de "hay una versión nueva" en vez de
+    // reemplazar el código bajo los pies del usuario sin avisar.
   })());
 });
 

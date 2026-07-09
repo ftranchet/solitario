@@ -4,9 +4,9 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente (Fases 0-2 y 4 hechas; Fase 3 revertida a emojis) |
-| Versión | 1.5 |
-| Fecha | 2026-07-08 |
+| Estado | **Completo** (Fases 0-2, 4 y 5 hechas; Fase 3 revertida a emojis) |
+| Versión | 1.6 |
+| Fecha | 2026-07-09 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
 > Este es el plan de trabajo **hacia adelante**. Reemplaza y consolida las
@@ -156,7 +156,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ✅ |
 | 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ↩️ revertido a emojis |
 | 4 | Modo oscuro (paleta a elegir) | 3 | ✅ |
-| 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
+| 5 | View Transitions + aviso de actualización del SW | 3 | ✅ (aviso hecho; View Transitions evaluado y descartado — ver Progreso) |
 
 ## Progreso
 
@@ -343,3 +343,64 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     `data-theme="dark"`), y capturas claro/oscuro de las 6 páginas
     (`docs/screenshots/dark/`) + todos los modales (Opciones, menú, ayuda,
     victoria, puntajes) revisados en oscuro.
+- **Fase 5 (hecha) — aviso de actualización del SW; View Transitions evaluado
+  y descartado.**
+  - **Aviso "hay una versión nueva".** `sw.js` ya **no** llama
+    `self.skipWaiting()` en `install`: al publicar una versión nueva, el SW
+    queda **en espera** (`registration.waiting`) en vez de tomar el control
+    solo — el SW viejo sigue sirviendo la pestaña hasta que el usuario decide
+    actualizar. `shared/pwa.js` detecta ese estado (`registration.waiting` al
+    registrar, o `updatefound` → el `installing` llega a `"installed"` con un
+    `controller` ya activo — o sea, no es la primera visita) y muestra un
+    aviso flotante con botón **"Recargar"**. Al tocarlo, manda el mensaje
+    `"skip-waiting"` al SW en espera (el listener de `message` en `sw.js` ya
+    existía, sin usar) y recarga cuando ese SW toma el control
+    (`controllerchange`) — si otra pestaña dispara la actualización primero,
+    ésta también recarga al recibir el mismo evento, así todas quedan en la
+    misma versión. El aviso se arma con DOM plano directamente en `pwa.js`
+    (nueva variante `.toast-action` en `styles/base.css`, interactiva y sin
+    autodescarte) en vez de reusar `toast()` de `shared/ui.js`, porque
+    `pwa.js` se carga **igual en las 6 páginas** y dos de ellas
+    (`index.html`, `estadisticas.html`) no enlazan `shared/ui.js`.
+  - **View Transitions API — intentado y descartado, con evidencia.** Se
+    probó envolver `render()` de los 4 motores en
+    `document.startViewTransition()` (mejora progresiva, detrás de
+    `prefers-reduced-motion`). Rompió 4 tests de inmediato (foco por teclado y
+    drag & drop que fallaban con "Cannot read properties of null"). Antes de
+    forzar el fix, se armó una reproducción mínima aislada (Chromium vía
+    Playwright) para confirmar la causa: el callback de
+    `startViewTransition(fn)` **no corre sincrónicamente** — el navegador lo
+    encola para una tarea posterior, así que el DOM sigue con el estado viejo
+    hasta bien después de que el script que lo invocó ya terminó. Los 4
+    motores (y varios tests) dependen del patrón "actuar y verificar el DOM
+    ya actualizado en el mismo tick" (reenfoque tras mover con teclado,
+    `checkWin()` encadenado a `render()`, incluso el propio test del toggle
+    de tema verifica `data-theme` inmediatamente después del click). Aplicar
+    View Transitions ahí exigiría reescribir esos flujos para tolerar la
+    demora — un refactor bastante más grande e invasivo que "pulido visual
+    progresivo", y en tensión directa con la puerta de esta fase ("no debe
+    alterar el resultado de ningún test existente"). Además, los dos ejemplos
+    que menciona el plan (carta → fundación, recoger baza) **ya tienen**
+    animación dedicada y probada (`.card.land` en Solitario/Carta Blanca,
+    `#trick.collect.to-*` en Corazones) — exactamente lo que el plan pedía no
+    pelear. Se revirtió el wrapper por completo (no queda código muerto:
+    `withViewTransition` se sacó de `shared/ui.js`) y se documenta acá la
+    decisión en vez de forzarla a mitad de camino.
+  - **Puerta:** 57/57 tests verdes (dos nuevos: el aviso de actualización
+    completo —toast, `skip-waiting`, recarga real al tomar control— stubeando
+    `navigator.serviceWorker.register` con `page.addInitScript` para no
+    depender de desplegar una v2 real del SW; y que la primera visita, sin SW
+    previo, no lo muestra), `tsc -p .` limpio, capturas del toast en claro y
+    oscuro revisadas a mano (una línea, sin desborde), y `VERSION` de `sw.js`
+    subida a `v1.13.0`.
+
+## Cierre
+
+Con la Fase 5, este roadmap **hacia adelante** queda completo: de las 6 fases
+planteadas, 5 se implementaron (0, 1, 2, 4, 5) y 1 se intentó, se revirtió
+limpiamente y quedó documentada con el motivo (Fase 3, íconos SVG). Los tres
+objetivos del producto (robusto/seguro, adaptable, estético) tienen al menos
+una fase que los atiende; el estado real del código en cada punto quedó
+verificado con tests (55→57) y capturas, no sólo declarado. Un juego nuevo o
+una necesidad de diseño concreta (p. ej. retomar íconos con una propuesta
+superadora) abre un plan nuevo, no reabre éste.

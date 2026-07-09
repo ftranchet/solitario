@@ -64,6 +64,16 @@ header {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Variante con botón de acción (shared/pwa.js: "hay una versión nueva").
+   A diferencia del toast simple, es interactivo (pointer-events: auto) y no
+   se autodescarta por temporizador — sólo lo cierra el usuario. */
+.toast.toast-action {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 8px 8px 16px; pointer-events: auto; max-width: calc(100% - 32px);
+}
+.toast.toast-action span { white-space: nowrap; }
+.toast.toast-action .btn { flex: none; padding: 6px 10px; font-size: 12px; }
+
 /* ---------- Riel lateral: apaisado de celular con poca altura ----------
    El header pasa a riel izquierdo y el footer (#controls) a riel derecho,
    así el tablero (el hijo del medio de #app: #board en los juegos de

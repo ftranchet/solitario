@@ -1027,6 +1027,55 @@ test("PWA: CSS/JS se sirven network-first (una caché vieja no gana en línea)",
   assertNoErrors(p.errors);
 });
 
+/* 32c) PWA — aviso "hay una versión nueva" (Fase 5 de docs/PLAN.md): al haber
+   un SW en espera con esta pestaña ya controlada por uno anterior, shared/
+   pwa.js debe mostrar un toast con botón "Recargar"; tocarlo manda
+   "skip-waiting" al SW en espera y, al tomar control (controllerchange), la
+   página recarga. Se stubea navigator.serviceWorker.register ANTES de que
+   corra pwa.js (page.addInitScript) para no depender de desplegar una v2 real
+   del SW: prueba el código del cliente en aislamiento, con las mismas APIs. */
+test("PWA: aviso de versión nueva — toast con Recargar, skip-waiting y recarga al tomar control", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.addInitScript(function () {
+    window.__msgs = [];
+    var waiting = { postMessage: function (m) { window.__msgs.push(m); } };
+    var fakeReg = { waiting: waiting, installing: null, addEventListener: function () {} };
+    navigator.serviceWorker.register = function () { return Promise.resolve(fakeReg); };
+    Object.defineProperty(navigator.serviceWorker, "controller", { value: {}, configurable: true });
+  });
+  await p.page.goto(url("solitario.html"), { waitUntil: "load" });
+
+  await p.page.waitForSelector(".toast-action", { timeout: 4000 });
+  var msg = await p.page.evaluate(function () {
+    var span = document.querySelector(".toast-action span");
+    return span ? span.textContent : null;
+  });
+  assert(msg && /versión nueva/i.test(msg), "el aviso debería decir que hay una versión nueva, dice: " + msg);
+
+  await p.page.click(".toast-action .btn");
+  var sent = await p.page.evaluate(function () { return window.__msgs; });
+  assert(sent.indexOf("skip-waiting") >= 0, "al tocar Recargar debería mandarse skip-waiting al SW en espera");
+
+  // "Recargar" no fuerza la recarga directamente: espera a que el SW en espera
+  // tome el control (controllerchange) y recién ahí recarga — lo disparamos a
+  // mano (nadie más va a activar el SW falso) y confirmamos la navegación real.
+  await Promise.all([
+    p.page.waitForEvent("framenavigated", { timeout: 3000 }),
+    p.page.evaluate(function () { navigator.serviceWorker.dispatchEvent(new Event("controllerchange")); }),
+  ]);
+  assertNoErrors(p.errors);
+});
+
+/* 32d) PWA — en la PRIMERA visita (sin SW previo controlando) no hay "versión
+   nueva" que avisar: el aviso no debe aparecer. */
+test("PWA: sin SW previo (primera visita) no muestra el aviso de versión nueva", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.waitForTimeout(300);
+  var shown = await p.page.evaluate(function () { return !!document.querySelector(".toast-action"); });
+  assert(!shown, "la primera visita no debería mostrar el aviso de versión nueva");
+  assertNoErrors(p.errors);
+});
+
 /* 33) Guardado — avisa una sola vez si falla la escritura del progreso. */
 test("Guardado: avisa una vez si falla la escritura (quota/modo restringido)", async function (ctx) {
   var p = await open(ctx, "solitario.html");
