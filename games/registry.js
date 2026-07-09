@@ -42,25 +42,13 @@
     '<text x="15" y="21" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" ' +
     'font-weight="bold" font-size="16" fill="#1a1a1a">&#9824;</text></svg>';
 
-  // Familia de íconos SVG minimalista (Fase 3 de docs/PLAN.md), estilo trazo
-  // sin relleno, en vez de emoji (se ven distinto en iOS/Android/Windows).
-  var SOLITARIO_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<rect x="3.5" y="8" width="11" height="14" rx="2" transform="rotate(-14 9 15)"/><rect x="9.5" y="6" width="11" height="14" rx="2" transform="rotate(10 15 13)"/></svg>';
-  var CORAZONES_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.4 0 4.2 1.4 6 4 1.8-2.6 3.6-4 6-4 4 0 5.5 4 4 7.7-2.5 4.7-10 9.3-10 9.3Z"/></svg>';
-  var BUSCAMINAS_ICON =
-    '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<circle cx="12" cy="12" r="5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>';
-
   /** @type {GameEntry[]} */
   window.GAMES = [
     {
       id: "solitario",
       title: "Solitario",
       href: "solitario.html",
-      icon: SOLITARIO_ICON,
+      icon: "🃏",
       statsKey: "solitario.stats",
       body: function (st, h) {
         if (!h.n(st.played)) return "";
@@ -84,7 +72,7 @@
       id: "corazones",
       title: "Corazones",
       href: "corazones.html",
-      icon: CORAZONES_ICON,
+      icon: "❤️",
       statsKey: "corazones.stats",
       body: function (st, h) {
         if (!h.n(st.played)) return "";
@@ -97,7 +85,7 @@
       id: "buscaminas",
       title: "Buscaminas",
       href: "buscaminas.html",
-      icon: BUSCAMINAS_ICON,
+      icon: "💣",
       statsKey: "buscaminas.stats",
       // Buscaminas no tiene "jugadas/ganadas" globales: se agrupa por
       // dificultad, así que arma su propia tabla en vez de usar rowPlayed().

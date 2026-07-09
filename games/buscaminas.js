@@ -168,7 +168,7 @@ function digCell(r, c) {
   if (cell.revealed || cell.flagged) return;
   if (!started) {
     if (noGuess) {
-      // Generación troceada: no congela la UI. La carita muestra el ícono de espera mientras tanto.
+      // Generación troceada: no congela la UI. La carita muestra ⏳ mientras tanto.
       generating = true;
       generateNoGuess(r, c, function (fellBack) {
         generating = false;
@@ -288,16 +288,6 @@ function startTimer() { if (timerId) return; timerId = setInterval(function () {
 function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 function fmtTime(s) { var m = Math.floor(s / 60), x = s % 60; return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x; }
 
-/* ---------- Íconos SVG (Fase 3 de docs/PLAN.md, reemplazan a los emojis) ---------- */
-var ICON_MINE = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>';
-var ICON_FLAG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3v18"/><path d="M6 4h11l-3 3.5L17 11H6"/></svg>';
-var ICON_FLAG_WRONG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
-var ICON_FACE_IDLE = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="9.5" r="1"/></svg>';
-var ICON_FACE_WON = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 15c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5"/><rect x="6.5" y="8.3" width="4.5" height="2.6" rx="1"/><rect x="13" y="8.3" width="4.5" height="2.6" rx="1"/><line x1="11" y1="9.6" x2="13" y2="9.6"/></svg>';
-var ICON_FACE_DEAD = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 16.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5"/><line x1="7.8" y1="8.3" x2="10.2" y2="10.7"/><line x1="10.2" y1="8.3" x2="7.8" y2="10.7"/><line x1="13.8" y1="8.3" x2="16.2" y2="10.7"/><line x1="16.2" y1="8.3" x2="13.8" y2="10.7"/></svg>';
-var ICON_FACE_BUSY = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 2"/></svg>';
-var ICON_DIG = '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 22 9 15"/><path d="M13 5.5 18.5 11l-8 8L5 13.5Z"/><path d="M15.5 3 21 8.5"/></svg>';
-
 /* ---------- Render ---------- */
 // Navegación por teclado: "roving tabindex" (patrón WAI-ARIA para grillas).
 // Sólo UNA celda tiene tabindex="0" a la vez (focusedCell); las flechas mueven
@@ -316,11 +306,11 @@ function render() {
       var cls = "cell", content = "";
       if (cell.revealed) {
         cls += " revealed";
-        if (cell.mine) { cls += cell.exploded ? " mine exploded" : " mine"; content = ICON_MINE; }
+        if (cell.mine) { cls += cell.exploded ? " mine exploded" : " mine"; content = "💣"; }
         else if (cell.count > 0) { cls += " n" + cell.count; content = cell.count; }
       } else {
         cls += " covered";
-        if (cell.flagged) content = cell.wrong ? ICON_FLAG_WRONG : ICON_FLAG;
+        if (cell.flagged) content = cell.wrong ? "❌" : "🚩";
       }
       var ti = (r === focusedCell.r && c === focusedCell.c) ? "0" : "-1";
       html.push('<div class="' + cls + '" data-r="' + r + '" data-c="' + c + '" tabindex="' + ti + '">' + content + '</div>');
@@ -334,9 +324,9 @@ function render() {
   document.documentElement.style.setProperty("--cols", cols);
   document.documentElement.style.setProperty("--rows", rows);
   updateHUD();
-  document.getElementById("smiley").innerHTML = generating ? ICON_FACE_BUSY : (won ? ICON_FACE_WON : (dead ? ICON_FACE_DEAD : ICON_FACE_IDLE));
+  document.getElementById("smiley").textContent = generating ? "⏳" : (won ? "😎" : (dead ? "😵" : "🙂"));
   var mode = document.getElementById("btn-mode");
-  mode.innerHTML = flagMode ? ICON_FLAG + " Bandera" : ICON_DIG + " Cavar";
+  mode.textContent = flagMode ? "🚩 Bandera" : "⛏ Cavar";
   mode.classList.toggle("active", flagMode);
   saveGame();
 }

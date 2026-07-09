@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente (Fases 0-4 hechas) |
-| Versión | 1.4 |
+| Estado | Vigente (Fases 0-2 y 4 hechas; Fase 3 revertida a emojis) |
+| Versión | 1.5 |
 | Fecha | 2026-07-08 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
@@ -154,7 +154,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 0 | Baseline visual + test de precache automático | 1 | ✅ |
 | 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ✅ |
 | 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ✅ |
-| 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ✅ |
+| 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ↩️ revertido a emojis |
 | 4 | Modo oscuro (paleta a elegir) | 3 | ✅ |
 | 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
 
@@ -293,19 +293,19 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     victoria, celda con mina/bandera, las 4 caritas de Buscaminas) revisadas
     una por una. `docs/screenshots/baseline/` se regeneró como nueva
     referencia para la Fase 4.
-  - **Post-Fase 3 (feedback):** dos íconos de juego no se leían bien
-    (Solitario parecía un termómetro; la bomba de Buscaminas, una paleta). Se
-    rediseñaron: Solitario → **cartas en abanico**, Buscaminas → **mina con
-    púas** clásica (usada también en las celdas reveladas). El resto del set
-    quedó igual. También se blindó el problema de "íconos rotos tras
-    actualizar" (ver CHANGELOG): el service worker pasó a **network-first**
-    para HTML/CSS/JS (antes el CSS iba cache-first y podía servirse viejo con
-    un HTML nuevo), los SVG llevan atributos de degradación (`fill="none"` +
-    tamaño, así sin CSS caen a un trazo chico y no a un bloque negro), y
-    `shared/pwa.js` auto-actualiza el SW (registro con `updateViaCache:"none"`
-    + recarga única al tomar control un SW nuevo).
-- **Fase 4 (hecha) — paleta "Esmeralda oscuro".** Modo claro/oscuro con la
-  arquitectura de tokens ya existente:
+  - **Post-Fase 3 (feedback):** se iteró sobre dos íconos flojos (Solitario →
+    cartas en abanico, Buscaminas → mina con púas), pero el set SVG en general
+    no convenció, así que **se revirtió todo a los emojis** (estado previo a la
+    Fase 3). Queda pendiente una **solución superadora** (íconos a la vez
+    minimalistas y lindos) antes de reintentarlo. Lo que **sí quedó** de haber
+    depurado el problema de "íconos rotos tras actualizar": el service worker
+    pasó a **network-first** para HTML/CSS/JS (antes el CSS iba cache-first y
+    podía servirse viejo con un HTML nuevo) y `shared/pwa.js` auto-actualiza el
+    SW (registro con `updateViaCache:"none"` + recarga única al tomar control
+    un SW nuevo). Los atributos de degradación de los SVG se fueron con el
+    revert (ya no hay SVG de UI que degradar).
+- **Fase 4 (hecha) — paleta "Oscuro total" (cartas negras).** Modo claro/oscuro
+  con la arquitectura de tokens ya existente:
   - **`shared/theme.js`** (módulo nuevo, `@ts-check`): resuelve la
     preferencia global (`localStorage["theme"]`: `auto`/`light`/`dark`,
     default `auto`) y fija `data-theme` en `<html>`. Se carga **primero** en
@@ -314,29 +314,32 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     sigue `prefers-color-scheme` y escucha cambios del sistema en vivo. Expone
     `getThemePref()`/`setThemePref()` y cablea solo cualquier control
     `[data-theme-pref]` de la página.
-  - **`styles/tokens.css`**: un único bloque `:root[data-theme="dark"]` con la
-    paleta Esmeralda (fieltro más oscuro + `--card-face-top` cálido para que
-    la carta no encandile). Todo el CSS ya leía estos tokens, así que el tema
-    se propaga solo. **Cambiar de paleta = editar sólo ese bloque.** Se
-    tokenizó el blanco de la cara de la carta (`--card-face-top`, antes
-    `#fff` hardcodeado en `cards.css`) para poder atenuarlo en oscuro sin
-    tocar el componente.
+  - **`styles/tokens.css`**: un bloque `:root[data-theme="dark"]` con la paleta
+    Oscuro total (fieltro más oscuro, **cartas gris carbón** vía
+    `--card-face-top`/`--paper-*`, palos claros) + un bloque de **overrides**
+    para las superficies con color hardcodeado que no salen de tokens
+    (`.card-modal` y sus controles, `.seg-btn`, `.game-link`, inputs, dorso de
+    la carta, tarjetas de Estadísticas). Todo lo demás se propaga solo porque
+    ya leía los tokens. Se tokenizó el blanco de la cara de la carta
+    (`--card-face-top`, antes `#fff` hardcodeado en `cards.css`) para poder
+    oscurecerla sin tocar el componente.
   - **Toggle en Opciones**: un segmented `Tema: Auto / Claro / Oscuro` (con
     `data-theme-pref`) en el modal de Opciones de los 4 juegos, consistente
     con el control de "Dificultad". La preferencia es **global** (una sola
     para toda la suite) y las 6 páginas la respetan (todas cargan
     `theme.js`), aunque el launcher y Estadísticas no tengan su propio toggle
     (siguen la preferencia guardada o el sistema).
-  - **Por qué Esmeralda y no las otras dos:** se presentaron 3 paletas con
-    capturas reales (Esmeralda oscuro, Grafito nocturno, Oscuro total). Se
-    eligió **Esmeralda** por ser la de menor riesgo y más fiel a la identidad
-    (mesa de fieltro, cartas claras): en oscuro sólo cambian el fieltro y el
-    tono de la carta, sin tocar modales/botones. Las otras dos quedan como
-    variantes triviales de intercambiar (un bloque de tokens) si se prefiere
-    después.
-  - **Puerta:** 56/56 tests verdes (2 nuevos: el toggle aplica los tokens
-    oscuros + persiste + es global entre páginas; y `theme.js` sumado al test
-    de `@ts-check` y al de precache), `tsc -p .` limpio, **modo claro
-    byte-idéntico** al baseline (los tokens oscuros sólo aplican con
+  - **Elección de paleta:** se presentaron 3 paletas con capturas reales
+    (Esmeralda oscuro, Grafito nocturno, Oscuro total). Se implementó primero
+    Esmeralda (la de menor riesgo) y, tras revisarla, se cambió por **Oscuro
+    total** a pedido: un modo oscuro de verdad con las cartas negras. Es la que
+    más superficies toca, pero todas se resolvieron con el bloque de overrides
+    (sin tocar el modo claro). Cambiar de paleta sigue siendo editar los dos
+    bloques de `tokens.css`.
+  - **Puerta:** 55/55 tests verdes (uno nuevo: el toggle aplica los tokens
+    oscuros + persiste + es global entre páginas; `theme.js` sumado al test de
+    `@ts-check` y al de precache), `tsc -p .` limpio, **modo claro
+    byte-idéntico** al baseline (los overrides sólo aplican con
     `data-theme="dark"`), y capturas claro/oscuro de las 6 páginas
-    (`docs/screenshots/dark/`) + el modal de Opciones con el control de tema.
+    (`docs/screenshots/dark/`) + todos los modales (Opciones, menú, ayuda,
+    victoria, puntajes) revisados en oscuro.
