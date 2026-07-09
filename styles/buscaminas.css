@@ -73,6 +73,14 @@
       ));
     }
   }
+  /* Respaldo para navegadores sin unidades de container query (cqw/cqh; el
+     soporte es de ~2022 en adelante). Sin esto, --cell quedaría inválida y el
+     tablero se rompería. Tamaño fijo razonable (dentro del rango que daba el
+     JS viejo): menos ajustado, pero funcional — un tablero grande scrollea
+     dentro de #boardWrap, que ya tiene overflow: auto. */
+  @supports not (width: 1cqw) {
+    #board { --cell: 32px; }
+  }
   .cell {
     width: var(--cell); aspect-ratio: 1;
     display: flex; align-items: center; justify-content: center;

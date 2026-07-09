@@ -988,6 +988,47 @@ test("PWA: sin conexión sirve la página correcta, no index (MPA)", async funct
   }
 });
 
+/* 32b) PWA — el código del app shell (CSS/JS) se sirve NETWORK-FIRST: en línea,
+   una copia vieja en la caché del SW NO puede pisar la de la red. Regresión de
+   un bug real: con stale-while-revalidate para el CSS, un HTML nuevo (íconos
+   SVG) quedaba con un base.css viejo (sin la regla .icon) y los íconos se
+   veían gigantes/rotos. Envenenamos la caché a propósito y verificamos que la
+   recarga en línea igual trae el CSS fresco. */
+test("PWA: CSS/JS se sirven network-first (una caché vieja no gana en línea)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.evaluate(function () { return navigator.serviceWorker.ready; });
+  await p.page.waitForFunction(function () { return !!navigator.serviceWorker.controller; }, null, { timeout: 6000 });
+
+  // Envenenar la caché: reemplazar el base.css cacheado por una versión SIN la
+  // regla .icon (simula el CSS previo a la Fase 3 que tendría un visitante).
+  var poisoned = await p.page.evaluate(async function () {
+    var keys = await caches.keys();
+    var name = keys.filter(function (k) { return k.indexOf("juegos-clasicos-") === 0; })[0];
+    if (!name) return false;
+    var cache = await caches.open(name);
+    var real = await (await fetch("styles/base.css")).text();
+    var stale = real.replace(/\.icon\s*\{[^}]*\}/g, "/* stale */");
+    var target = new URL("styles/base.css", location.href).toString();
+    await cache.put(new Request(target), new Response(stale, { headers: { "content-type": "text/css" } }));
+    var check = await cache.match(new Request(target));
+    return !/\.icon\s*\{/.test(await check.text());   // true si el poison quedó aplicado
+  });
+  assert(poisoned, "no se pudo envenenar la caché del SW para la prueba");
+
+  // Recargar EN LÍNEA: network-first debe traer el base.css fresco (con .icon),
+  // así el ícono del header vuelve a su tamaño chico (~1em) en vez de 62px.
+  await p.page.reload({ waitUntil: "load" });
+  await p.page.waitForTimeout(200);
+  var size = await p.page.evaluate(function () {
+    var svg = document.querySelector("header svg");
+    var r = svg.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  assert(size.w > 0 && size.w <= 24 && size.h <= 24,
+    "el ícono debería medir ~1em (CSS fresco); midió " + JSON.stringify(size) + " (caché vieja servida)");
+  assertNoErrors(p.errors);
+});
+
 /* 33) Guardado — avisa una sola vez si falla la escritura del progreso. */
 test("Guardado: avisa una vez si falla la escritura (quota/modo restringido)", async function (ctx) {
   var p = await open(ctx, "solitario.html");

@@ -6,18 +6,26 @@
  * responde desde caché cuando no hay red.
  *
  * Estrategias:
- *   - Documentos HTML  -> network-first (en línea traés lo último; sin conexión,
- *     servís la copia cacheada). Así las actualizaciones llegan al recargar.
- *   - Estáticos (íconos, svg, manifest) -> stale-while-revalidate (respuesta
- *     instantánea desde caché y refresco en segundo plano).
+ *   - "App shell" con código (HTML, CSS, JS) -> network-first (en línea traés
+ *     lo último; sin conexión, servís la copia cacheada). El HTML, su CSS y su
+ *     JS deben hacer juego entre sí: si el CSS fuera cache-first podría servir
+ *     una copia vieja junto a un HTML nuevo (íconos sin estilo, layout roto)
+ *     ante cualquier cambio sin subir VERSION. Network-first garantiza que en
+ *     línea las tres piezas lleguen siempre de la misma versión.
+ *   - Binarios estáticos (íconos, favicon, manifest) -> stale-while-revalidate
+ *     (respuesta instantánea desde caché y refresco en segundo plano). Casi
+ *     nunca cambian y una copia vieja no rompe nada, así que priorizamos la
+ *     velocidad.
  *
  * Para publicar una versión nueva, subí VERSION: al activarse, el SW borra las
- * cachés viejas y vuelve a precachear.
+ * cachés viejas y vuelve a precachear. (Con network-first para el código, los
+ * usuarios en línea ya reciben lo último aunque se olvide subir VERSION; el
+ * bump sólo hace falta para refrescar la copia OFFLINE.)
  *
  * Todas las rutas se resuelven relativas a la ubicación del SW (self.location),
  * así funciona igual servido en la raíz o en un subdirectorio (GitHub Pages).
  */
-const VERSION = "v1.8.0";
+const VERSION = "v1.9.0";
 const PREFIX = "juegos-clasicos-";
 const CACHE = PREFIX + VERSION;
 
@@ -95,8 +103,12 @@ self.addEventListener("fetch", (event) => {
   const isHTML =
     req.mode === "navigate" ||
     (req.headers.get("accept") || "").includes("text/html");
+  // El código del app shell (CSS y JS) va junto con el HTML: network-first,
+  // para que en línea las tres piezas lleguen siempre de la misma versión y no
+  // se pueda servir CSS/JS viejo con HTML nuevo.
+  const isCode = /\.(css|js)$/.test(url.pathname);
 
-  if (isHTML) {
+  if (isHTML || isCode) {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
@@ -108,9 +120,9 @@ self.addEventListener("fetch", (event) => {
         }
         return fresh;
       } catch (e) {
-        // App multipágina: servimos la copia cacheada de ESTA página (todas se
-        // precachean). No caemos a index.html para no mostrar una página bajo
-        // la URL de otra.
+        // Sin conexión: servimos la copia cacheada de ESTE recurso (todo el app
+        // shell se precachea). Para HTML, no caemos a index.html: en una app
+        // multipágina mostraría una página bajo la URL de otra.
         const cached = await caches.match(req);
         return cached || Response.error();
       }
@@ -118,6 +130,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Binarios estáticos (íconos, favicon, manifest): stale-while-revalidate.
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req);

@@ -89,6 +89,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | PWA · todas las páginas | Las 6 páginas enlazan manifest + apple-touch-icon + theme-color |
 | PWA · offline | El service worker se registra y sirve la app sin conexión (recarga con la red cortada) |
 | PWA · offline por página (MPA) | Sin conexión se sirve la página pedida, no `index.html`; `shared/*.js` también se sirven desde caché |
+| PWA · CSS/JS network-first | **Regresión**: en línea, una copia vieja del CSS en la caché del SW no pisa la de la red (evita HTML nuevo + CSS viejo → íconos rotos) |
 | Buscaminas · aviso "sin adivinanzas" | Avisa cuando el tablero pudo requerir adivinar (se agotó el presupuesto de generación) |
 | Guardado · aviso de fallo | Avisa una sola vez si falla la escritura del progreso (quota / modo restringido) |
 | Accesibilidad · `aria-label` | Las cartas exponen `aria-label` legible; las boca abajo no revelan su identidad |
