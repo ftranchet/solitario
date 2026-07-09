@@ -61,9 +61,14 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   Antes se veían distinto en iOS/Android/Windows (los emojis usan la fuente
   del sistema); ahora son consistentes en todas las plataformas. Nueva clase
   `.icon` compartida en `styles/base.css`. Los palos de las cartas (♠♥♦♣) y
-  los contadores del HUD (⏱🃏💣) quedan fuera de este cambio a propósito. Sin
-  cambios de comportamiento (53 tests verdes, `tsc -p .` limpio; ninguno de
-  los tests dependía del texto de los emojis reemplazados). Ver
+  los contadores del HUD (⏱🃏💣) quedan fuera de este cambio a propósito.
+  **Refinamiento de dos íconos** tras revisión: el de Solitario (era una
+  carta con una marca que se leía como termómetro) pasó a **cartas en
+  abanico**, y el de Buscaminas (era una bomba que se leía como una paleta)
+  pasó a la **mina con púas** clásica del juego, que además se usa ahora en
+  las celdas reveladas para que el ícono de la app y el del tablero sean el
+  mismo. Sin cambios de comportamiento (53 tests verdes, `tsc -p .` limpio;
+  ninguno de los tests dependía del texto de los emojis reemplazados). Ver
   [PLAN.md](./PLAN.md), Fase 3.
 - **Arquitectura (Fase 2 de PLAN.md): riel lateral en apaisado corto +
   Buscaminas a CSS.** En `@media (orientation: landscape) and (max-height:
