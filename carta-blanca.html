@@ -22,6 +22,7 @@
 <script src="shared/pwa.js"></script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/game.css">
 <link rel="stylesheet" href="styles/cards.css">
 <link rel="stylesheet" href="styles/carta-blanca.css">
 </head>
@@ -84,9 +85,9 @@
       <li>En las columnas se baja alternando colores (una roja, una negra).</li>
       <li>Para mandar una carta a las pilas de arriba (derecha), tocala dos veces.</li>
     </ol>
-    <p class="hint">Objetivo: armar las cuatro pilas de arriba a la derecha desde el As hasta el Rey, una por palo.</p>
-    <p class="hint">Podés mover <b>varias cartas juntas</b> si forman una escalera (bajando y alternando color). Cuantos más pozos y columnas vacías tengas, más cartas podés mover de una vez.</p>
-    <p class="hint">Si te trabás, tocá <b>💡 Pista</b> abajo (de nuevo para ver otra jugada). Cuando todo quede ordenado aparece <b>✓ Autocompletar</b> para terminar la partida sola.</p>
+    <p class="hint-txt">Objetivo: armar las cuatro pilas de arriba a la derecha desde el As hasta el Rey, una por palo.</p>
+    <p class="hint-txt">Podés mover <b>varias cartas juntas</b> si forman una escalera (bajando y alternando color). Cuantos más pozos y columnas vacías tengas, más cartas podés mover de una vez.</p>
+    <p class="hint-txt">Si te trabás, tocá <b>💡 Pista</b> abajo (de nuevo para ver otra jugada). Cuando todo quede ordenado aparece <b>✓ Autocompletar</b> para terminar la partida sola.</p>
     <div class="modal-actions">
       <button id="help-close" class="btn primary">Entendido</button>
     </div>
@@ -104,7 +105,7 @@
         <input id="game-input" class="num-input" type="number" min="1" inputmode="numeric" placeholder="Número de partida">
         <button id="game-go" class="btn primary">Jugar</button>
       </div>
-      <div class="hint">Cada número da siempre el mismo reparto (igual que en el FreeCell de Windows). Empezar una partida nueva acá descarta la actual.</div>
+      <div class="hint-txt">Cada número da siempre el mismo reparto (igual que en el FreeCell de Windows). Empezar una partida nueva acá descarta la actual.</div>
     </div>
 
     <div class="opt">

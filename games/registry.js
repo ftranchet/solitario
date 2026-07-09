@@ -11,9 +11,10 @@
  * Se carga como <script> CLÁSICO y expone `window.GAMES`.
  *
  * Este registro NO migra la lógica de cada juego (motor, reglas, render del
- * tablero): eso sigue viviendo en <juego>.html, que ya funciona, está
- * testeado y no necesita moverse para resolver la duplicación real que existe
- * hoy en el launcher/estadísticas. Ver docs/ARQUITECTURA.md, Fase 4, para la
+ * tablero): eso sigue viviendo en games/<juego>.js (cargado por su
+ * <juego>.html), que ya funciona, está testeado y no necesita moverse para
+ * resolver la duplicación real que existía en el launcher/estadísticas.
+ * Ver docs/ARQUITECTURA.md, Fase 4, para la
  * discusión completa de qué se generalizó acá y qué se dejó deliberadamente
  * afuera (la interfaz mount/newGame/serialize/restore del boceto original).
  *

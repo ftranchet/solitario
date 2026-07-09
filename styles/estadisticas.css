@@ -33,7 +33,6 @@
   .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
   .card h2 .ico { font-size: 20px; display: inline-flex; }
   .card h2 .ico svg { display: block; }
-  .sub { font-size: 12px; opacity: 0.6; margin: 0 0 8px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 6px 4px; border-bottom: 1px solid #ece3cf; text-align: left; font-size: 14px; }
   th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.55; font-weight: 700; }
@@ -44,4 +43,3 @@
   .row b { font-variant-numeric: tabular-nums; }
   .empty { opacity: 0.6; font-size: 13px; padding: 4px 0; }
   .foot { text-align: center; }
-  .danger { color: #b71c1c; }

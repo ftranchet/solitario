@@ -123,7 +123,9 @@ real con esbuild.
     global.d.ts              declaraciones ambientales para @ts-check
   styles/
     tokens.css               design tokens (colores, radios, sombras, escalas)
-    base.css                 reset, layout, header, safe-area, toast
+    base.css                 reset, layout, header, safe-area, toast (6 páginas)
+    game.css                 chrome común de las 4 páginas de juego (body,
+                             cabecera, modales, segmented, menú de juegos)
     cards.css                componente “carta” (chrome compartido)
     <juego>.css / launcher.css / estadisticas.css   CSS propio de cada página
   sw.js  manifest.webmanifest  icons/  tests/  docs/
@@ -489,8 +491,9 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 ## 11. Decisión
 
 **Aceptada e implementada.** El refactor se ejecutó por fases (§10), cada una
-mergeable por separado y con la suite de tests verde como puerta (hoy 52
-tests). El resultado: la duplicación transversal (persistencia, cartas, UI,
+mergeable por separado y con la suite de tests verde como puerta (52 tests al
+cerrar el refactor; 59 tras las fases de PLAN.md y la auditoría de merge —
+ver el [CHANGELOG](./CHANGELOG.md)). El resultado: la duplicación transversal (persistencia, cartas, UI,
 stats, PWA, diseño) vive en un solo lugar, y agregar un juego al launcher/
 estadísticas es una sola edición en `games/registry.js`.
 

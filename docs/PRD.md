@@ -5,9 +5,9 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.3 |
+| Versión del documento | 1.5 |
 | Estado | Vigente |
-| Última actualización | 2026-07-08 |
+| Última actualización | 2026-07-09 |
 | Responsable | Francisco Tranchet |
 | Repositorio | `ftranchet/solitario` |
 
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.5 | 2026-07-09 | F. Tranchet + IA | Auditoría de merge: la matriz (§9) marca implementados "Temas claro/oscuro" y "Aviso de actualización del SW" (Fases 4 y 5 de PLAN.md); §1 y RNF-01 dejan de describir cada juego como "un único archivo HTML autocontenido" (desde la capa compartida es una página delgada + módulos compartidos); RF-PWA-05 refleja la estrategia de caché vigente (network-first para HTML/CSS/JS). |
 | 1.4 | 2026-07-08 | F. Tranchet + IA | El roadmap (§8) pasa a apuntar al nuevo [PLAN.md](./PLAN.md) (plan de trabajo por fases desde Fase 0); §8 conserva sólo el backlog de ideas sin planificar. Se agrega PLAN.md a las referencias (§10). |
 | 1.3 | 2026-07-08 | F. Tranchet + IA | Se completa RNF-08 (accesibilidad): navegación por teclado y foco visible en los 4 juegos. Se retira "temas claro/oscuro" del roadmap de alta prioridad (pasa a decisión de diseño pendiente). |
 | 1.2 | 2026-07-07 | F. Tranchet + IA | Refinamientos de PWA (safe-area iOS, caché por prefijo, offline por página) y mejoras del feedback: accesibilidad (RNF-08), aviso de fallback en Buscaminas (RF-BM-06) y aviso de guardado (RNF-04). |
@@ -37,11 +38,15 @@
 traía Windows, pensada para jugarse en el navegador de un celular o de una
 computadora, sin instalar nada y sin conexión a Internet.
 
-Cada juego es un **único archivo HTML autocontenido** (HTML + CSS + JavaScript,
-sin dependencias ni build). Una pantalla de inicio (`index.html`) funciona como
-_launcher_ y una pantalla de **Estadísticas** agrega los resultados de todos los
-juegos. La persistencia (partida en curso, preferencias y estadísticas) usa
-`localStorage`, por lo que todo vive en el dispositivo del usuario.
+Cada juego es una **página HTML delgada** que carga una capa compartida propia
+del proyecto (`shared/`, `styles/`, `games/registry.js`) y su propio motor en
+`games/<juego>.js` — todo JavaScript y CSS vanilla, **sin dependencias externas
+ni build** (ver [ARQUITECTURA.md](./ARQUITECTURA.md)). Una pantalla de inicio
+(`index.html`) funciona como _launcher_ y una pantalla de **Estadísticas**
+agrega los resultados de todos los juegos; ambas se generan desde el registro
+declarativo de juegos. La persistencia (partida en curso, preferencias y
+estadísticas) usa `localStorage`, por lo que todo vive en el dispositivo del
+usuario.
 
 Desde la versión 1.1 el producto es una **PWA**: instalable en la pantalla de
 inicio y jugable completamente offline.
@@ -157,15 +162,20 @@ inicio y jugable completamente offline.
   conexión** después de la primera visita.
 - **RF-PWA-04.** Accesos directos (shortcuts) del manifest a cada uno de los
   cuatro juegos.
-- **RF-PWA-05.** Estrategia de actualización: los documentos usan _network-first_
-  (traen la última versión al recargar en línea) y los estáticos
-  _stale-while-revalidate_; una nueva versión del service worker limpia las
-  cachés viejas.
+- **RF-PWA-05.** Estrategia de actualización: el código del _app shell_ (HTML,
+  CSS y JS) usa _network-first_ (en línea siempre llegan las tres piezas de la
+  misma versión; sin conexión se sirve la copia cacheada) y los binarios
+  estáticos (íconos, favicon, manifest) _stale-while-revalidate_; una nueva
+  versión del service worker limpia las cachés viejas, y cuando hay una
+  versión nueva esperando se avisa con un botón «Recargar» en vez de
+  reemplazar el código sin preguntar.
 
 ## 6. Requisitos no funcionales
 
-- **RNF-01 · Sin dependencias / sin build.** Cada juego es un HTML autocontenido;
-  el sitio es 100 % estático (apto para GitHub Pages).
+- **RNF-01 · Sin dependencias / sin build.** Todo es HTML/CSS/JS vanilla, sin
+  frameworks, bundlers ni CDNs; el sitio es 100 % estático (apto para GitHub
+  Pages). El código común vive en una capa compartida propia (`shared/`,
+  `styles/`, `games/registry.js`) que las páginas enlazan directo.
 - **RNF-02 · Responsive y táctil.** Funciona en móvil y escritorio; respeta las
   _safe areas_ (notch) y evita el zoom accidental.
 - **RNF-03 · Privacidad.** No hay backend ni analítica; todos los datos quedan en
@@ -189,8 +199,9 @@ inicio y jugable completamente offline.
 
 ## 7. Arquitectura y decisiones técnicas
 
-- **Estáticos autocontenidos.** Sin framework ni bundler: máxima portabilidad y
-  mantenibilidad, se sirve desde cualquier hosting estático.
+- **Estático, sin build.** Sin framework ni bundler: máxima portabilidad y
+  mantenibilidad, se sirve desde cualquier hosting estático. Páginas delgadas
+  + capa compartida (`shared/`, `styles/`) + motor por juego (`games/`).
 - **Persistencia en `localStorage`** con validación defensiva del estado al
   cargar (RNF-04).
 - **PWA con rutas relativas.** El manifest (`start_url`/`scope` relativos) y el
@@ -242,8 +253,8 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 | RNF-06 | Tests + CI | ✅ | 0.9.0 |
 | RNF-07 | Compatibilidad navegadores modernos | ✅ | — |
 | RNF-08 | Accesibilidad (etiquetas, anuncios, teclado, foco visible) | ✅ | Fase 6 |
-| — | Temas claro/oscuro | ⬜ | roadmap |
-| — | Aviso de actualización del SW | ⬜ | roadmap |
+| — | Temas claro/oscuro | ✅ | 1.4.0 (Fase 4 de PLAN.md) |
+| — | Aviso de actualización del SW | ✅ | 1.4.0 (Fase 5 de PLAN.md) |
 
 ## 10. Referencias
 

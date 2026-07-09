@@ -10,8 +10,28 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+_(nada por ahora)_
+
+## [1.4.0] — 2026-07-09
+
+Cierre de las fases del [PLAN.md](./PLAN.md) (0-5) más una auditoría general
+de merge: bugs visuales, deduplicación de CSS/JS, robustez de guardados y
+documentación puesta al día.
+
 ### Agregado
 
+- **Tests (59 en total):** un test de contrato nuevo verifica que el **menú de
+  juegos (🎮)** de las 4 páginas de juego coincide con `games/registry.js`
+  (mismos juegos, mismo orden, mismos href, el actual marcado como tal). El
+  menú es HTML estático repetido en las 4 páginas; hasta ahora nada detectaba
+  si al agregar un juego se olvidaba actualizar uno (mismo mecanismo que el
+  contrato registro vs. manifest). Otro test nuevo cubre el rechazo de
+  guardados con cartas repetidas en Corazones (ver Corregido).
+- **Fase 0 de PLAN.md: base y red de seguridad.** Capturas de referencia de
+  las 6 páginas en 4 breakpoints (`docs/screenshots/baseline/`, generadas con
+  `tests/screenshot.js`) para detectar regresiones visuales en las próximas
+  fases. Nuevo test de precache: compara el filesystem contra la lista
+  `ASSETS` de `sw.js` y falla si se sirve un archivo no cacheado.
 - **Aviso "hay una versión nueva" (Fase 5 de PLAN.md).** `sw.js` ya no llama
   `self.skipWaiting()` en `install`: un SW nuevo queda **en espera**
   (`registration.waiting`) en vez de tomar el control solo, así el SW viejo
@@ -48,6 +68,26 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Corregido
 
+- **La carta sugerida por la Pista se veía atenuada en Solitario y Carta
+  Blanca.** La clase `.hint` se usaba a la vez para el texto de ayuda chico de
+  los modales (`font-size: 12.5px; opacity: 0.65`) y para la carta/casilla
+  resaltada por la Pista (`.card.hint`), así que la carta sugerida heredaba el
+  65% de opacidad y se veía APAGADA en vez de destacada, peleando con su
+  animación dorada. El texto de ayuda pasa a llamarse `.hint-txt` (como ya
+  hacían Corazones y Buscaminas) y la carta resaltada queda a opacidad plena.
+- **Carta Blanca: el selector de Tema (Opciones) estaba sin estilos.** Al
+  agregar el toggle de tema (Fase 4) a los 4 modales de Opciones, Carta Blanca
+  quedó sin las reglas `.seg`/`.seg-btn` (su hoja nunca las tuvo porque su
+  modal no tenía segmented controls antes): los botones Auto/Claro/Oscuro se
+  veían como botones nativos sin formato. La consolidación del chrome en
+  `styles/game.css` (ver Cambiado) los estila igual que en los otros juegos.
+- **Corazones: un guardado con cartas repetidas ahora se descarta (RNF-04).**
+  `validSaved()` validaba forma y cantidad (52) pero no unicidad: un guardado
+  corrupto con la misma carta dos veces pasaba la validación (Solitario y
+  Carta Blanca ya lo rechazaban). Test de regresión nuevo.
+- **Corazones: la ayuda describía "disparar a la luna" sólo en su modo por
+  defecto** (los demás +26), sin mencionar que en Opciones se puede elegir el
+  modo "vos −26".
 - **Service worker servía CSS/JS viejo junto con HTML nuevo (UI rota tras
   actualizar).** El SW cacheaba el CSS/JS con estrategia *stale-while-
   revalidate* (copia de caché primero). Al cambiar estilos en varias fases sin
@@ -68,6 +108,12 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
     visitante que quedó con un SW viejo se recupera sin borrar la caché a mano.
   - Se sube `VERSION` en cada cambio de assets para forzar el re-precache
     limpio en clientes con la caché vieja.
+- **Buscaminas:** `onLong()` (bandera por toque largo / clic derecho) ahora
+  también ignora la entrada mientras se genera el tablero "sin adivinanzas"
+  (`generating`), igual que `onTap()`. Hoy no era alcanzable durante la
+  generación (lo bloquea `onPointerDown`), pero deja la función simétrica con
+  `onTap` y cierra la misma trampa latente que la auditoría anterior corrigió
+  para el teclado.
 - **Buscaminas se rompía en navegadores sin container queries.** Al pasar el
   dimensionado del tablero a CSS (Fase 2) quedó dependiendo 100% de las
   unidades `cqw`/`cqh` (soporte desde ~2022), sin respaldo tras eliminar el
@@ -77,6 +123,37 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Cambiado
 
+- **Deduplicación del "chrome" de las páginas de juego → `styles/game.css`.**
+  Las reglas repetidas byte-idénticas en las 4 hojas de cada juego (body y
+  tipografía, cabecera —marca/HUD/acciones—, modales, segmented buttons, menú
+  de juegos, `.pill` y sus media queries de 700px/1100px/480px) se
+  consolidaron en una hoja nueva `styles/game.css` que enlazan sólo las 4
+  páginas de juego (~150 líneas menos por hoja; `index.html`/
+  `estadisticas.html` no la cargan porque su layout scrollea y no tienen
+  modales de juego). Sin cambios visuales: verificado comparando los
+  **estilos computados** de todos los elementos de las 6 páginas antes y
+  después (3 viewports × claro/oscuro, con repartos deterministas); las únicas
+  diferencias son los dos arreglos intencionales de arriba. De paso se retiró
+  CSS muerto (`.game-link .soon`, `.game-link.disabled`, y `.sub`/`.danger`
+  en `estadisticas.css`, sin ningún uso en el HTML/JS).
+- **Deduplicación del festejo (confeti) → `shared/ui.js`.** `celebrate()` y
+  `stopConfetti()` estaban repetidas idénticas en los 4 motores (~50 líneas
+  × 4); ahora viven en `shared/ui.js` (con `@ts-check` estricto, cubierto por
+  `tsc` en CI), mismo movimiento que ya se hizo con `toast()` y
+  `clickActivate()`. Sigue respetando `prefers-reduced-motion`.
+- **`VERSION` de `sw.js` a `v1.14.0`** (asset nuevo `styles/game.css` +
+  cambios de CSS/JS) para refrescar la copia offline de los clientes
+  instalados.
+- **Documentación puesta al día tras la auditoría:** la matriz del PRD marcaba
+  "Temas claro/oscuro" y "Aviso de actualización del SW" como pendientes
+  (están implementados desde las Fases 4 y 5 de PLAN.md); el PRD seguía
+  describiendo cada juego como "un único archivo HTML autocontenido" (desde
+  la capa compartida ya no lo es) y RF-PWA-05 describía la estrategia de
+  caché vieja; `ARQUITECTURA.md` citaba un total de tests desactualizado; un
+  comentario de `games/registry.js` decía que el motor vivía en
+  `<juego>.html` (vive en `games/<juego>.js` desde la Fase 1); y este
+  changelog acumulaba dos tandas de secciones Agregado/Corregido/Cambiado
+  bajo "[No publicado]" (se fusionaron y se corta la versión 1.4.0 acá).
 - **View Transitions API: se probó y se descartó (Fase 5 de PLAN.md), con
   evidencia.** Se intentó envolver el `render()` de los 4 motores en
   `document.startViewTransition()` como mejora progresiva. Rompió tests de
@@ -117,6 +194,13 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   cambios visuales fuera de apaisado corto (capturas idénticas al baseline de
   la Fase 0 en los otros 3 breakpoints) ni de comportamiento (53 tests
   verdes). Ver [PLAN.md](./PLAN.md), Fase 2.
+- **Documentación:** se consolidó el trabajo hacia adelante en un nuevo
+  [PLAN.md](./PLAN.md) (plan por fases desde Fase 0) y se retiraron de
+  `ARQUITECTURA.md` las propuestas "Fase 7+" (§12/§13), que quedaban duplicadas.
+  `ARQUITECTURA.md` pasa a ser el registro de lo ya construido; el roadmap del
+  PRD (§8) apunta a PLAN.md. Se corrigieron referencias y comentarios
+  desactualizados (p. ej. una nota de `shared/ui.js` que citaba una fase que
+  finalmente no se hizo).
 - **Arquitectura (Fase 1 de PLAN.md): motor de cada juego externalizado + CSP
   estricta.** El `<script>` inline de Solitario, Carta Blanca, Corazones y
   Buscaminas (900-1400 líneas cada uno) se movió a `games/<juego>.js` como
@@ -128,33 +212,6 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   comportamiento ni visuales (53 tests verdes, `tsc -p .` limpio; capturas
   comparadas contra el baseline de la Fase 0). Ver [PLAN.md](./PLAN.md),
   Fase 1.
-
-### Agregado
-
-- **Fase 0 de PLAN.md: base y red de seguridad.** Capturas de referencia de
-  las 6 páginas en 4 breakpoints (`docs/screenshots/baseline/`, generadas con
-  `tests/screenshot.js`) para detectar regresiones visuales en las próximas
-  fases. Nuevo test de precache: compara el filesystem contra la lista
-  `ASSETS` de `sw.js` y falla si se sirve un archivo no cacheado.
-
-### Corregido
-
-- **Buscaminas:** `onLong()` (bandera por toque largo / clic derecho) ahora
-  también ignora la entrada mientras se genera el tablero "sin adivinanzas"
-  (`generating`), igual que `onTap()`. Hoy no era alcanzable durante la
-  generación (lo bloquea `onPointerDown`), pero deja la función simétrica con
-  `onTap` y cierra la misma trampa latente que la auditoría anterior corrigió
-  para el teclado.
-
-### Cambiado
-
-- **Documentación:** se consolidó el trabajo hacia adelante en un nuevo
-  [PLAN.md](./PLAN.md) (plan por fases desde Fase 0) y se retiraron de
-  `ARQUITECTURA.md` las propuestas "Fase 7+" (§12/§13), que quedaban duplicadas.
-  `ARQUITECTURA.md` pasa a ser el registro de lo ya construido; el roadmap del
-  PRD (§8) apunta a PLAN.md. Se corrigieron referencias y comentarios
-  desactualizados (p. ej. una nota de `shared/ui.js` que citaba una fase que
-  finalmente no se hizo).
 
 ## [1.3.0] — 2026-07-08
 

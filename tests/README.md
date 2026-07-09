@@ -60,6 +60,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Corazones · pase | Las cartas elegidas para pasar sobreviven la recarga |
 | Solitario · guardado corrupto | JSON basura o mazo con carta repetida se descartan sin errores |
 | Carta Blanca · duplicados | `validState` rechaza mazos con cartas repetidas |
+| Corazones · duplicados | `validSaved`/`loadGame` descartan un guardado con cartas repetidas |
 
 **Reglas de juego**
 
@@ -105,6 +106,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Registro · launcher | El menú de inicio se genera iterando el registro (mismos hrefs/títulos) |
 | Registro · estadísticas | Las tarjetas de estadísticas se generan iterando el registro |
 | Contrato · registro vs. manifest | Los `shortcuts` del manifest y el registro no divergen |
+| Contrato · menú de juegos | El menú (🎮) de cada página de juego lista los mismos juegos que el registro, en el mismo orden y con los mismos href (el menú es HTML estático repetido en las 4 páginas: sin este test, olvidarse una al agregar un juego pasaba en silencio) |
 | Precache | Todo archivo servido (HTML, CSS, JS, íconos) está en la lista `ASSETS` de `sw.js`; un archivo nuevo fuera de la lista rompe el test (ver docs/PLAN.md, Fase 0) |
 
 **Seguridad y tipos**

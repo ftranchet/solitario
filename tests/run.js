@@ -456,6 +456,34 @@ test("Solitario: el guardado corrupto (JSON basura o carta repetida) se descarta
   assertNoErrors(p.errors);
 });
 
+/* 17b) Corazones — un guardado con cartas repetidas se descarta (RNF-04),
+   igual que ya hacían Solitario y Carta Blanca. */
+test("Corazones: el guardado con carta repetida se descarta sin errores", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    var out = {};
+    // Guardado sano de referencia: la partida recién repartida (fase de pase).
+    var sane = {
+      players: players.map(function (q) { return { hand: q.hand, score: 0, roundPoints: 0, taken: [] }; }),
+      phase: "pass", trick: [], leadSeat: 0, turn: 0,
+      heartsBroken: false, tricksPlayed: 0, handNumber: 1, passDir: "left",
+      target: 100, history: [], humanPass: []
+    };
+    out.saneAccepted = validSaved(JSON.parse(JSON.stringify(sane)));
+    // Misma estructura pero con una carta duplicada (siguen siendo 52).
+    var dup = JSON.parse(JSON.stringify(sane));
+    dup.players[0].hand[0] = JSON.parse(JSON.stringify(dup.players[0].hand[1]));
+    out.dupRejected = !validSaved(dup);
+    localStorage.setItem(GAME_KEY, JSON.stringify(dup));
+    out.loadRejected = loadGame() === false;
+    return out;
+  });
+  assert(r.saneAccepted, "validSaved rechazó un estado sano");
+  assert(r.dupRejected, "validSaved aceptó una mano con carta repetida");
+  assert(r.loadRejected, "loadGame debería descartar el guardado con carta repetida");
+  assertNoErrors(p.errors);
+});
+
 /* ==================== REGLAS DE JUEGO ==================== */
 
 /* 18) Carta Blanca — determinismo del reparto: la partida n.º 1 debe dar exactamente
@@ -1200,6 +1228,50 @@ test("Contrato: games/registry.js y manifest.webmanifest no divergen", async fun
     "el manifest y el registro deben listar los mismos juegos: " +
     JSON.stringify(r.shortcutHrefs) + " vs " + JSON.stringify(r.registryHrefs));
   assertNoErrors(p.errors);
+});
+
+/* 39b) Contrato — el menú de juegos (🎮) de cada página de juego coincide con
+   games/registry.js. El menú es HTML estático repetido en las 4 páginas (no se
+   puede generar sin JS extra), así que al agregar un juego nuevo hay que
+   editarlo a mano en cada una; este test convierte un olvido o una divergencia
+   (juego que falta, orden distinto, href equivocado) en un fallo de CI —
+   mismo mecanismo que ya usa el contrato registro vs. manifest. */
+test("Contrato: el menú de juegos de cada juego coincide con games/registry.js", async function (ctx) {
+  var p0 = await open(ctx, "index.html");
+  var registry = await p0.page.evaluate(function () {
+    return window.GAMES.map(function (g) { return { href: g.href, title: g.title }; });
+  });
+  for (var i = 0; i < registry.length; i++) {
+    var file = registry[i].href;
+    var p = await open(ctx, file);
+    var menu = await p.page.evaluate(function () {
+      var links = Array.prototype.slice.call(document.querySelectorAll("#menu .game-list .game-link"));
+      return links.map(function (l) {
+        return {
+          href: l.getAttribute("href"),
+          text: l.textContent.replace(/\s+/g, " ").trim(),
+          current: l.classList.contains("current")
+        };
+      });
+    });
+    assert(menu.length === registry.length + 2,
+      file + ": el menú debería listar Inicio + " + registry.length + " juegos + Estadísticas, tiene " + menu.length);
+    assert(menu[0].href === "index.html", file + ": la primera entrada del menú debería ser Inicio");
+    assert(menu[menu.length - 1].href === "estadisticas.html", file + ": la última entrada debería ser Estadísticas");
+    for (var j = 0; j < registry.length; j++) {
+      var entry = menu[j + 1], game = registry[j];
+      assert(entry.text.indexOf(game.title) >= 0,
+        file + ": la entrada " + (j + 1) + " del menú debería ser '" + game.title + "', es '" + entry.text + "'");
+      if (game.href === file) {
+        assert(entry.current && entry.href === null,
+          file + ": el juego actual debería marcarse .current y no ser un enlace");
+      } else {
+        assert(entry.href === game.href,
+          file + ": '" + game.title + "' debería enlazar a " + game.href + ", enlaza a " + entry.href);
+      }
+    }
+    assertNoErrors(p.errors);
+  }
 });
 
 /* 40) Precache — todo archivo servido (HTML, CSS, JS, íconos) está en la lista

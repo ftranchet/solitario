@@ -517,52 +517,7 @@ function buildScoresTable() {
 function openScores() { buildScoresTable(); document.getElementById("scores").hidden = false; }
 
 /* ---------- Festejo ---------- */
-var confettiRAF = null;
-function stopConfetti() {
-  if (confettiRAF) { cancelAnimationFrame(confettiRAF); confettiRAF = null; }
-  var c = document.querySelector(".confetti-canvas");
-  if (c) { if (c._onResize) window.removeEventListener("resize", c._onResize); c.remove(); }
-}
-function celebrate() {
-  stopConfetti();
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  var canvas = el("canvas", "confetti-canvas");
-  document.body.appendChild(canvas);
-  var ctx = canvas.getContext("2d");
-  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-  resize();
-  canvas._onResize = resize;
-  window.addEventListener("resize", resize);
-  var colors = ["#e8b44a", "#c62828", "#1f7a46", "#1f6fd0", "#ffffff", "#ff7ab6"];
-  var N = Math.max(80, Math.min(200, Math.round(window.innerWidth / 4)));
-  var parts = [];
-  for (var i = 0; i < N; i++) {
-    parts.push({
-      x: Math.random() * canvas.width, y: -20 - Math.random() * canvas.height,
-      w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
-      vx: -1.5 + Math.random() * 3, vy: 2 + Math.random() * 3.5,
-      rot: Math.random() * Math.PI, vr: -0.2 + Math.random() * 0.4,
-      color: colors[Math.floor(Math.random() * colors.length)]
-    });
-  }
-  var DURATION = 4500, start = Date.now();
-  function frame() {
-    var elapsed = Date.now() - start;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    var fade = elapsed > DURATION - 900 ? Math.max(0, (DURATION - elapsed) / 900) : 1;
-    for (var i = 0; i < parts.length; i++) {
-      var p = parts[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.rot += p.vr;
-      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      ctx.globalAlpha = fade; ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
-    }
-    if (elapsed < DURATION) confettiRAF = requestAnimationFrame(frame);
-    else stopConfetti();
-  }
-  confettiRAF = requestAnimationFrame(frame);
-}
+// celebrate() y stopConfetti() viven en shared/ui.js.
 
 /* ---------- Aviso breve ---------- */
 // toast() vive en shared/ui.js.
@@ -640,17 +595,29 @@ function saveGame() {
 function validSaved(d) {
   if (!d || !d.players || d.players.length !== 4) return false;
   if (d.phase !== "play" && d.phase !== "pass") return false;   // sólo estados jugables
-  var n = 0, i, s;
+  // Las cartas en juego (manos + baza en mesa) no pueden repetirse (RNF-04:
+  // un guardado corrupto se descarta), igual que en Solitario/Carta Blanca.
+  var n = 0, i, s, seen = {}, key;
   if (d.trick != null) {
     if (!Array.isArray(d.trick)) return false;
-    for (i = 0; i < d.trick.length; i++) if (!d.trick[i] || !validCard(d.trick[i].card)) return false;
+    for (i = 0; i < d.trick.length; i++) {
+      if (!d.trick[i] || !validCard(d.trick[i].card)) return false;
+      key = d.trick[i].card.suit + "-" + d.trick[i].card.rank;
+      if (seen[key]) return false;
+      seen[key] = 1;
+    }
     n += d.trick.length;
   }
   n += (d.tricksPlayed || 0) * 4;
   for (s = 0; s < 4; s++) {
     var p = d.players[s];
     if (!p || !Array.isArray(p.hand)) return false;
-    for (i = 0; i < p.hand.length; i++) if (!validCard(p.hand[i])) return false;
+    for (i = 0; i < p.hand.length; i++) {
+      if (!validCard(p.hand[i])) return false;
+      key = p.hand[i].suit + "-" + p.hand[i].rank;
+      if (seen[key]) return false;
+      seen[key] = 1;
+    }
     if (p.taken != null && !Array.isArray(p.taken)) return false;
     n += p.hand.length;
   }
