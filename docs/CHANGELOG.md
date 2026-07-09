@@ -10,6 +10,31 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+### Corregido
+
+- **Service worker servía CSS/JS viejo con HTML nuevo (íconos rotos tras
+  actualizar).** El SW cacheaba el CSS/JS con estrategia *stale-while-
+  revalidate* (copia de caché primero). Al cambiar estilos en varias fases sin
+  subir `VERSION`, un visitante que ya tenía la app cacheada recibía el HTML
+  nuevo (con íconos SVG) junto al `styles/base.css` viejo (sin la regla
+  `.icon`): los íconos se renderizaban a su tamaño intrínseco (~62px, negros,
+  desbordando los botones) y la interfaz se veía rota. Se corrigió de dos
+  formas: (1) el código del app shell (HTML, CSS y JS) pasa a **network-first**
+  —en línea, las tres piezas se traen siempre de la misma versión y no pueden
+  desincronizarse aunque se olvide subir `VERSION`; sin conexión se sirve la
+  copia cacheada—; los binarios estáticos (íconos, favicon, manifest) siguen
+  *stale-while-revalidate* porque casi nunca cambian y una copia vieja no rompe
+  nada. (2) Se subió `VERSION` a `v1.9.0` para que el SW nuevo reemplace al
+  viejo y re-precachee limpio en los clientes que ya tenían la caché
+  envenenada. **Test de regresión nuevo**: envenena la caché con un `base.css`
+  sin `.icon` y verifica que la recarga en línea igual sirve el CSS fresco.
+- **Buscaminas se rompía en navegadores sin container queries.** Al pasar el
+  dimensionado del tablero a CSS (Fase 2) quedó dependiendo 100% de las
+  unidades `cqw`/`cqh` (soporte desde ~2022), sin respaldo tras eliminar el
+  `setSizes()` de JS. Se agregó un `@supports not (width: 1cqw)` que fija un
+  tamaño de celda razonable, así el tablero degrada a algo funcional en vez de
+  romperse en un navegador viejo.
+
 ### Cambiado
 
 - **Diseño (Fase 3 de PLAN.md): íconos SVG en vez de emoji.** Los emojis de
