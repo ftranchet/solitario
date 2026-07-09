@@ -12,6 +12,24 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.6.0] — 2026-07-09
+
+### Cambiado
+
+- **Solitario y Carta Blanca: un solo toque/clic manda la carta a su lugar.**
+  Antes hacía falta tocar una carta dos veces (o doble clic) para que fuera
+  sola a la fundación o a una columna válida; el primer toque sólo la
+  seleccionaba. Ahora ese mismo movimiento automático (`autoMoveSelection()`,
+  sin cambios en la lógica de "a dónde va") se dispara con el primer toque:
+  si hay un destino legal, la carta viaja de inmediato; si no lo hay, el
+  toque la selecciona igual que antes (para arrastrarla o elegir el destino
+  a mano tocando otra pila). RF-SOL-02 y la ayuda "Cómo jugar" de ambos
+  juegos se actualizan para reflejarlo. Sin cambios en Corazones (ya juega
+  con un solo toque) ni en Buscaminas (no aplica: no hay "carta" que mover).
+  Tests nuevos con click real de mouse (no sólo teclado) que verifican el
+  movimiento en una sola acción; los dos tests de teclado existentes se
+  simplificaron de dos activaciones a una.
+
 ## [1.5.0] — 2026-07-09
 
 Segunda pasada de la auditoría de merge (1.4.0): cierra el hueco real que

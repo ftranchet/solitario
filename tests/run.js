@@ -305,9 +305,11 @@ test("Carta Blanca: autocompletar aparece y autoWinnable no muta el estado", asy
   assertNoErrors(p.errors);
 });
 
-/* 11b) Carta Blanca — selecciona y mueve una carta con el teclado (Enter en
-   vez de click), reutilizando el mismo handleCardClick que usa el mouse. */
-test("Carta Blanca: selecciona y mueve una carta con el teclado (Enter)", async function (ctx) {
+/* 11b) Carta Blanca — un solo Enter (en vez de click) manda la carta del
+   pozo libre a su lugar, reutilizando el mismo handleCardClick que usa el
+   mouse/tap. Antes hacía falta seleccionar y tocar el destino aparte (dos
+   acciones); ahora una activación por teclado alcanza, igual que un tap. */
+test("Carta Blanca: un solo Enter manda la carta a su lugar (teclado)", async function (ctx) {
   var p = await open(ctx, "carta-blanca.html");
   await p.page.evaluate(function () {
     function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
@@ -320,14 +322,37 @@ test("Carta Blanca: selecciona y mueve una carta con el teclado (Enter)", async 
     selection = null; undoStack = []; render();
   });
   await p.page.evaluate(function () { document.querySelector('.card[data-pile="free"]').focus(); });
-  await p.page.keyboard.press("Enter");   // selecciona el 9♥ del pozo libre
-  await p.page.evaluate(function () { document.querySelector('.card[data-pile="tableau"][data-col="0"]').focus(); });
-  await p.page.keyboard.press(" ");        // mueve el 9♥ sobre el 10♠ (Espacio = Enter)
+  await p.page.keyboard.press("Enter");   // un solo Enter: manda el 9♥ sobre el 10♠
   var r = await p.page.evaluate(function () {
     return { col0: state.tableau[0].length, free0: state.free[0], moves: state.moves };
   });
   assert(r.col0 === 2 && r.free0 === null && r.moves === 1,
-    "el teclado debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
+    "un solo Enter debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
+/* 11c) Carta Blanca — un solo click de mouse (no doble clic, no seleccionar
+   y tocar aparte) manda una carta del tablero a la columna que la recibe.
+   Pedido explícito: "hoy las cartas van al lugar adecuado con 2 clicks o
+   toques, hacelo que sea sólo con uno". */
+test("Carta Blanca: un solo click manda la carta a la columna que la recibe", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    state = {
+      free: [null, null, null, null],
+      foundations: [[], [], [], []],
+      tableau: [[c("hearts", 9, 500)], [c("spades", 10, 501)], [], [], [], [], [], []],
+      moves: 0
+    };
+    selection = null; undoStack = []; render();
+  });
+  await p.page.click('.card[data-pile="tableau"][data-col="0"]');
+  var r = await p.page.evaluate(function () {
+    return { col0: state.tableau[0].length, col1: state.tableau[1].length, moves: state.moves, selected: !!selection };
+  });
+  assert(r.col0 === 0 && r.col1 === 2 && r.moves === 1 && !r.selected,
+    "un solo click debería mover el 9♥ sobre el 10♠: " + JSON.stringify(r));
   assertNoErrors(p.errors);
 });
 
@@ -876,9 +901,11 @@ test("Solitario: arrastrar del descarte a una columna (drag & drop real)", async
   assertNoErrors(p.errors);
 });
 
-/* 27b) Solitario — la misma jugada de arriba, pero por teclado (Tab + Enter en
-   vez de mouse): navegación por teclado real, sin simular clicks. */
-test("Solitario: selecciona y mueve una carta con el teclado (Enter)", async function (ctx) {
+/* 27b) Solitario — un solo Enter (en vez de click) manda la carta del
+   descarte a su lugar, reutilizando el mismo handleCardClick que usa el
+   mouse/tap. Antes hacía falta seleccionar y tocar el destino aparte (dos
+   acciones); ahora una activación por teclado alcanza, igual que un tap. */
+test("Solitario: un solo Enter manda la carta a su lugar (teclado)", async function (ctx) {
   var p = await open(ctx, "solitario.html");
   await p.page.evaluate(function () {
     function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
@@ -888,14 +915,41 @@ test("Solitario: selecciona y mueve una carta con el teclado (Enter)", async fun
     render();
   });
   await p.page.evaluate(function () { document.querySelector('.card[data-pile="waste"]').focus(); });
-  await p.page.keyboard.press("Enter");   // selecciona el 9♥
-  await p.page.evaluate(function () { document.querySelector('.card[data-pile="tableau"][data-col="0"]').focus(); });
-  await p.page.keyboard.press(" ");        // mueve el 9♥ sobre el 10♠ (Espacio = Enter)
+  await p.page.keyboard.press("Enter");   // un solo Enter: manda el 9♥ sobre el 10♠
   var r = await p.page.evaluate(function () {
     return { col0: state.tableau[0].length, waste: state.waste.length, moves: state.moves };
   });
   assert(r.col0 === 2 && r.waste === 0 && r.moves === 1,
-    "el teclado debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
+    "un solo Enter debería reproducir la misma jugada que el mouse: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
+/* 27c) Solitario — un solo click de mouse (no doble clic, no seleccionar y
+   tocar aparte) manda un As del descarte a la fundación. Pedido explícito:
+   "hoy las cartas van al lugar adecuado con 2 clicks o toques, hacelo que
+   sea sólo con uno". */
+test("Solitario: un solo click manda la carta a la fundación (un As en el descarte)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    state = { stock: [], waste: [c("hearts", 1, 500)], foundations: [[], [], [], []],
+              tableau: [[], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; stuckCheckMoves = -1;
+    render();
+  });
+  await p.page.click('.card[data-pile="waste"]');
+  var r = await p.page.evaluate(function () {
+    return {
+      waste: state.waste.length,
+      foundations: state.foundations.reduce(function (a, f) { return a + f.length; }, 0),
+      moves: state.moves,
+      selected: !!selection
+    };
+  });
+  assert(r.waste === 0, "el As debería salir del descarte con un solo click");
+  assert(r.foundations === 1, "el As debería quedar en alguna fundación: " + JSON.stringify(r));
+  assert(r.moves === 1, "debería contarse un solo movimiento (fue " + r.moves + ")");
+  assert(!r.selected, "no debería quedar nada seleccionado tras el movimiento automático");
   assertNoErrors(p.errors);
 });
 

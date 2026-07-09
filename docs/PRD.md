@@ -109,7 +109,8 @@ inicio y jugable completamente offline.
 - **RF-SOL-01.** Reparto Klondike con robo de a 1 o de a 3 (preferencia
   persistente); reciclado del mazo.
 - **RF-SOL-02.** Movimientos válidos entre columnas, a fundaciones y desde el
-  descarte, con arrastrar-y-soltar y doble clic.
+  descarte, con arrastrar-y-soltar y un solo toque/clic (manda la carta a su
+  lugar de un tirón si hay un destino legal).
 - **RF-SOL-03.** Deshacer, pistas, detección de atasco y autocompletado.
 - **RF-SOL-04.** Detección de victoria (una sola vez) y registro de estadísticas.
 - **RF-SOL-05.** La partida en curso se guarda y se restaura al recargar.

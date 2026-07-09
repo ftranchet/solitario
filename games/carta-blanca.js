@@ -248,7 +248,14 @@ function handleCardClick(pile, col, index) {
     else { selection = null; render(); }
     return;
   }
-  if (selectCard(pile, col, index)) render();
+  // Sin selección previa, un solo toque manda la carta a su lugar (fundación,
+  // una columna válida o, como último recurso, un pozo libre) si hay destino
+  // legal — antes hacía falta un segundo toque sobre la misma carta (o un
+  // doble clic) para esto mismo. Si no hay destino, sólo la selecciona: se
+  // puede arrastrar o elegir el destino a mano tocando otra pila.
+  if (!selectCard(pile, col, index)) return;
+  if (autoMoveSelection()) { selection = null; afterMove(); return; }
+  render();
 }
 function handleEmptyColumn(col) {
   if (autoTimer || !selection) return;
