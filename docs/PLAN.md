@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Vigente (Fases 0-2 hechas) |
-| Versión | 1.2 |
+| Estado | Vigente (Fases 0-3 hechas) |
+| Versión | 1.3 |
 | Fecha | 2026-07-08 |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [CHANGELOG](./CHANGELOG.md) |
 
@@ -154,7 +154,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 0 | Baseline visual + test de precache automático | 1 | ✅ |
 | 1 | Externalizar el motor → CSP estricta en las 6 páginas | 1 | ✅ |
 | 2 | Layout apaisado en celular + Buscaminas a CSS | 2 | ✅ |
-| 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ⬜ |
+| 3 | Íconos SVG (decorativos + estado de Buscaminas) | 3 | ✅ |
 | 4 | Modo oscuro (paleta a elegir) | 3 | ⬜ |
 | 5 | View Transitions + aviso de actualización del SW | 3 | ⬜ |
 
@@ -250,3 +250,46 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
     esta fase) + capturas comparadas en los 4 breakpoints. `docs/screenshots/
     baseline/` se regeneró con el estado post-Fase 2 (nueva referencia para
     la Fase 3).
+- **Fase 3 (hecha).** Familia de íconos SVG minimalista inline (trazo,
+  `stroke-width: 2`, sin relleno — estilo Lucide/Phosphor) reemplazando los
+  emojis de la interfaz "de chrome" (no del contenido de juego: los palos
+  ♠♥♦♣ de las cartas quedan igual). Nueva clase `.icon` en `styles/base.css`
+  (`width/height: 1.1em`, hereda el `font-size` del contexto — botón, celda de
+  Buscaminas, carita, ícono de menú — sin overrides por breakpoint).
+  - **3a — decorativos.** `header` (menú de juegos), `opciones`, `pista`,
+    `nueva`, `deshacer` y `victoria` en los 4 juegos; el menú de navegación
+    (`.game-list`, 6 íconos × 4 páginas: Inicio/Solitario/Carta Blanca —ya
+    era SVG—/Corazones/Buscaminas/Estadísticas); `games/registry.js` (los
+    íconos del launcher y de las tarjetas de Estadísticas comparten la MISMA
+    fuente que el menú, ya soportaba `<svg>` inline desde la Fase 4 vieja de
+    ARQUITECTURA.md); y los íconos propios de `index.html`/`estadisticas.html`
+    (título, enlaces cruzados Inicio ↔ Estadísticas).
+  - **3b — estado de Buscaminas.** `render()` en `games/buscaminas.js` pasa de
+    `textContent` (emoji) a `innerHTML` (SVG) para: mina revelada, bandera,
+    bandera errónea, y las 4 caritas (esperando/ganó/perdió/generando). El
+    botón de modo (Cavar/Bandera) también. Sin tests rotos: ninguno dependía
+    del texto del emoji, sólo de clases/estado del juego.
+  - **Iteración de diseño (no a ciegas).** Se armó un prototipo aislado
+    (`tests/screenshot.js`-style, HTML suelto + captura) para revisar cada
+    ícono antes de propagarlo a los 6 archivos. Dos correcciones reales
+    encontradas ahí: (1) "Nueva" y "Deshacer" habían quedado con el mismo
+    trazo por error de copy-paste — se diferenciaron (+ vs. flecha de
+    "volver"); (2) el ícono de bomba, con la chispa pegada al círculo, se leía
+    como un reloj o el símbolo de Marte (♂), no como una bomba — se separó la
+    chispa del cuerpo con un fusible curvo. El ícono de "victoria" (medalla)
+    se veía bien chico pero no leía como "victoria" a 56px (el tamaño real
+    del modal de victoria); se cambió a un trofeo clásico, más reconocible a
+    ese tamaño.
+  - **Texto de ayuda.** Los modales "Cómo jugar" mencionaban los botones por
+    su emoji viejo ("Tocá 💡 Pista", "Opciones ⚙"); se les sacó el emoji
+    (ya no coincide con el botón real) y quedó sólo el nombre en negrita.
+  - **Deliberadamente fuera de alcance.** Los contadores del HUD (⏱ tiempo,
+    🃏 movimientos, 💣 minas) y el texto decorativo dentro de oraciones
+    (🎊/🥳/🎉 en los mensajes de victoria, 💔/🌙 de Corazones, 📋 Puntajes)
+    no son "íconos de chrome" en el sentido del punto 3a — quedan para una
+    fase futura si hiciera falta.
+  - **Puerta:** 53/53 tests verdes, `tsc -p .` limpio, capturas en los 4
+    breakpoints de los 6 juegos + estados especiales (menú abierto, modal de
+    victoria, celda con mina/bandera, las 4 caritas de Buscaminas) revisadas
+    una por una. `docs/screenshots/baseline/` se regeneró como nueva
+    referencia para la Fase 4.

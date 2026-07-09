@@ -12,6 +12,18 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ### Cambiado
 
+- **Diseño (Fase 3 de PLAN.md): íconos SVG en vez de emoji.** Los emojis de
+  la interfaz "de chrome" (menú de juegos, opciones, pista, nueva, deshacer,
+  victoria, navegación entre pantallas, y el estado de Buscaminas —mina,
+  bandera, caritas—) se reemplazaron por una familia de íconos SVG
+  minimalista inline (trazo, sin CDN de íconos, respeta la CSP estricta).
+  Antes se veían distinto en iOS/Android/Windows (los emojis usan la fuente
+  del sistema); ahora son consistentes en todas las plataformas. Nueva clase
+  `.icon` compartida en `styles/base.css`. Los palos de las cartas (♠♥♦♣) y
+  los contadores del HUD (⏱🃏💣) quedan fuera de este cambio a propósito. Sin
+  cambios de comportamiento (53 tests verdes, `tsc -p .` limpio; ninguno de
+  los tests dependía del texto de los emojis reemplazados). Ver
+  [PLAN.md](./PLAN.md), Fase 3.
 - **Arquitectura (Fase 2 de PLAN.md): riel lateral en apaisado corto +
   Buscaminas a CSS.** En `@media (orientation: landscape) and (max-height:
   500px)`, el header y el footer de los 4 juegos pasan de barras horizontales
