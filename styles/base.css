@@ -55,6 +55,21 @@ header {
   outline: 3px solid var(--gold); outline-offset: 2px;
 }
 
+/* ---------- Íconos SVG (Fase 3 de docs/PLAN.md) ----------
+   Familia de íconos minimalista inline (trazo, sin relleno), en vez de
+   emojis (que se ven distinto en iOS/Android/Windows). Tamaño en `em`: hereda
+   el font-size del contexto (botón, celda, carita, ícono del menú) sin
+   necesitar overrides por breakpoint. Del mismo origen (inline en el HTML),
+   sin fuente de íconos por CDN: no le suma superficie a la CSP. */
+.icon {
+  width: 1.1em; height: 1.1em; flex: none;
+  fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.15em;
+}
+.btn .icon { margin-right: 2px; }
+.btn.ghost .icon { margin-right: 0; }
+
 /* ---------- Aviso flotante (toast) ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(10px);

@@ -22,8 +22,8 @@ requisitos y el [CHANGELOG](docs/CHANGELOG.md) para el historial de cambios.
 - **Corazones** (`corazones.html`)
 - **Buscaminas** (`buscaminas.html`)
 
-Desde cualquier juego se puede saltar a otro con el botón 🎮, y hay una pantalla
-de **Estadísticas** (`estadisticas.html`).
+Desde cualquier juego se puede saltar a otro con el botón de menú (🎮), y hay
+una pantalla de **Estadísticas** (`estadisticas.html`).
 
 ## Tests
 

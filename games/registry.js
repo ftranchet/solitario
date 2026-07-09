@@ -42,13 +42,25 @@
     '<text x="15" y="21" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" ' +
     'font-weight="bold" font-size="16" fill="#1a1a1a">&#9824;</text></svg>';
 
+  // Familia de íconos SVG minimalista (Fase 3 de docs/PLAN.md), estilo trazo
+  // sin relleno, en vez de emoji (se ven distinto en iOS/Android/Windows).
+  var SOLITARIO_ICON =
+    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M12 8v3"/><circle cx="12" cy="14.5" r="1.6"/></svg>';
+  var CORAZONES_ICON =
+    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.4 0 4.2 1.4 6 4 1.8-2.6 3.6-4 6-4 4 0 5.5 4 4 7.7-2.5 4.7-10 9.3-10 9.3Z"/></svg>';
+  var BUSCAMINAS_ICON =
+    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<circle cx="11" cy="15" r="6.5"/><path d="M11 8.5C10.3 7 12.7 6.6 12.2 4.8"/><circle cx="12.2" cy="4.2" r="1"/></svg>';
+
   /** @type {GameEntry[]} */
   window.GAMES = [
     {
       id: "solitario",
       title: "Solitario",
       href: "solitario.html",
-      icon: "🃏",
+      icon: SOLITARIO_ICON,
       statsKey: "solitario.stats",
       body: function (st, h) {
         if (!h.n(st.played)) return "";
@@ -72,7 +84,7 @@
       id: "corazones",
       title: "Corazones",
       href: "corazones.html",
-      icon: "❤️",
+      icon: CORAZONES_ICON,
       statsKey: "corazones.stats",
       body: function (st, h) {
         if (!h.n(st.played)) return "";
@@ -85,7 +97,7 @@
       id: "buscaminas",
       title: "Buscaminas",
       href: "buscaminas.html",
-      icon: "💣",
+      icon: BUSCAMINAS_ICON,
       statsKey: "buscaminas.stats",
       // Buscaminas no tiene "jugadas/ganadas" globales: se agrupa por
       // dificultad, así que arma su propia tabla en vez de usar rowPlayed().
