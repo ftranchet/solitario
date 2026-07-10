@@ -472,11 +472,16 @@ test("Solitario: el guardado corrupto (JSON basura o carta repetida) se descarta
     s2.stock[0] = JSON.parse(JSON.stringify(s2.stock[1]));   // carta duplicada (siguen siendo 52)
     localStorage.setItem(GAME_KEY, JSON.stringify({ state: s2, seconds: 5, counted: false }));
     out.dupRejected = loadGame() === false;
+    // Un guardado de una VERSIÓN futura desconocida también se descarta
+    // (formato versionado, v:1 hoy), aunque su forma parezca válida.
+    localStorage.setItem(GAME_KEY, JSON.stringify({ v: 99, state: JSON.parse(JSON.stringify(state)), seconds: 5, counted: false }));
+    out.futureRejected = loadGame() === false;
     out.stateIntact = state.moves === movesBefore;
     return out;
   });
   assert(r.garbageRejected, "loadGame debería rechazar JSON inválido");
   assert(r.dupRejected, "loadGame debería rechazar un mazo con carta repetida");
+  assert(r.futureRejected, "loadGame debería rechazar un guardado con versión de formato desconocida (v:99)");
   assert(r.stateIntact, "el estado en juego no debe cambiar al rechazar un guardado");
   assertNoErrors(p.errors);
 });
@@ -1336,6 +1341,59 @@ test("Contrato: el menú de juegos de cada juego se genera desde games/registry.
   }
 });
 
+/* 39c) Contrato — la ESTRUCTURA de cada página de juego es la esperada:
+   scripts compartidos presentes y en el orden correcto (theme antes del CSS
+   para no flashear, registry antes de menu.js, el motor al final),
+   data-store-ns coincidiendo con el id del registro (si divergen, el candado
+   multi-pestaña y las estadísticas usan claves distintas EN SILENCIO), el
+   toggle de Tema en Opciones, viewport-fit=cover (safe areas del notch) y
+   las hojas de estilo en orden (tokens → base → game). Es el checklist
+   ejecutable para agregar un juego nuevo: ver docs/COMO-AGREGAR-UN-JUEGO.md. */
+test("Contrato: la estructura de cada página de juego es la esperada", async function (ctx) {
+  var p0 = await open(ctx, "index.html");
+  var registry = await p0.page.evaluate(function () {
+    return window.GAMES.map(function (g) { return { id: g.id, href: g.href }; });
+  });
+  for (var i = 0; i < registry.length; i++) {
+    var g = registry[i];
+    var p = await open(ctx, g.href);
+    var r = await p.page.evaluate(function () {
+      var scripts = Array.prototype.map.call(document.querySelectorAll("script[src]"), function (s) { return s.getAttribute("src"); });
+      var sheets = Array.prototype.map.call(document.querySelectorAll('link[rel="stylesheet"]'), function (l) { return l.getAttribute("href"); });
+      var vp = document.querySelector('meta[name="viewport"]');
+      return {
+        storeNs: document.documentElement.dataset.storeNs,
+        scripts: scripts,
+        sheets: sheets,
+        themeBtns: document.querySelectorAll("#settings [data-theme-pref]").length,
+        viewportFit: !!(vp && /viewport-fit=cover/.test(vp.getAttribute("content") || ""))
+      };
+    });
+    assert(r.storeNs === g.id,
+      g.href + ": data-store-ns ('" + r.storeNs + "') debe coincidir con el id del registro ('" + g.id + "')");
+    // Scripts obligatorios, en orden relativo (los índices deben ir creciendo).
+    // El motor se nombra según el archivo HTML (games/carta-blanca.js), no
+    // según el id del registro ("cartablanca", el namespace de storage).
+    var motor = "games/" + g.href.replace(".html", ".js");
+    var required = ["shared/theme.js", "shared/pwa.js", "games/registry.js",
+                    "shared/ui.js", "shared/storage.js", "shared/menu.js", motor];
+    var lastIdx = -1;
+    for (var s = 0; s < required.length; s++) {
+      var idx = r.scripts.indexOf(required[s]);
+      assert(idx >= 0, g.href + ": falta <script src=\"" + required[s] + "\">");
+      assert(idx > lastIdx, g.href + ": " + required[s] + " está fuera de orden (ver docs/COMO-AGREGAR-UN-JUEGO.md)");
+      lastIdx = idx;
+    }
+    assert(r.scripts[r.scripts.length - 1] === motor, g.href + ": el motor (" + motor + ") debe ser el ÚLTIMO script");
+    // Hojas de estilo compartidas, en orden: tokens → base → game.
+    var ti = r.sheets.indexOf("styles/tokens.css"), bi = r.sheets.indexOf("styles/base.css"), gi = r.sheets.indexOf("styles/game.css");
+    assert(ti >= 0 && bi > ti && gi > bi, g.href + ": las hojas deben ir tokens → base → game (van: " + r.sheets.join(", ") + ")");
+    assert(r.themeBtns === 3, g.href + ": el modal de Opciones debe tener el toggle de Tema (Auto/Claro/Oscuro)");
+    assert(r.viewportFit, g.href + ": el meta viewport debe incluir viewport-fit=cover (safe areas del notch)");
+    assertNoErrors(p.errors);
+  }
+});
+
 /* 40) Precache — todo archivo servido (HTML, CSS, JS, íconos) está en la lista
    ASSETS de sw.js. Hoy esa correspondencia se cuida a mano; con más archivos
    por juego (ver Fase 1 de docs/PLAN.md) el riesgo de olvidar uno —y romper el
@@ -1541,6 +1599,33 @@ test("Responsive: riel único a la izquierda (header + controles) en apaisado co
   }
 });
 
+/* 45b1b) Responsive — REGRESIÓN: en pantallas muy bajas (p. ej. iPhone SE
+   apaisado, 320px de alto), los controles del pie (Pista, etc.) quedaban
+   FUERA de la pantalla y el riel no scrolleaba (la fila del header crecía
+   más allá del viewport sin activar su overflow). Ahora los controles son
+   la fila fija de abajo (siempre visibles) y el header es el que scrollea. */
+test("Responsive: los controles del riel quedan siempre visibles en pantallas muy bajas", async function (ctx) {
+  var pages = ["solitario.html", "corazones.html"];   // corazones es el peor caso (más botones)
+  for (var i = 0; i < pages.length; i++) {
+    var p = await newPage(ctx);
+    await p.page.setViewportSize({ width: 700, height: 320 });
+    await p.page.goto(url(pages[i]), { waitUntil: "load" });
+    await p.page.waitForTimeout(150);
+    var r = await p.page.evaluate(function () {
+      var hint = document.getElementById("btn-hint").getBoundingClientRect();
+      var header = document.querySelector("#app header");
+      return {
+        hintVisible: hint.bottom <= window.innerHeight + 1 && hint.top >= 0 && hint.width > 0,
+        headerScrollable: header.scrollHeight <= header.clientHeight + 1 ||
+                          getComputedStyle(header).overflowY === "auto"
+      };
+    });
+    assert(r.hintVisible, pages[i] + ": el botón Pista debería quedar SIEMPRE dentro de la pantalla a 320px de alto");
+    assert(r.headerScrollable, pages[i] + ": si el header no entra, debería poder scrollear");
+    assertNoErrors(p.errors);
+  }
+});
+
 /* 45b2) Responsive — en apaisado corto, Solitario y Carta Blanca reordenan el
    tablero: mazo/descarte o pozos libres en una COLUMNA a la izquierda y las
    pilas finales en una COLUMNA a la derecha, con las columnas de juego usando
@@ -1709,6 +1794,83 @@ test("Buscaminas: en modo oscuro las celdas reveladas tienen fondo oscuro", asyn
   assertNoErrors(p.errors);
 });
 
+/* 45b7) Responsive — barrido de humo multi-pantalla: los 4 juegos cargan en
+   una matriz de tamaños (desde iPhone SE en ambas orientaciones hasta
+   desktop ancho) sin errores de consola y SIN desborde horizontal del
+   documento. Es la red genérica para "tamaños de pantalla": los tests
+   específicos cubren layouts concretos; éste atrapa cualquier tamaño que
+   rompa algo básico. */
+test("Responsive: barrido de humo en 6 tamaños de pantalla (4 juegos)", async function (ctx) {
+  var viewports = [
+    { width: 320, height: 568 },   // iPhone SE vertical
+    { width: 568, height: 320 },   // iPhone SE apaisado (el más chico real)
+    { width: 360, height: 740 },   // Android típico vertical
+    { width: 740, height: 360 },   // Android típico apaisado
+    { width: 1024, height: 768 },  // tablet apaisada
+    { width: 1440, height: 900 }   // desktop ancho
+  ];
+  var pages = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
+  for (var v = 0; v < viewports.length; v++) {
+    for (var i = 0; i < pages.length; i++) {
+      var p = await newPage(ctx);
+      await p.page.setViewportSize(viewports[v]);
+      await p.page.goto(url(pages[i]), { waitUntil: "load" });
+      await p.page.waitForTimeout(120);
+      var r = await p.page.evaluate(function () {
+        return {
+          overflowX: document.body.scrollWidth - window.innerWidth,
+          hasBoard: !!document.querySelector("#board, #play")
+        };
+      });
+      var tag = pages[i] + " a " + viewports[v].width + "x" + viewports[v].height;
+      assert(r.hasBoard, tag + ": el tablero debería existir");
+      assert(r.overflowX <= 1, tag + ": no debería haber desborde horizontal (sobran " + r.overflowX + "px)");
+      assertNoErrors(p.errors);
+    }
+  }
+});
+
+/* 45b8) Accesibilidad — modales: Escape cierra los DESCARTABLES (vía su
+   propio botón "-close", así corre la misma lógica que el botón), el foco
+   entra al abrir, Tab queda atrapado adentro y el foco se restaura al
+   cerrar. El modal de fin de mano de Corazones NO se cierra con Escape (su
+   único botón avanza el juego; cerrarlo "gratis" dejaría la partida
+   trabada en scoring). */
+test("Modales: Escape cierra, el foco entra, queda atrapado y se restaura", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.click("#btn-settings");
+  var r1 = await p.page.evaluate(function () {
+    var s = document.getElementById("settings");
+    return { open: !s.hidden, focusInside: s.contains(document.activeElement) };
+  });
+  assert(r1.open, "el modal de Opciones debería abrirse");
+  assert(r1.focusInside, "al abrir, el foco debería entrar al modal");
+  for (var t = 0; t < 9; t++) await p.page.keyboard.press("Tab");
+  var r2 = await p.page.evaluate(function () {
+    return document.getElementById("settings").contains(document.activeElement);
+  });
+  assert(r2, "tras 9 Tabs el foco debería seguir ADENTRO del modal (atrapado)");
+  await p.page.keyboard.press("Escape");
+  var r3 = await p.page.evaluate(function () {
+    return { closed: document.getElementById("settings").hidden, focusBack: document.activeElement === document.getElementById("btn-settings") };
+  });
+  assert(r3.closed, "Escape debería cerrar el modal de Opciones");
+  assert(r3.focusBack, "al cerrar, el foco debería volver al botón que abrió el modal");
+  assertNoErrors(p.errors);
+
+  // Corazones: el fin de mano NO se descarta con Escape.
+  var p2 = await open(ctx, "corazones.html");
+  await p2.page.evaluate(function () {
+    for (var s = 0; s < 4; s++) { players[s].score = 0; players[s].roundPoints = 0; players[s].taken = []; players[s].hand = []; }
+    players[1].roundPoints = 26; phase = "play"; handHistory = []; handNumber = 1; target = 100;
+    endHand();
+  });
+  await p2.page.keyboard.press("Escape");
+  var r4 = await p2.page.evaluate(function () { return document.getElementById("round").hidden; });
+  assert(r4 === false, "Escape NO debería cerrar el modal de fin de mano (cerrarlo trabaría la partida)");
+  assertNoErrors(p2.errors);
+});
+
 /* 45c) Tema "auto" — con la preferencia en "auto" (el default: nadie tocó el
    toggle), el tema debe reaccionar EN VIVO al cambio de
    prefers-color-scheme del SISTEMA, sin intervención del usuario (ver el
@@ -1737,16 +1899,30 @@ test("Tema 'auto': sigue el prefers-color-scheme del sistema en vivo", async fun
 
 /* ========================= RUNNER ========================= */
 (async function () {
+  // --smoke: sólo los tests de humo (carga sin errores + metadatos PWA).
+  // Pensado para correr la suite mínima en OTRO motor de navegador (WebKit =
+  // Safari) en CI: PW_BROWSER=webkit npm test -- --smoke
+  var SMOKE = process.argv.indexOf("--smoke") >= 0;
+  if (SMOKE) {
+    tests = tests.filter(function (t) { return /^carga sin errores|^PWA: todas las páginas/.test(t.name); });
+  }
+
   var srv = await startServer(ROOT);
   BASE = "http://127.0.0.1:" + srv.port + "/";
-  var launch = resolveLaunch();
-  console.log("Navegador: " + (launch.executablePath || ("channel:" + launch.channel)) + "  ·  sirviendo " + BASE);
   var browser;
   try {
-    browser = await chromium.launch(Object.assign({ headless: true, args: ["--no-sandbox"] }, launch));
+    if (process.env.PW_BROWSER === "webkit") {
+      var webkit = require("playwright-core").webkit;
+      console.log("Navegador: webkit  ·  sirviendo " + BASE + (SMOKE ? "  ·  (smoke)" : ""));
+      browser = await webkit.launch({ headless: true });
+    } else {
+      var launch = resolveLaunch();
+      console.log("Navegador: " + (launch.executablePath || ("channel:" + launch.channel)) + "  ·  sirviendo " + BASE + (SMOKE ? "  ·  (smoke)" : ""));
+      browser = await chromium.launch(Object.assign({ headless: true, args: ["--no-sandbox"] }, launch));
+    }
   } catch (e) {
     srv.server.close();
-    console.error("\nNo se pudo abrir Chromium. Definí CHROMIUM_BIN o instalá Google Chrome.\n" + e.message);
+    console.error("\nNo se pudo abrir el navegador. Definí CHROMIUM_BIN o instalá Google Chrome (o, para WebKit, `npx playwright install webkit`).\n" + e.message);
     process.exit(2);
   }
   var passed = 0, failed = 0;

@@ -100,6 +100,85 @@ function clickActivate(el, handler) {
 }
 
 /*
+ * Accesibilidad de los modales (.overlay), común a los 4 juegos:
+ *   - Escape cierra el modal visible, PERO sólo los descartables: se cierra
+ *     clickeando su propio botón de cierre (id terminado en "-close"), así
+ *     corre la misma lógica que el botón (p. ej. #win-close también frena el
+ *     confeti). El modal de fin de mano de Corazones NO tiene botón "-close"
+ *     (su único botón AVANZA el juego) y por eso Escape no lo toca.
+ *   - El foco queda atrapado adentro (Tab/Shift+Tab ciclan) mientras haya un
+ *     modal abierto, entra solo al abrirlo y vuelve a donde estaba al
+ *     cerrarlo (patrón WAI-ARIA de diálogo modal).
+ */
+(function () {
+  function visibleOverlays() {
+    var all = document.querySelectorAll(".overlay");
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      var o = /** @type {HTMLElement} */ (all[i]);
+      if (!o.hidden) out.push(o);
+    }
+    return out;
+  }
+  /** @param {HTMLElement} root */
+  function focusables(root) {
+    var nodes = root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    /** @type {HTMLElement[]} */
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var el2 = /** @type {HTMLElement} */ (nodes[i]);
+      var disabled = /** @type {HTMLButtonElement} */ (el2).disabled;
+      if (!disabled && el2.offsetParent !== null) out.push(el2);
+    }
+    return out;
+  }
+
+  document.addEventListener("keydown", function (e) {
+    var open = visibleOverlays();
+    if (!open.length) return;
+    var top = open[open.length - 1];
+    if (e.key === "Escape") {
+      var closeBtn = /** @type {HTMLElement | null} */ (top.querySelector('[id$="-close"]'));
+      if (closeBtn) { e.preventDefault(); closeBtn.click(); }
+      return;
+    }
+    if (e.key !== "Tab") return;
+    var f = focusables(top);
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    var active = document.activeElement;
+    if (!top.contains(active)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+  });
+
+  // Al abrirse un modal (hidden -> false), el foco entra a su primer control
+  // y se recuerda dónde estaba; al cerrarse, vuelve ahí. Los overlays son
+  // estáticos en el HTML, así que alcanza con observar su atributo `hidden`.
+  /** @type {HTMLElement | null} */
+  var restoreTo = null;
+  var mo = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var o = /** @type {HTMLElement} */ (muts[i].target);
+      if (!o.hidden) {
+        restoreTo = /** @type {HTMLElement | null} */ (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+        var f = focusables(o);
+        if (f.length) f[0].focus();
+      } else if (restoreTo && document.contains(restoreTo)) {
+        restoreTo.focus();
+        restoreTo = null;
+      }
+    }
+  });
+  var overlays = document.querySelectorAll(".overlay");
+  for (var i = 0; i < overlays.length; i++) {
+    mo.observe(overlays[i], { attributes: true, attributeFilter: ["hidden"] });
+    var modal = overlays[i].querySelector(".card-modal");
+    if (modal) { modal.setAttribute("role", "dialog"); modal.setAttribute("aria-modal", "true"); }
+  }
+})();
+
+/*
  * Festejo de victoria: lluvia de confeti en un canvas de pantalla completa
  * (.confetti-canvas, ver styles/game.css). Era idéntico en los 4 juegos; se
  * consolidó acá sin cambiar el comportamiento. Respeta prefers-reduced-motion

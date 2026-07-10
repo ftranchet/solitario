@@ -107,6 +107,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Registro · estadísticas | Las tarjetas de estadísticas se generan iterando el registro |
 | Contrato · registro vs. manifest | Los `shortcuts` del manifest y el registro no divergen |
 | Contrato · menú de juegos | El menú (🎮) de cada página de juego se GENERA desde el registro (`shared/menu.js`); el test abre el menú con un click real en `#btn-menu` y verifica los enlaces resultantes (mismo orden, mismos href, el actual marcado) |
+| Contrato · estructura de página | Cada página de juego tiene los scripts compartidos en orden, `data-store-ns` = id del registro, toggle de Tema, `viewport-fit=cover` y hojas tokens → base → game (el checklist ejecutable de docs/COMO-AGREGAR-UN-JUEGO.md) |
 | Precache | Todo archivo servido (HTML, CSS, JS, íconos) está en la lista `ASSETS` de `sw.js`; un archivo nuevo fuera de la lista rompe el test (ver docs/PLAN.md, Fase 0) |
 
 **Seguridad y tipos**
@@ -128,6 +129,9 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Sin scroll | El reparto inicial de Solitario y Carta Blanca entra completo en el alto disponible (3 viewports: vertical, apaisado, desktop) |
 | Ajuste dinámico | Una columna que crece achica las cartas para entrar sin scroll (y vuelven a crecer al deshacerse); debajo del piso de legibilidad (~52px) se permite el scroll |
 | Buscaminas · oscuro | En `data-theme="dark"` las celdas reveladas usan fondo oscuro, no el crema del modo claro |
+| Controles siempre visibles | A 320px de alto (iPhone SE apaisado), Pista y los demás controles del riel quedan dentro de la pantalla (fila fija de abajo); el header scrollea si no entra |
+| Barrido multi-pantalla | Los 4 juegos cargan en 6 tamaños (320×568 a 1440×900, ambas orientaciones) sin errores de consola ni desborde horizontal |
+| Modales · a11y | Escape cierra los modales descartables, el foco entra al abrir, Tab queda atrapado y el foco se restaura al cerrar; el fin de mano de Corazones NO se cierra con Escape |
 | Carta Blanca · escaleras | Las cartas que no forman parte de la escalera del fondo se atenúan (`.buried`); las conectadas quedan a brillo pleno |
 
 **Accesibilidad (navegación por teclado)**
@@ -139,19 +143,29 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Buscaminas · roving tabindex | Una sola celda es alcanzable por Tab a la vez; las flechas mueven el foco; Enter cava |
 | Buscaminas · `generating` | `onTap` ignora la entrada (por teclado o mouse) mientras el tablero "sin adivinanzas" se genera en segundo plano |
 
-## Screenshots (verificación visual manual)
+## Screenshots y regresión visual automática
 
-`screenshot.js` no es parte de la suite (no hace assertions): captura las 6
-páginas en los 4 breakpoints del plan (vertical, apaisado corto, tablet,
-desktop ancho) para comparar regresiones visuales a mano entre fases.
+`screenshot.js` captura las 6 páginas en los 4 breakpoints (vertical,
+apaisado corto, tablet, desktop ancho) con un `Math.random` **determinista**
+(semilla fija): los repartos salen siempre iguales y las capturas son
+reproducibles.
 
 ```bash
 cd tests
 node screenshot.js [carpeta-salida]   # por defecto docs/screenshots/baseline
+node visual.js                        # recaptura y compara pixel a pixel vs. baseline
 ```
 
-`docs/screenshots/baseline/` guarda la referencia de la Fase 0 (ver
-docs/PLAN.md); las fases siguientes comparan contra esas capturas.
+`visual.js` corre en CI: recaptura las 24 pantallas y las compara
+(pixelmatch, umbral 1.5% para absorber antialiasing entre entornos) contra
+la referencia commiteada en `docs/screenshots/baseline/`. Si un cambio
+visual es **intencional**, regenerá la referencia (`node screenshot.js`) y
+commiteala; si no lo es, el CI lo atrapa.
+
+También corre en CI `check-sw-version.sh`: si un cambio toca archivos
+servidos sin subir `VERSION` de `sw.js`, falla (la copia offline sólo se
+re-precachea al subir la versión). Y un job aparte corre el humo en WebKit
+(el motor de Safari): `PW_BROWSER=webkit npm test -- --smoke`.
 
 ## Notas
 

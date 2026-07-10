@@ -40,6 +40,8 @@ Ver [`tests/README.md`](tests/README.md) para más detalle.
 
 ## Documentación
 
+- [`docs/COMO-AGREGAR-UN-JUEGO.md`](docs/COMO-AGREGAR-UN-JUEGO.md) — checklist
+  paso a paso para sumar un juego nuevo (cada paso tiene su test de contrato).
 - [`docs/PLAN.md`](docs/PLAN.md) — plan de trabajo por fases (desde Fase 0):
   qué sigue y en qué orden.
 - [`docs/PRD.md`](docs/PRD.md) — Documento de Requisitos de Producto, con la

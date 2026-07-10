@@ -581,6 +581,7 @@ function saveGame() {
     var p = [];
     for (var s = 0; s < 4; s++) p.push({ hand: players[s].hand, score: players[s].score, roundPoints: players[s].roundPoints, taken: players[s].taken });
     gameSet(JSON.stringify({
+      v: 1,
       players: p, phase: phase, trick: trick, leadSeat: leadSeat, turn: turn,
       heartsBroken: heartsBroken, tricksPlayed: tricksPlayed, handNumber: handNumber, passDir: passDir, target: target,
       history: handHistory, humanPass: humanPass
@@ -589,6 +590,8 @@ function saveGame() {
 }
 function validSaved(d) {
   if (!d || !d.players || d.players.length !== 4) return false;
+  // Formato versionado: una versión futura desconocida se descarta.
+  if (d.v != null && d.v !== 1) return false;
   if (d.phase !== "play" && d.phase !== "pass") return false;   // sólo estados jugables
   // Las cartas en juego (manos + baza en mesa) no pueden repetirse (RNF-04:
   // un guardado corrupto se descarta), igual que en Solitario/Carta Blanca.

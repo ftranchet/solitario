@@ -12,6 +12,65 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.10.0] — 2026-07-10
+
+Rediseño del riel de apaisado (a partir de un bug real en teléfonos bajos) y
+un paquete de robustez: checklist ejecutable para juegos nuevos, guardia de
+CI para la caché offline, barrido multi-pantalla, regresión visual
+automática, guardados versionados, humo en WebKit y modales accesibles.
+
+### Corregido
+
+- **El botón Pista quedaba FUERA de la pantalla en apaisados bajos (y el
+  riel no scrolleaba).** La fila del header del riel crecía más allá del
+  viewport sin activar su overflow, empujando los controles afuera. El riel
+  se rediseñó: los controles del pie (Pista, Cavar, Puntajes, Pasar) son
+  ahora la fila FIJA de abajo — siempre visibles, al alcance del pulgar — y
+  el header es la parte flexible que scrollea si no entra. De paso quedó más
+  prolijo: HUD en fila compacta, los botones de ícono (🎮 ⚙ ?) comparten una
+  fila de a tres, y a 320px de alto (iPhone SE apaisado) entra TODO, incluso
+  Corazones en fase de pase. Test de regresión a 320px.
+
+### Agregado
+
+- **`docs/COMO-AGREGAR-UN-JUEGO.md` + test de contrato de estructura.** El
+  checklist paso a paso para el 5.º juego, con su contraparte ejecutable: un
+  test verifica en cada página de juego el orden de los scripts compartidos,
+  que `data-store-ns` coincida con el `id` del registro (si divergen, el
+  candado multi-pestaña y las stats se desincronizan en silencio), el toggle
+  de Tema en Opciones, `viewport-fit=cover` y el orden de las hojas de
+  estilo (tokens → base → game).
+- **Guardia de CI para la caché offline (`tests/check-sw-version.sh`).** Si
+  un cambio toca archivos servidos (HTML/CSS/JS/íconos/manifest) sin subir
+  `VERSION` de `sw.js`, el CI falla. Era el último paso manual del proyecto.
+- **Barrido de humo multi-pantalla.** Los 4 juegos cargan en 6 tamaños
+  (desde iPhone SE en ambas orientaciones hasta desktop ancho) sin errores
+  de consola y sin desborde horizontal.
+- **Regresión visual automática.** `tests/screenshot.js` ahora usa un
+  `Math.random` determinista (semilla fija): los repartos salen siempre
+  iguales y las 24 capturas son reproducibles. El nuevo `tests/visual.js`
+  las recaptura y compara pixel a pixel contra
+  `docs/screenshots/baseline/` (pixelmatch, umbral 1.5% para absorber
+  antialiasing); corre en CI. Un cambio visual no intencional rompe el
+  build; uno intencional se resuelve regenerando la referencia.
+- **Guardados versionados (`v: 1`).** Los 4 juegos incluyen la versión del
+  formato en el JSON de partida y descartan versiones futuras desconocidas
+  (mejor partida nueva que restaurar mal); los guardados legados sin `v`
+  siguen cargando. Prepara migraciones ante actualizaciones.
+- **Humo en WebKit (Safari) en CI.** Nuevo modo `npm test -- --smoke` (carga
+  de las 6 páginas + metadatos PWA) y selector de navegador
+  (`PW_BROWSER=webkit`); un job nuevo de CI lo corre sobre el motor de
+  Safari, el hueco de compatibilidad más probable (dvh, container queries,
+  safe-areas).
+- **Modales accesibles (`shared/ui.js`).** Escape cierra los modales
+  descartables (clickeando su propio botón `-close`, así corre la misma
+  lógica — p. ej. cerrar la victoria también frena el confeti); el foco
+  entra al abrir, Tab queda atrapado adentro (patrón WAI-ARIA de diálogo) y
+  vuelve a donde estaba al cerrar; `role="dialog"`/`aria-modal`. El fin de
+  mano de Corazones NO se cierra con Escape (su único botón avanza el
+  juego). Tests nuevos.
+- **`VERSION` de `sw.js` a `v1.20.0`.** (73 tests en total.)
+
 ## [1.9.0] — 2026-07-10
 
 ### Cambiado

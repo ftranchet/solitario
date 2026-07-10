@@ -893,12 +893,16 @@ function validState(s) {
 function saveGame() {
   try {
     if (isWon()) { gameDel(); return; }
-    gameSet(JSON.stringify({ state: state, seconds: seconds, counted: counted }));
+    gameSet(JSON.stringify({ v: 1, state: state, seconds: seconds, counted: counted }));
   } catch (e) {}
 }
 function loadGame() {
   try {
     var data = JSON.parse(localStorage.getItem(GAME_KEY));
+    // Formato versionado: un guardado de una versión futura desconocida se
+    // descarta (mejor una partida nueva que restaurar mal). Sin `v` = legado
+    // pre-versionado, misma forma que v1.
+    if (data && data.v != null && data.v !== 1) return false;
     if (!data || !validState(data.state)) return false;
     state = data.state;
     if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;

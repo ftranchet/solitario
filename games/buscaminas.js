@@ -414,13 +414,15 @@ function saveGame() {
       var x = grid[r][c];
       g.push((x.mine ? 1 : 0) | (x.revealed ? 2 : 0) | (x.flagged ? 4 : 0) | (x.count << 3));
     }
-    gameSet(JSON.stringify({ difficulty: difficulty, rows: rows, cols: cols, mines: mines, seconds: seconds, g: g }));
+    gameSet(JSON.stringify({ v: 1, difficulty: difficulty, rows: rows, cols: cols, mines: mines, seconds: seconds, g: g }));
   } catch (e) {}
 }
 function loadGame() {
   try {
     var d = JSON.parse(localStorage.getItem(GAME_KEY));
     if (!d || !DIFFS[d.difficulty] || !Array.isArray(d.g)) return false;
+    // Formato versionado: una versión futura desconocida se descarta.
+    if (d.v != null && d.v !== 1) return false;
     if (d.rows * d.cols !== d.g.length) return false;
     if (typeof d.mines !== "number" || d.mines < 1) return false;
     // Las minas del tablero guardado deben coincidir con el contador (guardado corrupto)

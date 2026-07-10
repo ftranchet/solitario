@@ -84,6 +84,13 @@ function resolveLaunch() {
     var context = await browser.newContext({ viewport: { width: bp.width, height: bp.height } });
     for (var j = 0; j < PAGES.length; j++) {
       var page = await context.newPage();
+      // Math.random determinista (LCG con semilla fija): los repartos salen
+      // SIEMPRE iguales, así las capturas son reproducibles y sirven para la
+      // regresión visual automática (tests/visual.js compara pixel a pixel).
+      await page.addInitScript(function () {
+        var seed = 20260710;
+        Math.random = function () { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+      });
       await page.goto(base + PAGES[j], { waitUntil: "load" });
       await page.waitForTimeout(200);
       var name = PAGES[j].replace(".html", "") + "--" + bp.name + ".png";

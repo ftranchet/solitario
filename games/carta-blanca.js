@@ -832,12 +832,14 @@ function validState(s) {
 function saveGame() {
   try {
     if (isWon()) { gameDel(); return; }
-    gameSet(JSON.stringify({ state: state, seconds: seconds, gameNumber: gameNumber, counted: counted }));
+    gameSet(JSON.stringify({ v: 1, state: state, seconds: seconds, gameNumber: gameNumber, counted: counted }));
   } catch (e) {}
 }
 function loadGame() {
   try {
     var data = JSON.parse(localStorage.getItem(GAME_KEY));
+    // Formato versionado: una versión futura desconocida se descarta.
+    if (data && data.v != null && data.v !== 1) return false;
     if (!data || !validState(data.state)) return false;
     state = data.state;
     if (typeof state.moves !== "number" || state.moves < 0) state.moves = 0;

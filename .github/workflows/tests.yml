@@ -17,6 +17,12 @@ jobs:
     steps:
       - name: Clonar el repo
         uses: actions/checkout@v4
+        with:
+          # Historia completa: la guardia del SW compara contra la rama base / commit anterior.
+          fetch-depth: 0
+
+      - name: Guardia de la caché offline (VERSION de sw.js)
+        run: bash tests/check-sw-version.sh
 
       - name: Preparar Node
         uses: actions/setup-node@v4
@@ -38,8 +44,47 @@ jobs:
         working-directory: tests
         run: npm test
 
+      # Regresión visual: recaptura las 24 pantallas con reparto determinista
+      # (semilla fija en screenshot.js) y compara pixel a pixel contra
+      # docs/screenshots/baseline. Un cambio visual intencional se resuelve
+      # regenerando la referencia (node screenshot.js) y commiteándola.
+      - name: Regresión visual (capturas deterministas vs. baseline)
+        working-directory: tests
+        run: node visual.js
+
       # Chequeo de tipos (// @ts-check + JSDoc) de los módulos compartidos
       # (shared/*.js, games/registry.js). No cubre los <script> inline de cada
       # juego (ver docs/ARQUITECTURA.md, Fase 5).
       - name: Chequear tipos (shared/*.js, games/registry.js)
         run: npx --yes typescript@5 tsc -p .
+
+  # Humo en WebKit (el motor de Safari): las 6 páginas cargan sin errores y
+  # con los metadatos PWA. La suite completa corre en Chromium (arriba); esto
+  # cubre el hueco de compatibilidad más probable (dvh, container queries,
+  # safe-areas) sin duplicar toda la suite.
+  test-webkit:
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/pw-browsers
+    steps:
+      - name: Clonar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: tests
+        run: npm ci
+
+      - name: Instalar WebKit (con dependencias del sistema)
+        working-directory: tests
+        run: npx --yes playwright@1.61.1 install --with-deps webkit
+
+      - name: Humo en WebKit
+        working-directory: tests
+        run: PW_BROWSER=webkit npm test -- --smoke
