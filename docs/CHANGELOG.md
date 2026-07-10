@@ -12,6 +12,48 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.8.0] — 2026-07-10
+
+Ajustes del apaisado a partir de probarlo en un teléfono real (con notch).
+
+### Cambiado
+
+- **Riel único a la IZQUIERDA en apaisado corto.** El riel derecho (que sólo
+  tenía los botones del pie, como Pista) se eliminó: ahora header y controles
+  se apilan en un solo riel izquierdo (#app pasa a grilla de 2 columnas:
+  riel | tablero) y el tablero gana esos ~112px de ancho — las cartas pasan
+  de ~55 a ~66px en Carta Blanca y de ~61 a ~74px en Solitario en un celular
+  típico. Los botones multilínea del riel usan esquinas redondeadas normales
+  (el "pill" de 999px se veía ovalado con dos líneas de texto).
+
+### Corregido
+
+- **Franja BLANCA en la zona del notch (apaisado con viewport-fit=cover).**
+  El fondo verde es un gradiente en `body` (una imagen, no un color), y las
+  zonas que el navegador pinta con el color del lienzo —la franja de la zona
+  segura junto al notch, el rebote del scroll— quedaban blancas. `<html>`
+  ahora declara `background-color: var(--felt-3)` (respeta claro/oscuro),
+  así esas franjas son del mismo verde que el resto.
+- **El bloque compacto de `max-height: 480px` pisaba el riel lateral.**
+  `styles/game.css` (que carga después de `base.css`) redefinía el padding
+  de header/#controls también en apaisado, pisando el del riel y PERDIENDO
+  el `env(safe-area-inset-left)` del notch. Ahora ese bloque aplica sólo en
+  vertical (`orientation: portrait`). El tablero además respeta
+  `safe-area-inset-right` cuando el notch queda del otro lado.
+- **Columnas solapadas intermitentes al rotar (Solitario/Carta Blanca).** El
+  tamaño de carta se recalculaba sólo con el evento `resize` de la ventana;
+  al rotar el teléfono (o al entrar/salir el riel), el tamaño real del
+  tablero puede cambiar DESPUÉS del último `resize` y el cálculo quedaba
+  hecho con dimensiones viejas. Ahora un `ResizeObserver` sobre el tablero
+  mismo (la mesa en Corazones) dispara el recálculo cada vez que su tamaño
+  real cambia, con el mismo debounce de siempre.
+- **Scrollbars gruesas en PC.** Las zonas que scrollean dentro del juego
+  (columnas de Solitario/Carta Blanca con pilas largas, tablero Experto de
+  Buscaminas en pantallas angostas) usan ahora una scrollbar fina y
+  translúcida (`scrollbar-width: thin`) en vez de la barra por defecto del
+  escritorio.
+- **`VERSION` de `sw.js` a `v1.18.0`.**
+
 ## [1.7.0] — 2026-07-10
 
 Layout adaptado a la orientación real de la pantalla en los juegos de cartas

@@ -939,5 +939,12 @@ document.getElementById("board").addEventListener("click", function (e) {
   if (selection) { selection = null; render(); }
 });
 // debounce() vive en shared/ui.js (en móvil el resize dispara en ráfagas:
-// barra del navegador, rotación).
-window.addEventListener("resize", debounce(function () { setSizes(); render(); }, 120));
+// barra del navegador, rotación). Además del resize de la ventana se observa
+// el TABLERO en sí (ResizeObserver): al rotar el teléfono o al entrar/salir
+// el riel lateral, el tamaño real del tablero puede cambiar después del
+// último evento resize, y recalcular con dimensiones viejas dejaba columnas
+// mal dimensionadas (solapadas) hasta el próximo resize.
+var relayout = debounce(function () { setSizes(); render(); }, 120);
+window.addEventListener("resize", relayout);
+if (typeof ResizeObserver === "function")
+  new ResizeObserver(relayout).observe(document.getElementById("board"));

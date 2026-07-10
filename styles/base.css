@@ -13,6 +13,14 @@
 
 * { box-sizing: border-box; }
 
+/* Color del LIENZO del documento: lo que se ve detrás/afuera del contenido —
+   la franja del notch en celulares con viewport-fit=cover, el "rebote" del
+   scroll (overscroll) y cualquier zona que el navegador no cubra con la
+   página. El fondo de body es un gradiente (una imagen, no un color), y esas
+   zonas se pintan sólo con el background-COLOR del lienzo: sin esto quedaban
+   BLANCAS en vez de verdes. */
+html { background-color: var(--felt-3); }
+
 /* Fondo "fieltro": se define acá para que sea un solo lugar, pero cada página
    mantiene su propio `body {}` con el resto de las propiedades (font-family,
    color, user-select, overflow/min-height, etc.), que sí varían. */
@@ -75,26 +83,42 @@ header {
 .toast.toast-action .btn { flex: none; padding: 6px 10px; font-size: 12px; }
 
 /* ---------- Riel lateral: apaisado de celular con poca altura ----------
-   El header pasa a riel izquierdo y el footer (#controls) a riel derecho,
-   así el tablero (el hijo del medio de #app: #board en los juegos de
-   cartas, #play en Buscaminas) usa el alto completo en vez de quedar
-   apretado entre dos barras horizontales (ver docs/PLAN.md, Fase 2).
-   Selectores con el ancestro "header"/"#controls" para pisar con más
-   especificidad las reglas .brand/.hud/.actions/.pill que cada juego
-   declara sin media query (evita duplicar esto en las 4 hojas de estilo). */
+   UN SOLO riel a la IZQUIERDA con todo: el header (marca, HUD, acciones)
+   arriba y el footer (#controls: Pista, etc.) a continuación, en la misma
+   columna. Así el tablero (el hijo del medio de #app: #board en los juegos
+   de cartas, #play en Buscaminas) usa el alto completo Y el ancho que antes
+   comía el riel derecho (ver docs/PLAN.md, Fase 2; el riel derecho se
+   eliminó a pedido para ganar espacio). #app pasa a grilla de 2 columnas:
+   riel | tablero. Selectores con el ancestro "header"/"#controls" para
+   pisar con más especificidad las reglas .brand/.hud/.actions/.pill que
+   cada juego declara sin media query (evita duplicarlo en las 4 hojas). */
 @media (orientation: landscape) and (max-height: 500px) {
-  #app { flex-direction: row; }
+  #app {
+    display: grid;
+    grid-template-areas:
+      "hdr main"
+      "ctl main";
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+  }
+  /* El tablero (el hijo que no es header ni footer) ocupa la columna
+     derecha completa; con notch a la derecha, respeta esa zona segura. */
+  #app > :not(header):not(footer) {
+    grid-area: main; min-width: 0; min-height: 0;
+    padding-right: calc(8px + env(safe-area-inset-right, 0px));
+  }
 
   header {
+    grid-area: hdr;
     flex-direction: column; flex-wrap: nowrap; align-items: stretch;
     justify-content: flex-start; gap: 10px; overflow-y: auto;
-    width: 112px; height: 100%;
-    padding: 8px 6px 8px calc(6px + env(safe-area-inset-left, 0px));
+    width: 112px;
+    padding: 8px 6px 6px calc(6px + env(safe-area-inset-left, 0px));
     border-bottom: none;
     border-right: 1px solid rgba(255,255,255,0.08);
   }
   header .brand { text-align: center; min-width: 0; }
-  header .brand .title { font-size: 15px; overflow-wrap: break-word; }
+  header .brand .title { font-size: 14px; letter-spacing: 0; overflow-wrap: break-word; }
   header .brand .credit { display: none; }
   header .hud { flex-direction: column; margin-left: 0; gap: 4px; align-items: center; }
   header .actions { flex-direction: column; gap: 6px; }
@@ -102,15 +126,17 @@ header {
   header .actions .btn.ghost { width: 100%; }
 
   #controls {
-    flex-direction: column; justify-content: center; align-items: stretch;
-    gap: 8px; overflow-y: auto;
-    width: 112px; height: 100%;
-    padding: 8px calc(6px + env(safe-area-inset-right, 0px)) 8px 6px;
+    grid-area: ctl;
+    flex-direction: column; justify-content: flex-start; align-items: stretch;
+    gap: 6px; overflow-y: auto;
+    width: 112px;
+    padding: 6px 6px calc(8px + env(safe-area-inset-bottom, 0px)) calc(6px + env(safe-area-inset-left, 0px));
     border-top: none;
-    border-left: 1px solid rgba(255,255,255,0.08);
+    border-right: 1px solid rgba(255,255,255,0.08);
   }
   #controls .btn.pill {
     width: 100%; white-space: normal; line-height: 1.25;
     padding: 8px 6px; font-size: 11.5px;
+    border-radius: 12px;   /* con texto multilínea, el pill (999px) se ve ovalado */
   }
 }

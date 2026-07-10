@@ -740,5 +740,11 @@ document.getElementById("win-close").onclick = function () { document.getElement
 })();
 
 // debounce() vive en shared/ui.js (en móvil el resize dispara en ráfagas:
-// barra del navegador, rotación).
-window.addEventListener("resize", debounce(function () { setSizes(); render(); }, 120));
+// barra del navegador, rotación). Además del resize de la ventana se observa
+// la MESA en sí (ResizeObserver, es lo que mide setSizes): al rotar el
+// teléfono o al entrar/salir el riel lateral, su tamaño real puede cambiar
+// después del último evento resize.
+var relayout = debounce(function () { setSizes(); render(); }, 120);
+window.addEventListener("resize", relayout);
+if (typeof ResizeObserver === "function")
+  new ResizeObserver(relayout).observe(document.getElementById("table"));

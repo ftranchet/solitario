@@ -1502,23 +1502,41 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
   assertNoErrors(p.errors);
 });
 
-/* 45b) Responsive — riel lateral en apaisado corto: a 844×390 (celular
-   apaisado, el breakpoint real de docs/PLAN.md Fase 2), #app debe pasar de
-   columna a fila. Ya hubo una regresión real de cascada acá (un `#app`
-   duplicado en las 4 hojas de cada juego le ganaba al media query
-   compartido de styles/base.css); este test la convierte en un fallo de CI
-   si una edición futura la reintroduce. */
-test("Responsive: el riel lateral activa flex-direction:row en apaisado corto", async function (ctx) {
+/* 45b) Responsive — riel lateral ÚNICO en apaisado corto: a 844×390 (celular
+   apaisado, el breakpoint real de docs/PLAN.md Fase 2), #app pasa a grilla
+   con un solo riel a la IZQUIERDA que apila header + controles (Pista, etc.);
+   el riel derecho se eliminó para darle ese ancho al tablero. Ya hubo una
+   regresión real de cascada acá (un `#app` duplicado en las 4 hojas de cada
+   juego le ganaba al media query compartido de styles/base.css); este test
+   la convierte en un fallo de CI si una edición futura la reintroduce.
+   También verifica que el lienzo del documento no sea blanco (la franja del
+   notch / overscroll se pinta con el background de <html>). */
+test("Responsive: riel único a la izquierda (header + controles) en apaisado corto", async function (ctx) {
   var pages = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
   for (var i = 0; i < pages.length; i++) {
     var p = await newPage(ctx);
     await p.page.setViewportSize({ width: 844, height: 390 });
     await p.page.goto(url(pages[i]), { waitUntil: "load" });
     await p.page.waitForTimeout(100);
-    var dir = await p.page.evaluate(function () {
-      return getComputedStyle(document.getElementById("app")).flexDirection;
+    var r = await p.page.evaluate(function () {
+      var app = document.getElementById("app");
+      var header = app.querySelector("header").getBoundingClientRect();
+      var controls = document.getElementById("controls").getBoundingClientRect();
+      var main = app.querySelector(":scope > :not(header):not(footer)").getBoundingClientRect();
+      return {
+        display: getComputedStyle(app).display,
+        headerLeftOfMain: header.right <= main.left + 1,
+        controlsLeftOfMain: controls.right <= main.left + 1,
+        controlsBelowHeader: controls.top >= header.bottom - 1,
+        canvasBg: getComputedStyle(document.documentElement).backgroundColor
+      };
     });
-    assert(dir === "row", pages[i] + ": #app debería quedar en flex-direction:row a 844x390 (apaisado corto), es '" + dir + "'");
+    assert(r.display === "grid", pages[i] + ": #app debería ser grid a 844x390, es '" + r.display + "'");
+    assert(r.headerLeftOfMain, pages[i] + ": el header debería ser un riel a la IZQUIERDA del tablero");
+    assert(r.controlsLeftOfMain, pages[i] + ": los controles (Pista) deberían estar en el MISMO riel izquierdo, no en uno derecho");
+    assert(r.controlsBelowHeader, pages[i] + ": los controles deberían quedar DEBAJO del header en el riel");
+    assert(r.canvasBg !== "rgba(0, 0, 0, 0)" && r.canvasBg !== "transparent" && !/255,\s*255,\s*255/.test(r.canvasBg),
+      pages[i] + ": el lienzo (<html>) no debería ser blanco/transparente para la zona del notch, es '" + r.canvasBg + "'");
     assertNoErrors(p.errors);
   }
 });
