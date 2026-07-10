@@ -1636,6 +1636,79 @@ test("Carta Blanca: las cartas enterradas se atenúan y la escalera del fondo qu
   assertNoErrors(p.errors);
 });
 
+/* 45b5) Responsive — el tamaño de carta se ajusta al ESTADO: si una columna
+   crece mucho, las cartas se achican solas para que todo entre sin scroll;
+   sólo debajo del piso de legibilidad (FIT_MIN_CW) se permite el scroll.
+   Pedido explícito: "que en PC se redimensionen las cartas para que no
+   existan las scrollbars, excepto que sean muy pequeñas". */
+test("Responsive: las cartas se achican para que una columna larga entre sin scroll", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.setViewportSize({ width: 1280, height: 800 });
+  await p.page.goto(url("carta-blanca.html"), { waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    var cwInitial = CW;
+    // Columna de 14 cartas: con el tamaño inicial no entraría; debe achicar.
+    var tall = [];
+    for (var i = 0; i < 14; i++) tall.push(c(["hearts", "spades"][i % 2], (i % 13) + 1, 900 + i));
+    state = { free: [null, null, null, null], foundations: [[], [], [], []],
+              tableau: [tall, [], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; render();
+    var w = document.getElementById("tableauWrap");
+    var afterTall = { cw: CW, scroll: w.scrollHeight > w.clientHeight + 1 };
+    // Al "resolverse" la pila, las cartas vuelven a crecer.
+    state.tableau[0] = tall.slice(0, 3);
+    render();
+    return { cwInitial: cwInitial, afterTall: afterTall, cwRecovered: CW };
+  });
+  assert(r.afterTall.cw < r.cwInitial, "con una columna de 14 cartas, CW debería achicarse (era " + r.cwInitial + ", quedó " + r.afterTall.cw + ")");
+  assert(!r.afterTall.scroll, "con las cartas achicadas, la columna de 14 debería entrar sin scroll");
+  assert(r.cwRecovered > r.afterTall.cw, "al achicarse la pila, las cartas deberían volver a crecer");
+  assertNoErrors(p.errors);
+});
+
+test("Responsive: debajo del piso de legibilidad se permite el scroll", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.setViewportSize({ width: 844, height: 390 });
+  await p.page.goto(url("carta-blanca.html"), { waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    var monster = [];
+    for (var i = 0; i < 30; i++) monster.push(c(["hearts", "spades"][i % 2], (i % 13) + 1, 900 + i));
+    state = { free: [null, null, null, null], foundations: [[], [], [], []],
+              tableau: [monster, [], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; render();
+    var w = document.getElementById("tableauWrap");
+    return { cw: CW, fitMin: FIT_MIN_CW, scroll: w.scrollHeight > w.clientHeight + 1 };
+  });
+  assert(r.cw >= Math.min(r.fitMin, r.cw), "las cartas no deberían achicarse por debajo del piso");
+  assert(r.scroll, "con una pila imposible de encajar, el scroll debería estar permitido (cw=" + r.cw + ")");
+  assertNoErrors(p.errors);
+});
+
+/* 45b6) Buscaminas — en modo oscuro las celdas reveladas usan fondo OSCURO
+   (antes quedaban con el crema del modo claro: un tablero oscuro con
+   parches blancos). */
+test("Buscaminas: en modo oscuro las celdas reveladas tienen fondo oscuro", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.addInitScript(function () { try { localStorage.setItem("theme", "dark"); } catch (e) {} });
+  await p.page.goto(url("buscaminas.html"), { waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var r = await p.page.evaluate(function () {
+    noGuess = false; digCell(4, 4); render();
+    var cell = document.querySelector(".cell.revealed");
+    var bg = getComputedStyle(cell).backgroundColor;
+    var m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    var lum = m ? (Number(m[1]) + Number(m[2]) + Number(m[3])) / 3 : 255;
+    return { bg: bg, lum: lum, theme: document.documentElement.dataset.theme };
+  });
+  assert(r.theme === "dark", "la página debería estar en tema oscuro");
+  assert(r.lum < 100, "la celda revelada debería ser oscura en modo oscuro, es " + r.bg);
+  assertNoErrors(p.errors);
+});
+
 /* 45c) Tema "auto" — con la preferencia en "auto" (el default: nadie tocó el
    toggle), el tema debe reaccionar EN VIVO al cambio de
    prefers-color-scheme del SISTEMA, sin intervención del usuario (ver el

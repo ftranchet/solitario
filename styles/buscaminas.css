@@ -121,6 +121,34 @@
 .n4 { color: #512da8; } .n5 { color: #b71c1c; } .n6 { color: #00838f; }
 .n7 { color: #212121; } .n8 { color: #6d6d6d; }
 
+/* ---------- Modo oscuro ----------
+   Misma política que cartas/modales (ver styles/tokens.css): las superficies
+   "papel claro" pasan a gris carbón. Las celdas reveladas dejaban el fondo
+   crema (quedaban BLANCAS en un tablero oscuro); ahora usan un fondo oscuro
+   y los números se aclaran para mantener el contraste. */
+:root[data-theme="dark"] .cell.revealed {
+  background: #2b2a25;
+  border-color: rgba(255,255,255,0.09);
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.35);
+  color: #9a968a;
+}
+:root[data-theme="dark"] .cell.wrong { background: #2b2a25; }
+:root[data-theme="dark"] .cell.mine { background: #8a6d24; }
+:root[data-theme="dark"] .cell.exploded { background: #b03a2e; }
+:root[data-theme="dark"] .n1 { color: #6aa9ff; }
+:root[data-theme="dark"] .n2 { color: #6fce73; }
+:root[data-theme="dark"] .n3 { color: #ff6b5e; }
+:root[data-theme="dark"] .n4 { color: #b39ddb; }
+:root[data-theme="dark"] .n5 { color: #e57373; }
+:root[data-theme="dark"] .n6 { color: #4dd0e1; }
+:root[data-theme="dark"] .n7 { color: #eceff1; }
+:root[data-theme="dark"] .n8 { color: #b0bec5; }
+:root[data-theme="dark"] .smiley {
+  background: linear-gradient(160deg, #3a3a37, #2e2d2a);
+  border-color: var(--paper-border);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.08), 0 2px 4px rgba(0,0,0,0.4);
+}
+
 /* Pantallas medianas y grandes: extras propios (el resto viene de styles/game.css) */
 @media (min-width: 700px) {
   .smiley { width: 52px; height: 52px; font-size: 28px; }

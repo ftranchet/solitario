@@ -126,6 +126,8 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Riel lateral único | A 844×390 (apaisado corto), `#app` pasa a grilla con UN riel a la izquierda (header + controles apilados, sin riel derecho) en los 4 juegos, y el lienzo (`<html>`) no es blanco (zona del notch) |
 | Layout lateral del tablero | En apaisado corto, Solitario y Carta Blanca ponen mazo/descarte o pozos libres en una columna a la izquierda y las pilas finales a la derecha (geometría real, no sólo CSS) |
 | Sin scroll | El reparto inicial de Solitario y Carta Blanca entra completo en el alto disponible (3 viewports: vertical, apaisado, desktop) |
+| Ajuste dinámico | Una columna que crece achica las cartas para entrar sin scroll (y vuelven a crecer al deshacerse); debajo del piso de legibilidad (~52px) se permite el scroll |
+| Buscaminas · oscuro | En `data-theme="dark"` las celdas reveladas usan fondo oscuro, no el crema del modo claro |
 | Carta Blanca · escaleras | Las cartas que no forman parte de la escalera del fondo se atenúan (`.buried`); las conectadas quedan a brillo pleno |
 
 **Accesibilidad (navegación por teclado)**

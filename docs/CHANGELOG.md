@@ -12,6 +12,37 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.9.0] — 2026-07-10
+
+### Cambiado
+
+- **El tamaño de carta se ajusta al estado real de la partida (adiós
+  scrollbars).** `setSizes()` en Solitario y Carta Blanca ya no usa una
+  fórmula fija: parte del máximo que permite el ancho y ACHICA las cartas
+  hasta que la columna más alta del tablero entre completa sin scroll,
+  recalculando en cada jugada (si una pila crece, las cartas se achican
+  solas; al deshacerse, vuelven a crecer). Debajo de un piso de legibilidad
+  (~52px de carta) deja de achicar y permite el scroll — mejor scrollear que
+  cartas ilegibles. El tamaño inicial en todos los breakpoints queda igual
+  que antes (±1px): el cambio se nota recién cuando una columna crece.
+
+### Corregido
+
+- **Buscaminas en modo oscuro: las celdas reveladas quedaban BLANCAS.**
+  Conservaban el fondo crema del modo claro (un tablero oscuro con parches
+  blancos). Ahora en `data-theme="dark"` usan fondo gris carbón (misma
+  política que cartas y modales), los números pasan a variantes claras de
+  sus colores clásicos para mantener contraste, y la mina/bandera errónea/
+  explosión y la carita reseteadora también se oscurecen.
+- **`VERSION` de `sw.js` a `v1.19.0`.**
+
+### Agregado
+
+- **Tests (69 en total):** una columna de 14 cartas achica las cartas y entra
+  sin scroll (y vuelven a crecer al deshacerse); una pila imposible respeta
+  el piso de legibilidad y permite scroll; las celdas reveladas de
+  Buscaminas son oscuras en tema oscuro.
+
 ## [1.8.0] — 2026-07-10
 
 Ajustes del apaisado a partir de probarlo en un teléfono real (con notch).

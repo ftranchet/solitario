@@ -463,6 +463,7 @@ function attachDrag(elem, src) {
 }
 
 function render() {
+  setSizes();   // el tamaño de carta depende del estado (columna más alta)
   var landFi = animFoundation; animFoundation = -1;   // animar el aterrizaje una sola vez
   var freeWrap = document.getElementById("freecells"); freeWrap.innerHTML = "";
   var foundWrap = document.getElementById("foundations"); foundWrap.innerHTML = "";
@@ -557,14 +558,30 @@ function updateHUD() {
 
 /* ---------- Tamaños ----------
    El tamaño de carta se calcula según el layout activo (centinela
-   --board-layout que fija el CSS de #board):
-   - "top" (vertical/desktop): fila superior de 8 + tablero abajo. El límite
-     por alto garantiza que el REPARTO INICIAL (7 cartas por columna) entre
-     completo sin scroll: fila (1.42cw) + separación (10) + columna inicial
-     (1.42cw + 6 solapas de 0.32·1.42cw) = 5.57·cw ≤ alto disponible.
-   - "side" (apaisado corto): pozos y pilas en columnas laterales; mandan el
-     ancho (10 cartas: 1 + 8 + 1) y el alto de la columna lateral de 4. */
+   --board-layout que fija el CSS de #board) y según el ESTADO REAL de la
+   partida: se parte del máximo que permite el ancho (con techo) y se achica
+   hasta que la columna más alta del tablero entre completa SIN SCROLL.
+   Debajo de un piso de legibilidad (~52px de carta) se deja de achicar y se
+   permite el scroll (mejor scrollear que cartas ilegibles). Como depende del
+   estado, render() lo recalcula en cada jugada: si una pila crece, las
+   cartas se achican solas; al deshacerse la pila, vuelven a crecer. */
 var sideLayout = false;
+var FIT_MIN_CW = 52;   // piso de legibilidad del ajuste por alto
+
+// Alto en px de la columna más alta del tablero si la carta midiera `cw`.
+// Sin estado todavía, asume el reparto inicial (7 cartas por columna).
+function tallestColumnPx(cw) {
+  var ch = Math.round(cw * 1.42);
+  var off = Math.max(22, Math.round(ch * 0.32));
+  if (!state) return ch + 6 * off;
+  var max = ch;
+  for (var c = 0; c < 8; c++) {
+    var n = state.tableau[c].length;
+    if (n) { var h = ch + (n - 1) * off; if (h > max) max = h; }
+  }
+  return max;
+}
+
 function setSizes() {
   var root = document.documentElement;
   var board = document.getElementById("board");
@@ -576,24 +593,27 @@ function setSizes() {
   var gap = contentW < 520 ? 4 : (contentW < 820 ? 6 : 8);
   sideLayout = cs.getPropertyValue("--board-layout").trim() === "side";
 
-  var cwByWidth, cwByHeight;
-  if (sideLayout) {
-    // 1 pozo + 8 columnas + 1 pila final = 10 cartas de ancho, 9 huecos.
-    cwByWidth = (contentW - 9 * gap) / 10;
-    // La columna lateral apila 4 cartas: 4·1.42·cw + 3 huecos ≤ alto.
-    cwByHeight = (availH - 3 * gap) / (4 * 1.42);
-  } else {
-    cwByWidth = (contentW - 7 * gap) / 8;
-    // Fila superior (1.42cw) + separación (10) + columna inicial de 7 cartas
-    // (1.42cw + 6·0.32·1.42cw) + padding inferior del tablero (28) sin scroll.
-    cwByHeight = (availH - 38) / 5.57;
-  }
-
-  CW = Math.floor(Math.min(cwByWidth, cwByHeight));
-  // Techo más alto en pantallas anchas: si no, en desktop el tablero queda
-  // chico y descentrado con mucho espacio libre alrededor.
+  // Límite por ancho (8 columnas, más las 2 laterales en apaisado corto)…
+  var cw = Math.floor(sideLayout ? (contentW - 9 * gap) / 10 : (contentW - 7 * gap) / 8);
+  // …con techo más alto en pantallas anchas (si no, en desktop el tablero
+  // queda chico y descentrado) y piso duro para ultra-angostas.
   var cwCap = window.innerWidth >= 1100 ? 145 : 104;
-  CW = Math.max(30, Math.min(CW, cwCap));
+  cw = Math.max(30, Math.min(cw, cwCap));
+  // En apaisado corto, la columna lateral apila los 4 pozos / las 4 pilas.
+  if (sideLayout) cw = Math.min(cw, Math.floor((availH - 3 * gap) / (4 * 1.42)));
+
+  // Ajuste por alto: achicar hasta que la columna más alta entre sin scroll
+  // (28 = padding inferior del tablero; en layout vertical se suma la fila
+  // superior y su separación). Piso: FIT_MIN_CW.
+  function needed(w) {
+    var h = tallestColumnPx(w) + 28;
+    if (!sideLayout) h += Math.round(w * 1.42) + 10;
+    return h;
+  }
+  var fitFloor = Math.min(FIT_MIN_CW, cw);
+  while (cw > fitFloor && needed(cw) > availH) cw--;
+
+  CW = cw;
   CH = Math.round(CW * 1.42);
   OFFSET = Math.max(22, Math.round(CH * 0.32));
   root.style.setProperty("--cw", CW + "px");
