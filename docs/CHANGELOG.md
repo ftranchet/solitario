@@ -12,6 +12,47 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.7.0] — 2026-07-10
+
+Layout adaptado a la orientación real de la pantalla en los juegos de cartas
+y mejor lectura del tablero en Carta Blanca.
+
+### Cambiado
+
+- **Solitario y Carta Blanca: layout lateral en apaisado corto.** Con el
+  teléfono en horizontal (el mismo breakpoint del riel lateral,
+  `landscape + max-height: 500px`), la fila superior deja de comer el alto de
+  la pantalla: los **pozos libres** (Carta Blanca) o el **mazo y el descarte**
+  (Solitario) pasan a una columna a la IZQUIERDA del tablero y las **pilas
+  finales** a una columna a la DERECHA, con las columnas de juego usando el
+  alto completo en el medio. El tablero pasa de flex a una grilla con
+  `grid-template-areas` que rota entre los dos layouts, y un centinela
+  `--board-layout` le dice a `setSizes()` qué fórmula de tamaño usar (en
+  lateral mandan el ancho total —pozos + columnas + pilas— y el alto de la
+  columna lateral de 4). El abanico del descarte de Solitario (robo de a 3)
+  se abre hacia abajo en ese modo. En vertical no cambia nada: la fila
+  superior clásica queda igual que siempre.
+- **El reparto inicial entra completo sin scroll.** En Carta Blanca, la
+  fórmula de alto ahora garantiza que la columna inicial de 7 cartas + la
+  fila superior entren en el alto disponible (antes en desktop y apaisado
+  había que scrollear para ver la última carta de cada columna: las cartas
+  eran un poco más grandes, pero tapadas). Test de regresión en 3 viewports
+  (celular vertical, celular apaisado, desktop) para los dos juegos.
+- **Carta Blanca: las escaleras conectadas se ven iluminadas.** Las cartas
+  que todavía no se pueden agarrar (no forman parte de la escalera conectada
+  del fondo de su columna) se atenúan (`.buried`, con `filter` para que
+  funcione igual en claro y oscuro); los grupos que sí se conectan quedan a
+  brillo pleno, así se lee de un vistazo qué se puede mover y el palo y
+  número de cada carta se distinguen mejor.
+- **`VERSION` de `sw.js` a `v1.17.0`.**
+
+### Agregado
+
+- **Tests (66 en total):** layout lateral en apaisado corto (geometría real:
+  pozos/mazo a la izquierda del tablero, pilas a la derecha, en columna),
+  reparto inicial sin scroll (2 juegos × 3 viewports) y cartas enterradas
+  atenuadas vs. escalera del fondo iluminada.
+
 ## [1.6.0] — 2026-07-09
 
 ### Cambiado

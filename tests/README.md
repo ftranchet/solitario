@@ -124,6 +124,9 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Test | Qué valida |
 |------|-----------|
 | Riel lateral | A 844×390 (apaisado corto, el breakpoint de docs/PLAN.md Fase 2), `#app` pasa a `flex-direction: row` en los 4 juegos |
+| Layout lateral del tablero | En apaisado corto, Solitario y Carta Blanca ponen mazo/descarte o pozos libres en una columna a la izquierda y las pilas finales a la derecha (geometría real, no sólo CSS) |
+| Sin scroll | El reparto inicial de Solitario y Carta Blanca entra completo en el alto disponible (3 viewports: vertical, apaisado, desktop) |
+| Carta Blanca · escaleras | Las cartas que no forman parte de la escalera del fondo se atenúan (`.buried`); las conectadas quedan a brillo pleno |
 
 **Accesibilidad (navegación por teclado)**
 

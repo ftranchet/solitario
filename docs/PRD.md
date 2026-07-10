@@ -178,7 +178,10 @@ inicio y jugable completamente offline.
   Pages). El código común vive en una capa compartida propia (`shared/`,
   `styles/`, `games/registry.js`) que las páginas enlazan directo.
 - **RNF-02 · Responsive y táctil.** Funciona en móvil y escritorio; respeta las
-  _safe areas_ (notch) y evita el zoom accidental.
+  _safe areas_ (notch) y evita el zoom accidental. El layout se adapta a la
+  orientación real: en apaisado corto los juegos de cartas mueven pozos/mazo y
+  pilas finales a columnas laterales (y los controles a rieles), y el reparto
+  inicial siempre entra sin scroll.
 - **RNF-03 · Privacidad.** No hay backend ni analítica; todos los datos quedan en
   `localStorage` del dispositivo.
 - **RNF-04 · Robustez.** Un guardado corrupto (JSON inválido o baraja con cartas

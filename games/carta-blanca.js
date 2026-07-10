@@ -464,10 +464,12 @@ function attachDrag(elem, src) {
 
 function render() {
   var landFi = animFoundation; animFoundation = -1;   // animar el aterrizaje una sola vez
-  var top = document.getElementById("top"); top.innerHTML = "";
+  var freeWrap = document.getElementById("freecells"); freeWrap.innerHTML = "";
+  var foundWrap = document.getElementById("foundations"); foundWrap.innerHTML = "";
   var tableau = document.getElementById("tableau"); tableau.innerHTML = "";
 
-  /* Pozos libres (4, a la izquierda) */
+  /* Pozos libres (4): fila superior izquierda en vertical, columna izquierda
+     en apaisado corto (lo decide el CSS con grid-template-areas). */
   for (var fc = 0; fc < 4; fc++) {
     var cell = el("div", "slot");
     cell.setAttribute("data-drop", "free:" + fc);
@@ -483,10 +485,11 @@ function render() {
       (function (c) { clickActivate(fph, function () { handleFreeClick(c); }); })(fc);
       cell.appendChild(fph);
     }
-    top.appendChild(cell);
+    freeWrap.appendChild(cell);
   }
 
-  /* Pilas finales (4, a la derecha) */
+  /* Pilas finales (4): fila superior derecha en vertical, columna derecha
+     en apaisado corto. */
   for (var fi = 0; fi < 4; fi++) {
     var fslot = el("div", "slot");
     fslot.setAttribute("data-drop", "foundation:" + fi);
@@ -504,7 +507,7 @@ function render() {
       clickActivate(fph2, handleFoundationClick);
       fslot.appendChild(fph2);
     }
-    top.appendChild(fslot);
+    foundWrap.appendChild(fslot);
   }
 
   /* Columnas (8) */
@@ -517,11 +520,16 @@ function render() {
       (function (cc) { clickActivate(ph, function () { handleEmptyColumn(cc); }); })(col);
       colEl.appendChild(ph);
     } else {
+      // Cartas "enterradas": todo lo anterior al inicio de la escalera
+      // conectada del fondo se atenúa (.buried), así el grupo que se puede
+      // agarrar se ve más iluminado que el resto.
+      var runStart = bottomRunStart(col);
       var y = 0;
       for (var i = 0; i < pile.length; i++) {
         var tcard = pile[i];
         var tsel = selection && selection.pile === "tableau" && selection.col === col && i >= selection.index;
         var te = makeCardEl(tcard, tsel);
+        if (i < runStart) te.classList.add("buried");
         te.style.top = y + "px"; te.style.zIndex = i;
         te.dataset.pile = "tableau"; te.dataset.col = String(col); te.dataset.index = String(i);
         attachDrag(te, { pile: "tableau", col: col, index: i, card: tcard });
@@ -547,20 +555,39 @@ function updateHUD() {
   document.getElementById("time").textContent = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
 }
 
-/* ---------- Tamaños ---------- */
+/* ---------- Tamaños ----------
+   El tamaño de carta se calcula según el layout activo (centinela
+   --board-layout que fija el CSS de #board):
+   - "top" (vertical/desktop): fila superior de 8 + tablero abajo. El límite
+     por alto garantiza que el REPARTO INICIAL (7 cartas por columna) entre
+     completo sin scroll: fila (1.42cw) + separación (10) + columna inicial
+     (1.42cw + 6 solapas de 0.32·1.42cw) = 5.57·cw ≤ alto disponible.
+   - "side" (apaisado corto): pozos y pilas en columnas laterales; mandan el
+     ancho (10 cartas: 1 + 8 + 1) y el alto de la columna lateral de 4. */
+var sideLayout = false;
 function setSizes() {
   var root = document.documentElement;
   var board = document.getElementById("board");
   var cs = getComputedStyle(board);
   var padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+  var padT = parseFloat(cs.paddingTop) || 0, padB = parseFloat(cs.paddingBottom) || 0;
   var contentW = board.clientWidth - padL - padR;
+  var availH = (board.clientHeight || window.innerHeight) - padT - padB;
   var gap = contentW < 520 ? 4 : (contentW < 820 ? 6 : 8);
+  sideLayout = cs.getPropertyValue("--board-layout").trim() === "side";
 
-  // Límite por ancho: 8 columnas + 7 huecos deben entrar.
-  var cwByWidth = (contentW - 7 * gap) / 8;
-  // Límite por alto: que la fila superior y parte del tablero entren.
-  var availH = board.clientHeight || window.innerHeight;
-  var cwByHeight = ((availH - 14) / 3.0) / 1.42;
+  var cwByWidth, cwByHeight;
+  if (sideLayout) {
+    // 1 pozo + 8 columnas + 1 pila final = 10 cartas de ancho, 9 huecos.
+    cwByWidth = (contentW - 9 * gap) / 10;
+    // La columna lateral apila 4 cartas: 4·1.42·cw + 3 huecos ≤ alto.
+    cwByHeight = (availH - 3 * gap) / (4 * 1.42);
+  } else {
+    cwByWidth = (contentW - 7 * gap) / 8;
+    // Fila superior (1.42cw) + separación (10) + columna inicial de 7 cartas
+    // (1.42cw + 6·0.32·1.42cw) + padding inferior del tablero (28) sin scroll.
+    cwByHeight = (availH - 38) / 5.57;
+  }
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
   // Techo más alto en pantallas anchas: si no, en desktop el tablero queda

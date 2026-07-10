@@ -466,7 +466,8 @@ function attachDrag(elem, src) {
 
 function render() {
   var landFi = animFoundation; animFoundation = -1;   // animar el aterrizaje una sola vez
-  var top = document.getElementById("top"); top.innerHTML = "";
+  var swWrap = document.getElementById("stockwaste"); swWrap.innerHTML = "";
+  var foundWrap = document.getElementById("foundations"); foundWrap.innerHTML = "";
   var tableau = document.getElementById("tableau"); tableau.innerHTML = "";
 
   /* Mazo */
@@ -481,9 +482,11 @@ function render() {
     clickActivate(rec, dealStock);
     stockSlot.appendChild(rec);
   }
-  top.appendChild(stockSlot);
+  swWrap.appendChild(stockSlot);
 
-  /* Descarte (con abanico en modo difícil) */
+  /* Descarte (con abanico en modo difícil). En el layout lateral (apaisado
+     corto) el abanico se abre hacia ABAJO en vez de a la derecha: la columna
+     lateral mide una carta de ancho y hacia abajo hay lugar libre. */
   var wasteSlot = el("div", "slot");
   if (state.waste.length) {
     var show = settings.draw === 3 ? Math.min(3, state.waste.length) : 1;
@@ -494,7 +497,9 @@ function render() {
       var card = state.waste[idx];
       var isTop = idx === state.waste.length - 1;
       var ce = makeCardEl(card, isTop && selection && selection.pile === "waste");
-      ce.style.position = "absolute"; ce.style.left = (w * fan) + "px"; ce.style.top = "0"; ce.style.zIndex = w;
+      ce.style.position = "absolute"; ce.style.zIndex = w;
+      if (sideLayout) { ce.style.left = "0"; ce.style.top = (w * fan) + "px"; }
+      else { ce.style.left = (w * fan) + "px"; ce.style.top = "0"; }
       if (isTop) {
         ce.dataset.pile = "waste"; ce.dataset.col = "0"; ce.dataset.index = String(state.waste.length - 1);
         attachDrag(ce, { pile: "waste", col: 0, index: state.waste.length - 1, card: card });
@@ -506,10 +511,7 @@ function render() {
   } else {
     wasteSlot.appendChild(el("div", "slot-ph"));
   }
-  top.appendChild(wasteSlot);
-
-  /* Espacio */
-  top.appendChild(el("div", "slot spacer"));
+  swWrap.appendChild(wasteSlot);
 
   /* Pilas finales */
   for (var fi = 0; fi < 4; fi++) {
@@ -529,7 +531,7 @@ function render() {
       clickActivate(fph, handleFoundationClick);
       fslot.appendChild(fph);
     }
-    top.appendChild(fslot);
+    foundWrap.appendChild(fslot);
   }
 
   /* Columnas */
@@ -574,23 +576,39 @@ function updateHUD() {
   document.getElementById("time").textContent = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
 }
 
-/* ---------- Tamaños ---------- */
+/* ---------- Tamaños ----------
+   El tamaño de carta se calcula según el layout activo (centinela
+   --board-layout que fija el CSS de #board):
+   - "top" (vertical/desktop): fila superior de 7 + tablero abajo (fórmula de
+     siempre; el reparto inicial ya entraba sin scroll).
+   - "side" (apaisado corto): mazo/descarte y pilas en columnas laterales;
+     mandan el ancho (9 cartas: 1 + 7 + 1) y el alto de la columna de 4. */
+var sideLayout = false;
 function setSizes() {
   var root = document.documentElement;
   var board = document.getElementById("board");
   var cs = getComputedStyle(board);
   var padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+  var padT = parseFloat(cs.paddingTop) || 0, padB = parseFloat(cs.paddingBottom) || 0;
   var contentW = board.clientWidth - padL - padR;
+  var availH = (board.clientHeight || window.innerHeight) - padT - padB;
   // Separación proporcional: densa en celular, más aireada en tablet/escritorio.
   var gap = contentW < 460 ? 4 : (contentW < 760 ? 6 : 8);
+  sideLayout = cs.getPropertyValue("--board-layout").trim() === "side";
 
-  // Límite por ancho: 7 columnas + 6 huecos deben entrar.
-  var cwByWidth = (contentW - 6 * gap) / 7;
-
-  // Límite por alto: que la fila superior y buena parte del tablero entren
-  // en pantallas anchas o de poca altura (evita cartas gigantes en apaisado).
-  var availH = board.clientHeight || window.innerHeight;
-  var cwByHeight = ((availH - 14) / 3.0) / 1.42;
+  var cwByWidth, cwByHeight;
+  if (sideLayout) {
+    // 1 (mazo/descarte) + 7 columnas + 1 (pilas finales) = 9 cartas de ancho.
+    cwByWidth = (contentW - 8 * gap) / 9;
+    // La columna lateral derecha apila 4 pilas: 4·1.42·cw + 3 huecos ≤ alto.
+    cwByHeight = (availH - 3 * gap) / (4 * 1.42);
+  } else {
+    // Límite por ancho: 7 columnas + 6 huecos deben entrar.
+    cwByWidth = (contentW - 6 * gap) / 7;
+    // Límite por alto: que la fila superior y buena parte del tablero entren
+    // en pantallas anchas o de poca altura (evita cartas gigantes en apaisado).
+    cwByHeight = (availH / 3.0) / 1.42;
+  }
 
   CW = Math.floor(Math.min(cwByWidth, cwByHeight));
   // Techo más alto en pantallas anchas: si no, en desktop el tablero queda

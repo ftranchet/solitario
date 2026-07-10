@@ -1523,6 +1523,101 @@ test("Responsive: el riel lateral activa flex-direction:row en apaisado corto", 
   }
 });
 
+/* 45b2) Responsive — en apaisado corto, Solitario y Carta Blanca reordenan el
+   tablero: mazo/descarte o pozos libres en una COLUMNA a la izquierda y las
+   pilas finales en una COLUMNA a la derecha, con las columnas de juego usando
+   el alto completo en el medio (antes la fila superior comía el alto y el
+   tablero necesitaba scroll). Verifica la geometría real, no sólo el CSS. */
+test("Responsive: en apaisado corto los pozos/mazo van a la izquierda y las pilas a la derecha", async function (ctx) {
+  var cases = [
+    { file: "solitario.html", left: "#stockwaste" },
+    { file: "carta-blanca.html", left: "#freecells" }
+  ];
+  for (var i = 0; i < cases.length; i++) {
+    var p = await newPage(ctx);
+    await p.page.setViewportSize({ width: 844, height: 390 });
+    await p.page.goto(url(cases[i].file), { waitUntil: "load" });
+    await p.page.waitForTimeout(150);
+    var r = await p.page.evaluate(function (leftSel) {
+      var left = document.querySelector(leftSel).getBoundingClientRect();
+      var found = document.getElementById("foundations").getBoundingClientRect();
+      var tabl = document.getElementById("tableau").getBoundingClientRect();
+      return {
+        layout: getComputedStyle(document.getElementById("board")).getPropertyValue("--board-layout").trim(),
+        leftOk: left.right <= tabl.left + 1,
+        rightOk: found.left >= tabl.right - 1,
+        leftIsColumn: left.height > left.width
+      };
+    }, cases[i].left);
+    assert(r.layout === "side", cases[i].file + ": el centinela --board-layout debería ser 'side' a 844x390, es '" + r.layout + "'");
+    assert(r.leftOk, cases[i].file + ": " + cases[i].left + " debería quedar a la IZQUIERDA del tablero");
+    assert(r.rightOk, cases[i].file + ": las pilas finales deberían quedar a la DERECHA del tablero");
+    assert(r.leftIsColumn, cases[i].file + ": la zona izquierda debería ser una columna vertical");
+    assertNoErrors(p.errors);
+  }
+});
+
+/* 45b3) Responsive — el reparto inicial entra COMPLETO sin scroll en los tres
+   escenarios típicos (celular vertical, celular apaisado, desktop). Regresión
+   del pedido "no puede ser que tenga que bajar la pantalla": antes, en
+   desktop y en apaisado, la columna inicial de 7 cartas de Carta Blanca no
+   entraba y había que scrollear para ver la última carta. */
+test("Responsive: el reparto inicial entra sin scroll (Solitario y Carta Blanca)", async function (ctx) {
+  var files = ["solitario.html", "carta-blanca.html"];
+  var viewports = [
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 1280, height: 800 }
+  ];
+  for (var i = 0; i < files.length; i++) {
+    for (var v = 0; v < viewports.length; v++) {
+      var p = await newPage(ctx);
+      await p.page.setViewportSize(viewports[v]);
+      await p.page.goto(url(files[i]), { waitUntil: "load" });
+      await p.page.waitForTimeout(150);
+      var r = await p.page.evaluate(function () {
+        var w = document.getElementById("tableauWrap");
+        return { scrollH: w.scrollHeight, clientH: w.clientHeight };
+      });
+      assert(r.scrollH <= r.clientH + 1,
+        files[i] + " a " + viewports[v].width + "x" + viewports[v].height +
+        ": el reparto inicial no debería necesitar scroll (" + r.scrollH + " > " + r.clientH + ")");
+      assertNoErrors(p.errors);
+    }
+  }
+});
+
+/* 45b4) Carta Blanca — las escaleras conectadas se ven iluminadas: las cartas
+   que NO forman parte de la escalera del fondo de su columna (todavía no se
+   pueden agarrar) llevan la clase .buried y se atenúan; las de la escalera
+   quedan a brillo pleno, así se lee de un vistazo qué se puede mover. */
+test("Carta Blanca: las cartas enterradas se atenúan y la escalera del fondo queda iluminada", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    state = {
+      free: [null, null, null, null],
+      foundations: [[], [], [], []],
+      // col 0: K♠ enterrada bajo un 5♦ suelto; col 1: 10♥-9♣ (escalera válida)
+      tableau: [[c("spades", 13, 1), c("diamonds", 5, 2)],
+                [c("hearts", 10, 3), c("clubs", 9, 4)],
+                [], [], [], [], [], []],
+      moves: 0
+    };
+    selection = null; undoStack = []; render();
+    function buried(col, idx) {
+      var e = document.querySelector('.card[data-pile="tableau"][data-col="' + col + '"][data-index="' + idx + '"]');
+      return { cls: e.classList.contains("buried"), filter: getComputedStyle(e).filter };
+    }
+    return { k: buried(0, 0), five: buried(0, 1), ten: buried(1, 0), nine: buried(1, 1) };
+  });
+  assert(r.k.cls && r.k.filter !== "none", "la K♠ tapada por una carta suelta debería estar atenuada (.buried)");
+  assert(!r.five.cls, "el 5♦ (fondo de columna) no debería estar atenuado");
+  assert(!r.ten.cls, "el 10♥ (parte de la escalera 10♥-9♣) no debería estar atenuado");
+  assert(!r.nine.cls, "el 9♣ (fondo de la escalera) no debería estar atenuado");
+  assertNoErrors(p.errors);
+});
+
 /* 45c) Tema "auto" — con la preferencia en "auto" (el default: nadie tocó el
    toggle), el tema debe reaccionar EN VIVO al cambio de
    prefers-color-scheme del SISTEMA, sin intervención del usuario (ver el

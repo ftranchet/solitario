@@ -16,22 +16,58 @@
   50% { box-shadow: 0 0 0 5px rgba(232,180,74,0.55), 0 4px 12px rgba(0,0,0,0.35); transform: scale(1.06); }
 }
 
+/* El tablero es una grilla con 3 zonas: pozos libres, pilas finales y las 8
+   columnas. En vertical, pozos y pilas forman la fila superior clásica
+   (4 + 4, alineadas con las 8 columnas: 4cw+3gap por lado + el column-gap
+   entre ambas = 8cw+7gap, el mismo ancho del tablero). En apaisado corto
+   rotan a COLUMNAS laterales (pozos a la izquierda, pilas a la derecha) para
+   que las columnas del tablero usen el alto completo de la pantalla.
+   --board-layout es el centinela que lee setSizes() en games/carta-blanca.js
+   para calcular el tamaño de carta según el layout activo. */
 #board {
+  --board-layout: top;
   width: 100%; margin: 0 auto;
-  padding: 10px 8px 4px; flex: 1;
-  display: flex; flex-direction: column; min-height: 0;
+  padding: 10px 8px 4px; flex: 1; min-height: 0;
+  display: grid;
+  grid-template-areas:
+    "cells found"
+    "tabl  tabl";
+  grid-template-columns: auto auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-content: center;
+  row-gap: 10px;
+  column-gap: var(--gap);
 }
-
-/* Fila superior: 4 pozos libres (izq) + 4 pilas finales (der) = 8 columnas,
-   alineadas con las 8 columnas del tablero. */
-#top {
-  display: grid; grid-template-columns: repeat(8, var(--cw)); gap: var(--gap);
-  justify-content: center; margin-bottom: 10px;
+#freecells {
+  grid-area: cells;
+  display: grid; grid-template-columns: repeat(4, var(--cw)); gap: var(--gap);
+  justify-self: start; align-self: start;
 }
-#tableauWrap { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 28px; touch-action: pan-y; }
+#foundations {
+  grid-area: found;
+  display: grid; grid-template-columns: repeat(4, var(--cw)); gap: var(--gap);
+  justify-self: end; align-self: start;
+}
+#tableauWrap { grid-area: tabl; overflow-y: auto; min-height: 0; padding-bottom: 28px; touch-action: pan-y; }
 #tableau {
   display: grid; grid-template-columns: repeat(8, var(--cw)); gap: var(--gap);
   justify-content: center; align-items: start;
+}
+/* Apaisado corto (mismo breakpoint que el riel lateral de styles/base.css):
+   pozos libres a la izquierda y pilas finales a la derecha, en columna, así
+   el tablero aprovecha el alto completo en vez de perderlo en la fila
+   superior (y las columnas no necesitan scroll). */
+@media (orientation: landscape) and (max-height: 500px) {
+  #board {
+    --board-layout: side;
+    grid-template-areas: "cells tabl found";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    row-gap: 0;
+  }
+  #freecells { grid-template-columns: var(--cw); grid-template-rows: repeat(4, var(--ch)); }
+  #foundations { grid-template-columns: var(--cw); grid-template-rows: repeat(4, var(--ch)); }
+  #tableauWrap { height: 100%; }
 }
 
 .slot { width: var(--cw); height: var(--ch); position: relative; }
@@ -67,6 +103,12 @@
   box-shadow: 0 0 0 3px #e8b44a, 0 6px 14px rgba(0,0,0,0.4);
   transform: translateY(-2px);
 }
+/* Cartas "enterradas": las que NO forman parte de la escalera conectada del
+   fondo de su columna (no se pueden agarrar todavía) se atenúan, así los
+   grupos que sí se conectan se ven más iluminados que el resto y se lee de
+   un vistazo qué se puede mover. filter (no un color fijo) para que funcione
+   igual en claro y oscuro. render() asigna la clase con bottomRunStart(). */
+.card.up.buried { filter: brightness(0.8) saturate(0.92); }
 .card.dragging { opacity: 0.28; }
 /* Aterrizaje en una pila final */
 .card.land { animation: land 0.3s ease; }
