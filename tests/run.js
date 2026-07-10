@@ -662,8 +662,13 @@ test("Corazones: juega una carta con el teclado (Enter)", async function (ctx) {
   await p.page.evaluate(function () { document.querySelector(".hand .card.playable").focus(); });
   await p.page.keyboard.press("Enter");
   await p.page.waitForFunction(function () { return trick.length === 4 || phase !== "play"; }, null, { timeout: 4000 });
-  var r = await p.page.evaluate(function () { return { hand: players[0].hand.length, trick: trick.length }; });
-  assert(r.hand === 0 && r.trick === 4, "el Enter debería jugar la carta igual que un click: " + JSON.stringify(r));
+  // Con TRICK_HOLD=5, la baza puede RESOLVERSE (trick=[] y phase="scoring",
+  // era la 13.ª) entre el wait y esta lectura — el flake intermitente ya
+  // conocido de este test. Ambos estados prueban lo mismo: la carta salió de
+  // la mano por el Enter, igual que con un click.
+  var r = await p.page.evaluate(function () { return { hand: players[0].hand.length, trick: trick.length, phase: phase }; });
+  assert(r.hand === 0 && (r.trick === 4 || r.phase === "scoring"),
+    "el Enter debería jugar la carta igual que un click: " + JSON.stringify(r));
   assertNoErrors(p.errors);
 });
 
@@ -1533,9 +1538,15 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
   var t0 = await p.page.evaluate(function () { return document.documentElement.dataset.theme; });
   assert(t0 === "light" || t0 === "dark", "theme.js debería fijar data-theme; quedó " + t0);
 
-  // Elegir "Oscuro" desde el modal de Opciones.
+  // Elegir "Oscuro" desde el modal de Opciones. El atributo data-theme puede
+  // aplicarse un frame después (fundido con View Transitions), así que se
+  // espera en vez de leerlo en el mismo tick; la PREFERENCIA sí queda
+  // guardada sincrónicamente (getThemePref).
   await p.page.click("#btn-settings");
   await p.page.click('[data-theme-pref="dark"]');
+  var prefNow = await p.page.evaluate(function () { return getThemePref(); });
+  assert(prefNow === "dark", "getThemePref() debería devolver 'dark' inmediatamente tras el click (fue '" + prefNow + "')");
+  await p.page.waitForFunction(function () { return document.documentElement.dataset.theme === "dark"; }, null, { timeout: 2000 });
   var r = await p.page.evaluate(function () {
     var active = document.querySelector('[data-theme-pref].active');
     return {

@@ -38,9 +38,24 @@
   // Cambios del tema del sistema: sólo afectan cuando la preferencia es "auto".
   if (typeof window.matchMedia === "function") {
     var mq = matchMedia("(prefers-color-scheme: dark)");
-    var onSystemChange = function () { if (pref() === "auto") apply(); };
+    var onSystemChange = function () { if (pref() === "auto") applyWithFade(); };
     if (typeof mq.addEventListener === "function") mq.addEventListener("change", onSystemChange);
     else if (typeof mq.addListener === "function") mq.addListener(onSystemChange);   // Safari viejo
+  }
+
+  // Cambio de tema con fundido suave: View Transitions API como mejora
+  // progresiva. Éste es el ÚNICO lugar donde encaja (la Fase 5 de PLAN.md la
+  // descartó para el render de los juegos porque su callback no corre
+  // sincrónicamente y los motores dependen de "actuar y verificar en el
+  // mismo tick"): acá el cambio es puramente visual, la preferencia ya quedó
+  // guardada en localStorage de forma síncrona, y quien necesite el valor
+  // inmediato lee getThemePref(), no el atributo. Respeta reduced-motion.
+  function applyWithFade() {
+    var reduce = typeof window.matchMedia === "function" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var withTransition = /** @type {any} */ (document).startViewTransition;
+    if (typeof withTransition === "function" && !reduce) withTransition.call(document, apply);
+    else apply();
   }
 
   window.getThemePref = pref;
@@ -50,7 +65,7 @@
       if (p === "light" || p === "dark") localStorage.setItem(KEY, p);
       else localStorage.removeItem(KEY);   // "auto" es la ausencia de valor
     } catch (e) {}
-    apply();
+    applyWithFade();
   };
 
   // Cablea los controles de tema (p. ej. el segmented de Opciones). Marca el

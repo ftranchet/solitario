@@ -179,16 +179,123 @@ function clickActivate(el, handler) {
 })();
 
 /*
- * Festejo de victoria: lluvia de confeti en un canvas de pantalla completa
- * (.confetti-canvas, ver styles/game.css). Era idéntico en los 4 juegos; se
- * consolidó acá sin cambiar el comportamiento. Respeta prefers-reduced-motion
- * (no dibuja nada si el usuario prefiere menos movimiento).
+ * Festejos de victoria, en un canvas de pantalla completa (.confetti-canvas,
+ * ver styles/game.css). Dos variantes:
+ *   - celebrate(): lluvia de confeti (Corazones, Buscaminas).
+ *   - cascade(stacks): la CASCADA de cartas clásica de Windows — las cartas
+ *     de las pilas finales salen despedidas y rebotan por la pantalla
+ *     dejando estela (el canvas no se borra entre frames, ésa es la gracia).
+ *     La usan Solitario y Carta Blanca.
+ * Ambas respetan prefers-reduced-motion (no dibujan nada) y se cortan con
+ * stopConfetti() (nueva partida, cerrar el modal de victoria).
  */
 /** @type {(() => void) | null} */
 var confettiCleanup = null;
 
 function stopConfetti() {
   if (confettiCleanup) { confettiCleanup(); confettiCleanup = null; }
+}
+
+/**
+ * Cascada de cartas al ganar. Cada ~300ms sale UNA carta de cada pila final
+ * (las 4 a la vez, como en el Solitario clásico), con velocidad horizontal
+ * aleatoria; rebotan contra el piso perdiendo energía y desaparecen al salir
+ * por los costados. Colores desde los tokens (respeta el modo oscuro).
+ * @typedef {{ suit: string, rank: number }} CascadeCard
+ * @typedef {{ x: number, y: number, w: number, h: number, cards: CascadeCard[] }} CascadeStack
+ * @param {CascadeStack[]} stacks  pilas finales; `cards` va de arriba hacia abajo
+ */
+function cascade(stacks) {
+  stopConfetti();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var canvas = document.createElement("canvas");
+  canvas.className = "confetti-canvas";
+  document.body.appendChild(canvas);
+  var maybeCtx = canvas.getContext("2d");
+  if (!maybeCtx) { canvas.remove(); return; }
+  var ctx = maybeCtx;
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  var debouncedResize = debounce(resize, 120);   // borra la estela, las cartas siguen
+  window.addEventListener("resize", debouncedResize);
+  var raf = 0;
+  confettiCleanup = function () {
+    if (raf) cancelAnimationFrame(raf);
+    window.removeEventListener("resize", debouncedResize);
+    canvas.remove();
+  };
+
+  var css = getComputedStyle(document.documentElement);
+  /** @param {string} name @param {string} fallback */
+  function token(name, fallback) { var v = css.getPropertyValue(name).trim(); return v || fallback; }
+  var FACE = token("--card-face-top", "#ffffff");
+  var BORDER = token("--paper-border", "#d9cdb4");
+  var RED = token("--suit-red", "#c62828");
+  var BLACK = token("--suit-black", "#1a1a1a");
+  /** @type {Record<string, string>} */
+  var SYM = { spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣" };
+
+  /** @type {{x:number,y:number,vx:number,vy:number,w:number,h:number,card:CascadeCard}[]} */
+  var flying = [];
+  var pointers = stacks.map(function () { return 0; });
+  var WAVE_MS = 300, GRAV = 0.5, BOUNCE = 0.82, LIMIT_MS = 15000;
+  var start = Date.now(), lastWave = -WAVE_MS;
+
+  /** @param {{x:number,y:number,w:number,h:number,card:CascadeCard}} f */
+  function drawCard(f) {
+    var x = f.x, y = f.y, w = f.w, h = f.h, r = Math.max(3, w * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fillStyle = FACE;
+    ctx.fill();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    var color = SUIT[f.card.suit] && SUIT[f.card.suit].color === "red" ? RED : BLACK;
+    ctx.fillStyle = color;
+    ctx.textBaseline = "top";
+    ctx.font = "900 " + Math.round(h * 0.24) + "px system-ui, sans-serif";
+    ctx.fillText(RANK_LABEL[f.card.rank] + (SYM[f.card.suit] || ""), x + w * 0.09, y + h * 0.06);
+    ctx.font = "900 " + Math.round(h * 0.42) + "px system-ui, sans-serif";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(SYM[f.card.suit] || "", x + w * 0.32, y + h * 0.88);
+  }
+
+  function frame() {
+    var now = Date.now();
+    if (now - start > LIMIT_MS) { stopConfetti(); return; }
+    // Nueva tanda: una carta de cada pila que todavía tenga.
+    if (now - start - lastWave >= WAVE_MS) {
+      lastWave = now - start;
+      for (var s = 0; s < stacks.length; s++) {
+        var st = stacks[s];
+        if (pointers[s] >= st.cards.length) continue;
+        var card = st.cards[pointers[s]++];
+        var dir = Math.random() < 0.5 ? -1 : 1;
+        flying.push({
+          x: st.x, y: st.y, w: st.w, h: st.h, card: card,
+          vx: dir * (2.5 + Math.random() * 5), vy: -(1 + Math.random() * 3)
+        });
+      }
+    }
+    // Física + dibujo SIN borrar el canvas: las cartas dejan estela.
+    for (var i = flying.length - 1; i >= 0; i--) {
+      var f = flying[i];
+      f.vy += GRAV; f.x += f.vx; f.y += f.vy;
+      if (f.y + f.h > canvas.height) { f.y = canvas.height - f.h; f.vy = -Math.abs(f.vy) * BOUNCE; }
+      if (f.x < -f.w || f.x > canvas.width) { flying.splice(i, 1); continue; }
+      drawCard(f);
+    }
+    var launchedAll = pointers.every(function (ptr, s2) { return ptr >= stacks[s2].cards.length; });
+    if (launchedAll && !flying.length) { stopConfetti(); return; }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
 }
 
 function celebrate() {

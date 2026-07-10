@@ -81,7 +81,14 @@ function resolveLaunch() {
 
   for (var i = 0; i < BREAKPOINTS.length; i++) {
     var bp = BREAKPOINTS[i];
-    var context = await browser.newContext({ viewport: { width: bp.width, height: bp.height } });
+    // reducedMotion: las animaciones (reparto escalonado, pulsos) se apagan y
+    // la captura muestra siempre el estado FINAL estable — sin esto, el
+    // momento exacto de la captura variaría entre corridas y la comparación
+    // pixel a pixel de tests/visual.js sería ruidosa.
+    var context = await browser.newContext({
+      viewport: { width: bp.width, height: bp.height },
+      reducedMotion: "reduce",
+    });
     for (var j = 0; j < PAGES.length; j++) {
       var page = await context.newPage();
       // Math.random determinista (LCG con semilla fija): los repartos salen

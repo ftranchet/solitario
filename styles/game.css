@@ -123,7 +123,18 @@ body {
   scrollbar-color: rgba(255,255,255,0.28) transparent;
 }
 
+/* Reparto animado: al empezar una partida (o mano) nueva, las cartas entran
+   con un fundido escalonado. Puramente decorativo: el motor agrega la clase
+   .deal SOLO en el primer render de la partida nueva, con animation-delay
+   por carta; los renders siguientes no la llevan (no interfiere con el
+   patrón síncrono de render/verificación). `backwards` mantiene la carta
+   invisible hasta que le toca su turno. */
+.card.deal { animation: deal-in 0.3s ease backwards; }
+@keyframes deal-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.92); }
+}
+
 /* Movimiento reducido: la parte común (cada juego apaga además las suyas). */
 @media (prefers-reduced-motion: reduce) {
-  .win-emoji { animation: none !important; }
+  .win-emoji, .card.deal { animation: none !important; }
 }

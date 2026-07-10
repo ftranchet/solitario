@@ -126,6 +126,10 @@
    "papel claro" pasan a gris carbón. Las celdas reveladas dejaban el fondo
    crema (quedaban BLANCAS en un tablero oscuro); ahora usan un fondo oscuro
    y los números se aclaran para mantener el contraste. */
+:root[data-theme="dark"] .cell.covered {
+  background: linear-gradient(160deg, #257c4f, #175940);
+  box-shadow: inset 1.5px 1.5px 0 rgba(255,255,255,0.16), inset -1.5px -1.5px 0 rgba(0,0,0,0.38);
+}
 :root[data-theme="dark"] .cell.revealed {
   background: #2b2a25;
   border-color: rgba(255,255,255,0.09);

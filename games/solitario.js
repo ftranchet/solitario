@@ -16,6 +16,7 @@ var seconds = 0, timerId = null, started = false;
 var CW, CH, OFFSET_UP, OFFSET_DOWN;
 var settings = { draw: 1 };
 var animFoundation = -1;   // pila final que acaba de recibir una carta (para animarla)
+var dealAnim = false;      // el próximo render es el de una partida nueva: reparto animado
 var counted = false;       // ¿ya se contó esta partida en las estadísticas?
 var winRecorded = false;   // ¿ya se registró la victoria? (deshacer y rehacer no debe duplicarla)
 
@@ -376,8 +377,23 @@ function checkWin() {
     var t = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
     document.getElementById("win-stats").textContent = "Tiempo " + t + " \u00b7 " + state.moves + " movimientos";
     document.getElementById("win").hidden = false;
-    celebrate();
+    winCascade();
   }
+}
+// La cascada de cartas cl\u00e1sica (cascade() vive en shared/ui.js): cada pila
+// final larga sus cartas desde su posici\u00f3n real en pantalla, de arriba abajo.
+function winCascade() {
+  var stacks = [];
+  for (var i = 0; i < 4; i++) {
+    var slot = document.querySelector('[data-drop="foundation:' + i + '"]');
+    if (!slot) continue;
+    var r = slot.getBoundingClientRect();
+    stacks.push({
+      x: r.left, y: r.top, w: r.width, h: r.height,
+      cards: state.foundations[i].slice().reverse().map(function (c) { return { suit: c.suit, rank: c.rank }; })
+    });
+  }
+  cascade(stacks);
 }
 /* ---------- Sin jugadas (derrota) ---------- */
 function canPlaceCardAnywhere(card) {
@@ -551,6 +567,7 @@ function render() {
         var tsel = selection && selection.pile === "tableau" && selection.col === col && i >= selection.index;
         var te = makeCardEl(tcard, tsel);
         te.style.top = y + "px"; te.style.zIndex = i;
+        if (dealAnim) { te.classList.add("deal"); te.style.animationDelay = ((col * 4 + i) * 20) + "ms"; }
         if (tcard.faceUp) {
           te.dataset.pile = "tableau"; te.dataset.col = String(col); te.dataset.index = String(i);
           attachDrag(te, { pile: "tableau", col: col, index: i, card: tcard });
@@ -569,6 +586,7 @@ function render() {
   updateAutoButton();
   updateStuckState();
   saveGame();
+  dealAnim = false;   // el reparto se anima una sola vez
 }
 
 function updateHUD() {
@@ -931,6 +949,7 @@ function newGame() {
   stuckCheckMoves = -1;
   resetTimer();
   document.getElementById("win").hidden = true;
+  dealAnim = true;   // el primer render de la partida nueva anima el reparto
   render();
 }
 

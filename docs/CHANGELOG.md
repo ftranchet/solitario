@@ -12,6 +12,49 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.11.0] — 2026-07-10
+
+Paquete de estética (los puntos B, C y E del plan acordado; A y D quedaron
+descartados por ahora).
+
+### Agregado
+
+- **La cascada de cartas clásica al ganar (Solitario y Carta Blanca).** El
+  guiño a Windows: al completar la partida, las cartas de las 4 pilas
+  finales salen despedidas desde su posición real, rebotan contra el piso
+  perdiendo energía y dejan ESTELA (el canvas no se borra entre frames, ésa
+  es la gracia). Nueva `cascade()` en `shared/ui.js`, dibujada con los
+  colores de los tokens (funciona en claro y oscuro), 4 cartas por tanda
+  cada ~300ms, tope de 15s, y se corta igual que el confeti (nueva partida
+  o cerrar el modal). Corazones y Buscaminas conservan su confeti. Respeta
+  `prefers-reduced-motion`.
+- **Reparto animado (los 3 juegos de cartas).** Al empezar una partida (o
+  mano) nueva, las cartas entran con un fundido escalonado (~20ms por
+  carta, `animation-delay` por columna/posición). Puramente decorativo: la
+  clase `.deal` sólo va en el PRIMER render de la partida nueva, así no
+  interfiere con el patrón síncrono de render/verificación que hizo
+  descartar View Transitions en los motores (Fase 5 de PLAN.md).
+
+### Cambiado
+
+- **El cambio de tema hace un fundido suave.** View Transitions API en el
+  ÚNICO lugar donde encaja: el toggle de tema (y el cambio de tema del
+  sistema en modo auto). El cambio es puramente visual y la preferencia
+  queda guardada sincrónicamente (`getThemePref()`); mejora progresiva con
+  guarda de `prefers-reduced-motion` y fallback al cambio instantáneo. El
+  test del toggle ahora espera el atributo en vez de leerlo en el mismo
+  tick.
+- **Viñeta sutil en el fieltro.** Una capa extra del gradiente oscurece
+  apenas los bordes de la mesa (profundidad de paño real), en claro y en
+  oscuro, sin tocar la CSP (gradientes CSS puros).
+- **Buscaminas en oscuro: el verde de las celdas cubiertas se profundizó**
+  para acompañar el resto del tablero oscuro (antes conservaba el verde
+  brillante del modo claro).
+- **Las capturas de referencia se toman con `reducedMotion: "reduce"`**:
+  las animaciones nuevas se apagan y la regresión visual compara siempre el
+  estado final estable (sin ruido por el instante de la captura).
+- **`VERSION` de `sw.js` a `v1.21.0`.**
+
 ## [1.10.0] — 2026-07-10
 
 Rediseño del riel de apaisado (a partir de un bug real en teléfonos bajos) y

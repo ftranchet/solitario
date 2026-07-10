@@ -23,9 +23,13 @@ html { background-color: var(--felt-3); }
 
 /* Fondo "fieltro": se define acá para que sea un solo lugar, pero cada página
    mantiene su propio `body {}` con el resto de las propiedades (font-family,
-   color, user-select, overflow/min-height, etc.), que sí varían. */
+   color, user-select, overflow/min-height, etc.), que sí varían. La primera
+   capa es una VIÑETA sutil (bordes apenas más oscuros) que le da profundidad
+   de mesa real al fieltro; funciona igual en claro y oscuro. */
 body {
-  background: radial-gradient(120% 90% at 50% -10%, var(--felt-1) 0%, var(--felt-2) 45%, var(--felt-3) 100%);
+  background:
+    radial-gradient(130% 110% at 50% 40%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.16) 100%),
+    radial-gradient(120% 90% at 50% -10%, var(--felt-1) 0%, var(--felt-2) 45%, var(--felt-3) 100%);
 }
 
 /* ---------- Layout raíz de los 4 juegos (idéntico en las 4 páginas) ---------- */

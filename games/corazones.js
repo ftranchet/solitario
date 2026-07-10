@@ -40,6 +40,7 @@ var moonMode = "demas";    // "demas" (los demás +26) | "tirador" (el tirador �
 var hintTimer = null;
 var flowTimer = null;      // setTimeout del avance de IA / cierre de baza (cancelable)
 var lastTrickCardId = null; // para animar sólo la carta recién jugada
+var dealAnim = false;       // el próximo render es el de una mano nueva: reparto animado
 var handHistory = [];      // puntos por mano: [ [p0,p1,p2,p3], ... ]  (no usar "history": choca con window.history)
 var pendingOver = false;   // la mano que se está mostrando terminó la partida
 var CW, CH, OW;
@@ -348,6 +349,7 @@ function renderHand() {
     ce.style.left = (offset + i * step) + "px";
     ce.style.zIndex = i;
     ce.dataset.id = card.id;
+    if (dealAnim) { ce.classList.add("deal"); ce.style.animationDelay = (i * 24) + "ms"; }
     if (phase === "pass") {
       ce.classList.add("playable");
       if (humanPass.indexOf(card.id) >= 0) ce.classList.add("picked");
@@ -370,6 +372,7 @@ function render() {
   renderHand();
   updateControls();
   saveGame();
+  dealAnim = false;   // el reparto se anima una sola vez
 }
 function updateControls() {
   var passBtn = document.getElementById("btn-pass");
@@ -662,6 +665,7 @@ function nextHand() {
   handNumber++;
   passDir = DIRS[(handNumber - 1) % 4];
   dealHand();
+  dealAnim = true;   // el primer render de la mano nueva anima el abanico
   if (passDir === "hold") {
     beginPlay();
   } else {
