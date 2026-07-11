@@ -83,18 +83,19 @@
 
 /* .card.up / colores de palo -> styles/cards.css */
 
-/* Índice arriba-izquierda con número + palo juntos (visibles aunque las cartas
-   estén apiladas) y pip grande del palo abajo a la derecha, en color del palo. */
+/* Índice repartido en los extremos superiores: número arriba-izquierda y palo
+   arriba-derecha, del mismo tamaño (visibles aunque las cartas estén apiladas),
+   y pip grande del palo en el CENTRO de la carta, en color del palo. */
 .card .idx {
-  position: absolute; top: 6%; left: 9%;
-  display: flex; align-items: center; gap: 1px; line-height: 1;
+  position: absolute; top: 6%; left: 7%; right: 7%;
+  display: flex; align-items: center; justify-content: space-between; line-height: 1;
   font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.65);
 }
-.card .idx .r { font-size: calc(var(--cw) * 0.44); }
-.card .idx .s { font-size: calc(var(--cw) * 0.40); }
+.card .idx .r { font-size: calc(var(--cw) * 0.42); }
+.card .idx .s { font-size: calc(var(--cw) * 0.42); }
 .card .pip {
-  position: absolute; right: 8%; bottom: 4%;
-  font-size: calc(var(--cw) * 0.52); font-weight: 900; line-height: 1;
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  font-size: calc(var(--cw) * 0.72); font-weight: 900; line-height: 1;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
 

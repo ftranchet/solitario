@@ -12,6 +12,23 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.12.0] — 2026-07-11
+
+### Cambiado
+
+- **Cartas rediseñadas para mayor legibilidad (los 3 juegos de cartas).**
+  Número y palo ahora tienen el MISMO tamaño y ocupan los extremos superiores
+  de la carta (número arriba-izquierda, palo arriba-derecha), aprovechando
+  todo el ancho de la franja visible cuando las cartas están apiladas. El
+  palo grande (pip) pasó de la esquina inferior derecha al CENTRO de la
+  carta, más grande, para distinguirlo de un vistazo — el patrón clásico de
+  las cartas físicas. Excepción deliberada en Corazones: la mano se abanica
+  en horizontal y sólo queda visible la franja izquierda de cada carta, así
+  que ahí el índice sigue apilado en la esquina izquierda (con número y palo
+  igualados en tamaño) y el pip central va apenas corrido a la derecha para
+  no pisarlo.
+- **`VERSION` de `sw.js` a `v1.22.0`** y capturas de referencia regeneradas.
+
 ## [1.11.0] — 2026-07-10
 
 Paquete de estética (los puntos B, C y E del plan acordado; A y D quedaron

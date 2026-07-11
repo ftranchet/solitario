@@ -5,8 +5,9 @@
  * Depende de styles/tokens.css (debe enlazarse antes que este archivo).
  *
  * El tamaño y el layout del índice (.idx / .pip) NO están acá porque varían a
- * propósito entre juegos (Corazones apila rango y palo; Solitario/Carta Blanca
- * los ponen en fila). Eso queda en el CSS de cada juego.
+ * propósito entre juegos (Corazones apila rango y palo en la esquina izquierda
+ * por su mano abanicada; Solitario/Carta Blanca los reparten en los extremos
+ * superiores). Eso queda en el CSS de cada juego.
  */
 
 .card.up {

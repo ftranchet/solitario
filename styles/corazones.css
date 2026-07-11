@@ -34,18 +34,21 @@
   overflow: hidden;
 }
 /* .card.up / colores de palo / .card.down -> styles/cards.css */
-/* Índice esquinero (rank + palo apilados): se ve aunque las cartas estén
-   abanicadas, así siempre se distingue el palo. Pip grande abajo a la derecha. */
+/* Índice esquinero (rank + palo apilados, del mismo tamaño): la mano se
+   abanica en horizontal y sólo queda visible la franja IZQUIERDA de cada
+   carta, así que acá número y palo comparten esa esquina (a diferencia de
+   Solitario/Carta Blanca, que los reparten en los extremos superiores).
+   Pip grande al centro (corrido apenas a la derecha para no pisar el índice). */
 .card .idx {
   position: absolute; top: 5%; left: 8%;
   display: flex; flex-direction: column; align-items: center; line-height: 0.9;
   font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
 .card .idx .r { font-size: calc(var(--cw) * 0.40); }
-.card .idx .s { font-size: calc(var(--cw) * 0.38); margin-top: 1px; }
+.card .idx .s { font-size: calc(var(--cw) * 0.40); margin-top: 1px; }
 .card .pip {
-  position: absolute; right: 7%; bottom: 4%;
-  font-size: calc(var(--cw) * 0.62); font-weight: 900; line-height: 1;
+  position: absolute; left: 55%; top: 60%; transform: translate(-50%, -50%);
+  font-size: calc(var(--cw) * 0.68); font-weight: 900; line-height: 1;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
 /* Animaciones sutiles */
