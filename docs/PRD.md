@@ -5,7 +5,7 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.8 |
+| Versión del documento | 1.9 |
 | Estado | Vigente |
 | Última actualización | 2026-07-11 |
 | Responsable | Francisco Tranchet |
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.9 | 2026-07-11 | F. Tranchet + IA | Registra (retroactivamente: el cambio se aplicó al cerrar la Fase 7 de PLAN-2.md sin su fila acá, contra la convención de este historial) la reescritura de RNF-07: la brecha "CI no corre Firefox" quedó cerrada por la Fase 6 y el requisito ahora describe la cobertura real. §8/§10 pasan PLAN-2.md de "vigente" a "ejecutado". |
 | 1.8 | 2026-07-11 | F. Tranchet + IA | PLAN-2.md, Fase 4: RF-COR-03 documenta la mano de desempate en Corazones ante un empate en el liderazgo (decisión D2). |
 | 1.7 | 2026-07-11 | F. Tranchet + IA | PLAN-2.md, Fase 3 (coherencia de documentación): RNF-02 documenta el trade-off deliberado de `user-scalable=no` contra WCAG 1.4.4/RNF-08; RNF-07 documenta la brecha real (CI no corre Firefox) y enlaza la decisión D3. |
 | 1.6 | 2026-07-11 | F. Tranchet + IA | El roadmap (§8) apunta al nuevo [PLAN-2.md](./PLAN-2.md) (robustez, seguridad y consistencia, salido de la auditoría integral del 2026-07-11); PLAN.md queda enlazado como plan completado. |
@@ -236,7 +237,9 @@ inicio y jugable completamente offline.
 El plan de trabajo por fases vive en documentos propios:
 
 ➡️ **[docs/PLAN-2.md](./PLAN-2.md)** — robustez, seguridad y consistencia
-(vigente, salido de la auditoría integral del 2026-07-11).
+(salido de la auditoría integral del 2026-07-11; **ejecutado**, Fases 0-7 —
+sólo queda publicar los tags de release, bloqueados por permisos del
+entorno; ver su §"Progreso", Fase 7).
 
 ➡️ **[docs/PLAN.md](./PLAN.md)** — externalizar motores, layouts por
 orientación, modo oscuro, aviso de actualización (completado).
@@ -278,7 +281,7 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 
 ## 10. Referencias
 
-- [PLAN-2.md](./PLAN-2.md) — plan vigente: robustez, seguridad y consistencia.
+- [PLAN-2.md](./PLAN-2.md) — robustez, seguridad y consistencia (ejecutado).
 - [PLAN.md](./PLAN.md) — plan de trabajo por fases anterior (completado).
 - [CHANGELOG.md](./CHANGELOG.md) — historial de cambios del producto.
 - [ARQUITECTURA.md](./ARQUITECTURA.md) — registro de la arquitectura ya

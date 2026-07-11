@@ -46,6 +46,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Buscaminas · sin adivinanzas | La generación en Experto completa y revela (no congela; trabajo troceado) |
 | Solitario · victoria | El modal de victoria aparece |
 | Solitario · autocompletar | El autocompletado corta al no haber progreso (no cicla de más) |
+| Solitario · reloj del autocompletar | El autocompletado arranca el cronómetro (consistente con Carta Blanca; antes completaba con el reloj parado y regalaba un "mejor tiempo") |
 | Solitario · escalera parcial | **Regresión**: atasco/pistas detectan mover parte de una escalera cuando expone una carta que sube a la fundación |
 | Solitario · victoria única | **Regresión**: deshacer y rehacer tras ganar no duplica las estadísticas |
 | Carta Blanca · victoria | El modal de victoria aparece |
@@ -61,6 +62,8 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Solitario · guardado corrupto | JSON basura o mazo con carta repetida se descartan sin errores |
 | Carta Blanca · duplicados | `validState` rechaza mazos con cartas repetidas |
 | Corazones · duplicados | `validSaved`/`loadGame` descartan un guardado con cartas repetidas |
+| Corazones · manos desparejas | `validSaved` exige el invariante de tamaño por asiento (13 − bazas − 1 si ya jugó en la baza): un guardado artesanal 13/13/13/1 (que igual suma 52) crasheaba la IA al quedarse sin cartas |
+| Buscaminas · dificultad falsa | El tablero guardado debe coincidir con la dificultad DECLARADA (las estadísticas se registran por dificultad) y una mina ya revelada se rechaza |
 
 **Reglas de juego**
 
@@ -149,25 +152,29 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Test | Qué valida |
 |------|-----------|
 | Accesibilidad (axe-core) · ×6 | Cada una de las 6 páginas, auditada con [axe-core](https://github.com/dequelabs/axe-core) (vendorizado como devDependency de `tests/`, nunca se sirve en producción), no tiene violaciones automáticas (regla `meta-viewport` desactivada a propósito: el viewport fijo es intencional en una PWA táctil). Encontró y motivó el arreglo de 3 problemas reales (docs/PLAN-2.md, Fase 6): faltaba `<main>` en 5 páginas, faltaba un `<h1>` único en las 4 páginas de juego, y el contraste de `.empty` en Estadísticas no llegaba al mínimo WCAG AA |
+| Contraste en modo oscuro | axe-core sólo audita el estado inicial en claro con los modales cerrados; este test abre los modales de puntajes de Corazones con el tema oscuro aplicado y calcula el contraste real (fórmula WCAG) de los pares texto/fondo del verde "líder" — que era ilegible (2.58:1) y nada lo detectaba |
 
 ## Screenshots y regresión visual automática
 
 `screenshot.js` captura las 6 páginas en los 4 breakpoints (vertical,
 apaisado corto, tablet, desktop ancho) con un `Math.random` **determinista**
 (semilla fija): los repartos salen siempre iguales y las capturas son
-reproducibles.
+reproducibles. Además captura 5 **estados intermedios** de los juegos de
+cartas (escalera larga apilada, carta seleccionada, pozo en modo difícil) y
+el **modo oscuro**: las 6 páginas y esos mismos 5 estados.
 
 ```bash
 cd tests
-node screenshot.js [carpeta-salida]   # por defecto docs/screenshots/baseline
+node screenshot.js [baseline] [dark]  # por defecto docs/screenshots/{baseline,dark}
 node visual.js                        # recaptura y compara pixel a pixel vs. baseline
 ```
 
-`visual.js` corre en CI: recaptura las 24 pantallas y las compara
-(pixelmatch, umbral 1.5% para absorber antialiasing entre entornos) contra
-la referencia commiteada en `docs/screenshots/baseline/`. Si un cambio
-visual es **intencional**, regenerá la referencia (`node screenshot.js`) y
-commiteala; si no lo es, el CI lo atrapa.
+`visual.js` corre en CI: recaptura las 40 pantallas (24 de breakpoints + 5
+estados + 6 páginas oscuras + 5 estados oscuros) y las compara (pixelmatch,
+umbral 1.5% para absorber antialiasing entre entornos) contra la referencia
+commiteada en `docs/screenshots/baseline/` y `docs/screenshots/dark/`. Si un
+cambio visual es **intencional**, regenerá la referencia
+(`node screenshot.js`) y commiteala; si no lo es, el CI lo atrapa.
 
 También corre en CI `check-sw-version.sh`: si un cambio toca archivos
 servidos sin subir `VERSION` de `sw.js`, falla (la copia offline sólo se

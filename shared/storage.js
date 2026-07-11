@@ -89,16 +89,6 @@ function asNum(v, def) { return (typeof v === "number" && isFinite(v)) ? v : def
 function asIntInRange(v, min, max, def) {
   return (typeof v === "number" && isFinite(v) && Math.floor(v) === v && v >= min && v <= max) ? v : def;
 }
-/**
- * @param {unknown} v
- * @returns {number[]}
- */
-function asNumArray(v) {
-  if (!Array.isArray(v)) return [];
-  var out = [];
-  for (var i = 0; i < v.length; i++) out.push(asNum(v[i], 0));
-  return out;
-}
 
 /**
  * makeStats(key) — fábrica mínima de lectura/escritura de estadísticas.

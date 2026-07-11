@@ -44,10 +44,11 @@ jobs:
         working-directory: tests
         run: npm test
 
-      # Regresión visual: recaptura las 24 pantallas con reparto determinista
-      # (semilla fija en screenshot.js) y compara pixel a pixel contra
-      # docs/screenshots/baseline. Un cambio visual intencional se resuelve
-      # regenerando la referencia (node screenshot.js) y commiteándola.
+      # Regresión visual: recaptura las 40 pantallas (breakpoints + estados
+      # intermedios + modo oscuro) con reparto determinista (semilla fija en
+      # screenshot.js) y compara pixel a pixel contra docs/screenshots/. Un
+      # cambio visual intencional se resuelve regenerando la referencia
+      # (node screenshot.js) y commiteándola.
       - name: Regresión visual (capturas deterministas vs. baseline)
         working-directory: tests
         run: node visual.js

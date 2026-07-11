@@ -450,12 +450,18 @@ function onHint() {
 }
 
 /* ---------- Modales de puntaje ---------- */
-function scoreRow(seat, mid, total, cls) {
-  var tr = "<tr class=\"" + (cls || "") + "\">";
-  tr += "<td>" + esc(playerName(seat)) + "</td>";
-  if (mid != null) tr += '<td class="num">' + (mid > 0 ? "+" + mid : "0") + "</td>";
-  tr += '<td class="num">' + total + "</td></tr>";
-  return tr;
+// El asiento con MENOR puntaje acumulado (gana el que menos suma). Con
+// empate devuelve el de asiento más bajo — sólo para RESALTAR al líder en
+// los modales; el fin de partida con empate se resuelve con una mano de
+// desempate (D2, ver endHand()).
+function leaderSeat() {
+  var leader = 0;
+  for (var s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  return leader;
+}
+function scoreRow(seat, total, cls) {
+  return "<tr class=\"" + (cls || "") + "\"><td>" + esc(playerName(seat)) + "</td>" +
+    '<td class="num">' + total + "</td></tr>";
 }
 function validCard(c) { return c && SUIT[c.suit] && RANK_LABEL[c.rank] != null; }
 function pointCardsHtml(cards) {
@@ -478,8 +484,7 @@ function showRound(deltas, shooter) {
     var eff = moonMode === "tirador" ? (shooter === HUMAN ? " — restás 26." : " — resta 26.") : " — los demás +26.";
     moon.textContent = "🌙 " + who + eff;
   } else { moon.hidden = true; }
-  var leader = 0, s;
-  for (s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  var leader = leaderSeat(), s;
   var body = "";
   for (s = 0; s < 4; s++) {
     var cls = "taken-row" + (s === HUMAN ? " me" : "") + (s === leader ? " lead" : "");
@@ -499,7 +504,7 @@ function showWin() {
   var body = "";
   for (var i = 0; i < order.length; i++) {
     var s = order[i];
-    body += scoreRow(s, null, players[s].score, (s === HUMAN ? "me " : "") + (i === 0 ? "lead" : ""));
+    body += scoreRow(s, players[s].score, (s === HUMAN ? "me " : "") + (i === 0 ? "lead" : ""));
   }
   document.getElementById("win-body").innerHTML = body;
   document.getElementById("win-emoji").textContent = winner === HUMAN ? "🏆" : "🙂";
@@ -517,8 +522,7 @@ function buildScoresTable() {
     t.innerHTML = '<tbody><tr><td class="score-table-empty">Todavía no terminó ninguna mano.</td></tr></tbody>';
     return;
   }
-  var leader = 0;
-  for (s = 1; s < 4; s++) if (players[s].score < players[leader].score) leader = s;
+  var leader = leaderSeat();
   var html = '<thead><tr><th>Mano</th>';
   for (s = 0; s < 4; s++) html += '<th class="num' + (s === HUMAN ? ' col-me' : '') + '">' + esc(playerName(s)) + '</th>';
   html += '</tr></thead><tbody>';
@@ -594,8 +598,7 @@ function recordMatchEnd() {
   // 1.ª mano, no acá al terminar — así una partida abandonada a mitad de
   // camino también cuenta, igual que en los otros 3 juegos.
   var s = loadStats();
-  var winner = 0;
-  for (var i = 1; i < 4; i++) if (players[i].score < players[winner].score) winner = i;
+  var winner = leaderSeat();
   if (winner === HUMAN) s.won = (s.won || 0) + 1;
   var mine = players[HUMAN].score;
   if (s.bestScore == null || mine < s.bestScore) s.bestScore = mine;
@@ -624,7 +627,10 @@ function validSaved(d) {
   // llegan crudos a innerHTML en renderOpp()/buildScoresTable().
   if (d.turn != null && asIntInRange(d.turn, 0, 3, null) === null) return false;
   if (d.leadSeat != null && asIntInRange(d.leadSeat, 0, 3, null) === null) return false;
-  if (d.tricksPlayed != null && asIntInRange(d.tricksPlayed, 0, 13, null) === null) return false;
+  // Tope 12, no 13: una mano con las 13 bazas jugadas nunca se guarda en fase
+  // "play" (endHand() pasa a "scoring" y ahí saveGame() no persiste); si
+  // apareciera, el juego quedaría colgado sin jugadas posibles.
+  if (d.tricksPlayed != null && asIntInRange(d.tricksPlayed, 0, 12, null) === null) return false;
   if (d.handNumber != null && asIntInRange(d.handNumber, 1, 1000000, null) === null) return false;
   if (d.passDir != null && DIRS.indexOf(d.passDir) < 0) return false;
   if (d.history != null) {
@@ -638,24 +644,34 @@ function validSaved(d) {
   }
   // Las cartas en juego (manos + baza en mesa) no pueden repetirse (RNF-04:
   // un guardado corrupto se descarta), igual que en Solitario/Carta Blanca.
-  var n = 0, i, s, seen = {}, key;
+  var n = 0, i, s, seen = {}, key, inTrick = [false, false, false, false];
   if (d.trick != null) {
     if (!Array.isArray(d.trick)) return false;
+    if (d.phase === "pass" && d.trick.length) return false;   // en el pase no hay baza en mesa
     for (i = 0; i < d.trick.length; i++) {
       if (!d.trick[i] || !validCard(d.trick[i].card)) return false;
       if (asIntInRange(d.trick[i].seat, 0, 3, null) === null) return false;
       key = d.trick[i].card.suit + "-" + d.trick[i].card.rank;
       if (seen[key]) return false;
       seen[key] = 1;
+      inTrick[d.trick[i].seat] = true;
     }
     n += d.trick.length;
   }
-  n += (d.tricksPlayed || 0) * 4;
+  var tricks = d.tricksPlayed || 0;
+  if (d.phase === "pass" && tricks !== 0) return false;
+  n += tricks * 4;
   for (s = 0; s < 4; s++) {
     var p = d.players[s];
     if (!p || !Array.isArray(p.hand)) return false;
     if (p.score != null && asNum(p.score, null) === null) return false;
     if (p.roundPoints != null && asNum(p.roundPoints, null) === null) return false;
+    // Invariante de tamaño POR ASIENTO, no sólo el total de 52: cada mano
+    // tiene 13 − bazas jugadas − 1 si ese asiento ya jugó en la baza en mesa.
+    // Sin esto, un guardado artesanal con manos desparejas (p. ej. 13/13/13/1,
+    // que igual suma 52 con tricksPlayed compensando) pasaba, y cuando al
+    // asiento corto se le acababan las cartas la IA moría con un TypeError.
+    if (p.hand.length !== 13 - tricks - (inTrick[s] ? 1 : 0)) return false;
     for (i = 0; i < p.hand.length; i++) {
       if (!validCard(p.hand[i])) return false;
       key = p.hand[i].suit + "-" + p.hand[i].rank;

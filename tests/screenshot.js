@@ -295,6 +295,25 @@ function resolveLaunch() {
       console.log("  dark/" + darkName);
       await darkPage.close();
     }
+
+    // Los mismos estados deterministas, en oscuro: los estados con selección
+    // (.card.sel) y escaleras apiladas usan colores que en oscuro cambian con
+    // los tokens (--gold, cara de carta carbón); sin esto, una regresión que
+    // sólo aparece en oscuro con el tablero avanzado no la compararía nadie
+    // (auditoría post-PLAN-2, 1.20.0).
+    for (var ds = 0; ds < STATES.length; ds++) {
+      var dst = STATES[ds];
+      var dsPage = await darkContext.newPage();
+      await dsPage.addInitScript(function () { try { localStorage.setItem("theme", "dark"); } catch (e) {} });
+      await dsPage.goto(base + dst.page, { waitUntil: "load" });
+      await dsPage.waitForTimeout(200);
+      await dsPage.evaluate(dst.setup);
+      await dsPage.waitForTimeout(100);
+      var dsName = dst.name + ".png";
+      await dsPage.screenshot({ path: path.join(darkOutDir, dsName) });
+      console.log("  dark/" + dsName);
+      await dsPage.close();
+    }
     await darkContext.close();
   }
 

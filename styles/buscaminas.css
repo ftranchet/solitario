@@ -7,7 +7,7 @@
  */
 
 /* Botón de modo (Cavar/Bandera) activo */
-.btn.active { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+.btn.active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
 
 #play { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
@@ -113,8 +113,8 @@
 .cell.wrong { background: #ece4d1; }
 .cell.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 5; }
 @keyframes hintpulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0), inset 0 0 0 0 rgba(0,0,0,0); }
-  50% { box-shadow: 0 0 0 3px rgba(232,180,74,0.95); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0), inset 0 0 0 0 rgba(0,0,0,0); }
+  50% { box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.95); }
 }
 /* Colores clásicos de los números */
 .n1 { color: #1976d2; } .n2 { color: #2e7d32; } .n3 { color: #d32f2f; }

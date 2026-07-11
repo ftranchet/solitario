@@ -437,13 +437,21 @@ function loadGame() {
     if (!d || !DIFFS[d.difficulty] || !Array.isArray(d.g)) return false;
     // Formato versionado: una versión futura desconocida se descarta.
     if (d.v != null && d.v !== 1) return false;
+    // El tablero debe coincidir con la dificultad DECLARADA: las estadísticas
+    // se registran por dificultad, así que un guardado artesanal que dijera
+    // "expert" con un tablero 9×9 de 10 minas registraría victorias (y
+    // mejores tiempos) de Experto jugando uno de Principiante.
+    var dd = DIFFS[d.difficulty];
+    if (d.rows !== dd.rows || d.cols !== dd.cols || d.mines !== dd.mines) return false;
     if (d.rows * d.cols !== d.g.length) return false;
-    if (typeof d.mines !== "number" || d.mines < 1) return false;
-    // Las minas del tablero guardado deben coincidir con el contador (guardado corrupto)
+    // Las minas del tablero guardado deben coincidir con el contador, y una
+    // mina YA revelada es imposible en un guardado real (al perder se borra
+    // el guardado): inflaba revealedCount y podía adelantar la victoria.
     var mineBits = 0;
     for (var k = 0; k < d.g.length; k++) {
       var vk = d.g[k];
       if (typeof vk !== "number" || vk < 0) return false;
+      if ((vk & 3) === 3) return false;
       if (vk & 1) mineBits++;
     }
     if (mineBits !== d.mines) return false;

@@ -1,8 +1,13 @@
 /*
  * styles/cards.css — "Chrome" de la carta, idéntico en todos los juegos de
- * cartas: fondo de la cara, colores de palo (rojo/negro), dorso, y el
- * layout del índice (.idx / .pip) de Solitario y Carta Blanca (idéntico
- * entre los dos tras el rediseño de legibilidad, PLAN-2.md Fase 5).
+ * cartas: caja (tamaño, radio, sombra), fondo de la cara, colores de palo
+ * (rojo/negro), dorso, el layout del índice (.idx / .pip) de Solitario y
+ * Carta Blanca (idéntico entre los dos tras el rediseño de legibilidad,
+ * PLAN-2.md Fase 5), y los estados/efectos compartidos por Solitario y
+ * Carta Blanca: selección (.sel), aterrizaje (.land), pista (.hint /
+ * .hint-target) y la capa flotante de arrastre (.drag-layer, la que arma
+ * shared/drag.js) — extraídos de sus dos hojas, donde estaban duplicados
+ * byte a byte (auditoría post-PLAN-2, 1.20.0).
  *
  * Depende de styles/tokens.css (debe enlazarse antes que este archivo).
  *
@@ -10,8 +15,24 @@
  * abanica en horizontal y sólo queda visible la franja IZQUIERDA de cada
  * carta, así que apila rango y palo en esa esquina en vez de repartirlos en
  * los extremos superiores (styles/corazones.css, cargado después de este
- * archivo en las 3 páginas, así que sus reglas —misma especificidad— ganan).
+ * archivo en las 3 páginas, así que sus reglas —misma especificidad— ganan;
+ * también redefine @keyframes hintpulse con su propia sombra, y como los
+ * keyframes se resuelven por NOMBRE con la última definición cargada, en su
+ * página gana la suya). Los estados que Corazones no usa (.sel, .land,
+ * .dragging, .hint-target, .drag-layer) no le afectan: nunca asigna esas
+ * clases ni carga shared/drag.js.
  */
+
+/* Caja de la carta (idéntica en los 3 juegos de cartas). El cursor NO va acá:
+   en Solitario/Carta Blanca toda carta es interactiva (`.card { cursor:
+   pointer }` en su hoja); en Corazones sólo las jugables (`.hand
+   .card.playable`), el resto queda con el cursor por defecto. */
+.card {
+  width: var(--cw); height: var(--ch);
+  border-radius: calc(var(--cw) * 0.14);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
 
 .card.up {
   background: linear-gradient(160deg, var(--card-face-top), var(--paper-2));
@@ -25,7 +46,7 @@
 .card.down {
   background: repeating-linear-gradient(45deg, #15614a 0 8px, #11543f 8px 16px);
   border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: inset 0 0 0 3px rgba(232,180,74,0.35), 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: inset 0 0 0 3px rgba(var(--gold-rgb), 0.35), 0 1px 2px rgba(0,0,0,0.3);
 }
 
 /* Foco visible por teclado (Tab a una carta, ver docs/ARQUITECTURA.md Fase 6). */
@@ -51,4 +72,45 @@
   position: absolute; left: 50%; top: 67%; transform: translate(-50%, -50%);
   font-size: calc(var(--cw) * 0.85); font-weight: 900; line-height: 1;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ---------- Estados y efectos (Solitario + Carta Blanca) ---------- */
+
+/* Carta(s) seleccionada(s) por toque/teclado. */
+.card.sel {
+  outline: 3px solid var(--gold); outline-offset: -1px;
+  box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,0.4);
+  transform: translateY(-2px);
+}
+/* Las originales se atenúan mientras su copia flota bajo el puntero. */
+.card.dragging { opacity: 0.28; }
+/* Aterrizaje en una pila final. */
+.card.land { animation: land 0.3s ease; }
+@keyframes land {
+  0% { transform: scale(1.3); box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.9), 0 6px 14px rgba(0,0,0,0.4); }
+  100% { transform: scale(1); }
+}
+
+/* Capa flotante para arrastrar (la crea shared/drag.js). */
+.drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+.drag-inner { position: absolute; left: 0; top: 0; will-change: transform; }
+.drag-inner .card { box-shadow: 0 12px 26px rgba(0,0,0,0.45); }
+
+/* Pistas */
+.card.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 500 !important; }
+@keyframes hintpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0), 0 1px 2px rgba(0,0,0,0.25); }
+  50% { box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0.95), 0 4px 12px rgba(0,0,0,0.4); }
+}
+.hint-target {
+  outline: 3px solid var(--gold); outline-offset: 2px;
+  border-radius: calc(var(--cw) * 0.14);
+  animation: hinttarget 0.7s ease-in-out infinite;
+}
+@keyframes hinttarget { 0%,100% { outline-color: rgba(var(--gold-rgb), 0.4); } 50% { outline-color: rgba(var(--gold-rgb), 1); } }
+
+/* Movimiento reducido: apaga las animaciones decorativas (no las que son la
+   única señal de estado, como el resaltado por color de .card.sel). */
+@media (prefers-reduced-motion: reduce) {
+  .card.land, .card.hint, .hint-target { animation: none !important; }
 }

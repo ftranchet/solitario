@@ -37,6 +37,18 @@ body {
 .hud b { font-variant-numeric: tabular-nums; }
 .actions { display: flex; gap: 6px; }
 
+/* Botón "Nueva" resaltado cuando no quedan jugadas (lo usan Solitario y
+   Carta Blanca; estaba duplicado byte a byte en sus dos hojas). Corazones y
+   Buscaminas nunca asignan la clase, así que acá no les cambia nada. */
+.btn.attention {
+  background: var(--gold); color: var(--gold-ink); border-color: var(--gold);
+  animation: attention 1s ease-in-out infinite;
+}
+@keyframes attention {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0.0); transform: scale(1); }
+  50% { box-shadow: 0 0 0 5px rgba(var(--gold-rgb), 0.55), 0 4px 12px rgba(0,0,0,0.35); transform: scale(1.06); }
+}
+
 /* ---------- Modales (menú, opciones, ayuda, victoria) ---------- */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.62);
@@ -61,7 +73,7 @@ body {
 .card-modal ol { padding-left: 20px; line-height: 1.6; margin: 10px 0; }
 .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .card-modal .btn { color: #2a2a26; background: #ece5d5; border-color: #ddd3bd; }
-.card-modal .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+.card-modal .btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
 /* Texto de ayuda chico dentro de un modal. OJO: no llamarlo ".hint" — esa
    clase la usan las cartas/casillas resaltadas por la Pista (.card.hint). */
 .hint-txt { font-size: 12.5px; opacity: 0.65; margin-top: 4px; }
@@ -106,6 +118,9 @@ body {
 }
 @media (min-width: 1100px) {
   .title { font-size: 26px; }
+  /* Antes sólo Solitario y Carta Blanca lo subían (cada uno en su hoja) y
+     Corazones/Buscaminas quedaban en 12px en desktop. Unificado acá. */
+  .credit { font-size: 13px; }
 }
 /* Vertical y poca altura: cabecera y controles más compactos. SÓLO en
    vertical: en apaisado corto rige el riel lateral de styles/base.css (este
@@ -139,5 +154,5 @@ body {
 
 /* Movimiento reducido: la parte común (cada juego apaga además las suyas). */
 @media (prefers-reduced-motion: reduce) {
-  .win-emoji, .card.deal { animation: none !important; }
+  .win-emoji, .card.deal, .btn.attention { animation: none !important; }
 }

@@ -26,14 +26,8 @@
 #trick { grid-area: center; position: relative; width: 100%; height: 100%; min-height: calc(var(--ch) + 30px); }
 .hand-wrap { grid-area: south; width: 100%; }
 
-/* Cartas */
-.card {
-  width: var(--cw); height: var(--ch);
-  border-radius: calc(var(--cw) * 0.14);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-  overflow: hidden;
-}
-/* .card.up / colores de palo / .card.down -> styles/cards.css */
+/* Cartas: la caja (tamaño, radio, sombra) y la cara/dorso viven en
+   styles/cards.css. Acá sólo los overrides propios de Corazones. */
 /* Índice esquinero (rank + palo apilados): se ve aunque las cartas estén
    abanicadas, así siempre se distingue el palo. Pip grande abajo a la derecha.
    Corazones NO usa el pip central de Solitario/Carta Blanca: con la mano
@@ -76,7 +70,7 @@
 .seat-cards .card.down {
   width: var(--ow); height: calc(var(--ow) * 1.42);
   box-shadow: 2px 0 0 rgba(0,0,0,0.22), 4px 0 0 rgba(255,255,255,0.05),
-              inset 0 0 0 2px rgba(232,180,74,0.30), 0 1px 2px rgba(0,0,0,0.3);
+              inset 0 0 0 2px rgba(var(--gold-rgb), 0.30), 0 1px 2px rgba(0,0,0,0.3);
 }
 .count-badge {
   position: absolute; bottom: -4px; right: -8px;
@@ -91,8 +85,8 @@
 }
 .chip .sc { font-weight: 800; font-variant-numeric: tabular-nums; }
 .seat.active .chip {
-  background: #e8b44a; color: #2a1d05; border-color: #e8b44a;
-  box-shadow: 0 0 0 3px rgba(232,180,74,0.4);
+  background: var(--gold); color: var(--gold-ink); border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.4);
 }
 .seat.active.thinking .chip::after { content: " …"; }
 
@@ -117,11 +111,11 @@
 .hand .card.playable { cursor: pointer; }
 .hand .card.playable:active { transform: translateY(-6px); }
 .hand .card.dim { opacity: 0.4; }
-.hand .card.picked { transform: translateY(-16px); outline: 3px solid #e8b44a; outline-offset: -1px; box-shadow: 0 0 0 3px #e8b44a, 0 8px 16px rgba(0,0,0,0.4); }
+.hand .card.picked { transform: translateY(-16px); outline: 3px solid var(--gold); outline-offset: -1px; box-shadow: 0 0 0 3px var(--gold), 0 8px 16px rgba(0,0,0,0.4); }
 .hand .card.hint { animation: hintpulse 0.7s ease-in-out infinite; z-index: 500 !important; }
 @keyframes hintpulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232,180,74,0), 0 1px 2px rgba(0,0,0,0.25); }
-  50% { box-shadow: 0 0 0 4px rgba(232,180,74,0.95), 0 6px 14px rgba(0,0,0,0.4); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0), 0 1px 2px rgba(0,0,0,0.25); }
+  50% { box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0.95), 0 6px 14px rgba(0,0,0,0.4); }
 }
 
 /* Tabla de puntajes */
@@ -148,13 +142,29 @@
 .taken-row.lead .pts { color: #1f7a46; font-weight: 700; }
 .taken-cards { margin-top: 5px; line-height: 1.9; }
 .taken-cards .none { font-size: 12px; opacity: 0.5; }
+/* Tokens, no hex fijos: en claro dan exactamente los valores de siempre
+   (#fff / #d9cdb4 / rojo y negro clásicos) y en oscuro la mini-carta pasa a
+   gris carbón con palos claros, igual que las cartas de verdad ("Oscuro
+   total", ver styles/tokens.css). */
 .minicard {
-  display: inline-block; background: #fff; border: 1px solid #d9cdb4;
+  display: inline-block; background: var(--card-face-top); border: 1px solid var(--paper-border);
   border-radius: 6px; padding: 2px 6px; margin: 0 4px 2px 0;
   font-weight: 800; font-size: 13px; white-space: nowrap;
 }
-.minicard.hearts, .minicard.diamonds { color: #c62828; }
-.minicard.spades, .minicard.clubs { color: #1a1a1a; }
+.minicard.hearts, .minicard.diamonds { color: var(--suit-red); }
+.minicard.spades, .minicard.clubs { color: var(--suit-black); }
+
+/* Modo oscuro: el verde "líder" (#1f7a46) funciona bien como FONDO con texto
+   blanco (seg-btn.active, game-link.current), pero como TEXTO sobre el modal
+   carbón (--paper: #2e2d2a) da 2.58:1 — ilegible (WCAG AA pide 4.5:1, y un
+   test de contraste lo verifica con los modales abiertos). Se aclara sólo
+   donde es texto, igual que los números de Buscaminas en oscuro (#6fce73 da
+   ~7:1 sobre el carbón). */
+:root[data-theme="dark"] .score-table tr.lead td,
+:root[data-theme="dark"] .score-table td.lead,
+:root[data-theme="dark"] .score-table th.lead,
+:root[data-theme="dark"] .taken-row.me .nm,
+:root[data-theme="dark"] .taken-row.lead .pts { color: #6fce73; }
 
 /* Opciones: nombres de los rivales */
 .name-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }

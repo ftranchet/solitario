@@ -24,7 +24,7 @@
     cursor: pointer; text-decoration: none; line-height: 1; display: inline-block;
   }
   .btn:active { transform: scale(0.96); }
-  .btn.primary { background: #e8b44a; color: #2a1d05; border-color: #e8b44a; }
+  .btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
 
   .card {
     background: #fdfaf2; color: #2a2a26; border-radius: 16px;

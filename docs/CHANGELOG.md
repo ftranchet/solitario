@@ -10,7 +10,72 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-7 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0/1.18.0/1.19.0)_
+_(nada por ahora)_
+
+## [1.20.0] — 2026-07-11
+
+Segunda auditoría integral (post-PLAN-2.md), con el ritual de cierre ya
+formalizado: cada bug con su test de regresión escrito ANTES del fix.
+
+### Corregido
+
+- **Corazones (modo oscuro): el verde "líder" era ilegible.** El `#1f7a46`
+  que resalta al líder en la tabla de puntajes y el fin de mano funcionaba
+  como texto sobre el modal carbón a **2.58:1** (WCAG AA pide 4.5:1). En
+  oscuro pasa a un verde claro (`#6fce73`, ~7:1). Un test nuevo abre esos
+  modales en oscuro y calcula el contraste real (axe-core sólo audita el
+  estado inicial en claro, por eso no lo veía).
+- **Launcher (modo oscuro): las fichas de los juegos quedaban blancas** sobre
+  el fieltro oscuro, contra la política "Oscuro total" (las tarjetas de
+  Estadísticas ya se habían oscurecido). Ahora usan los tokens de superficie
+  (idénticas en claro; carbón en oscuro). Lo mismo para las mini-cartas del
+  fin de mano de Corazones.
+- **Corazones: un guardado artesanal con manos desparejas crasheaba la IA.**
+  `validSaved()` validaba 52 cartas únicas en total pero no el invariante de
+  tamaño por asiento (13 − bazas jugadas − 1 si ya jugó en la baza): con
+  manos 13/13/13/1 la IA moría (`TypeError`) al quedarse sin cartas el
+  asiento corto. También se rechaza una mano ya terminada guardada como
+  jugable (`tricksPlayed` 13 en fase `play`), que dejaba el juego colgado.
+- **Buscaminas: el guardado debe coincidir con la dificultad declarada.** Un
+  guardado artesanal con `difficulty: "expert"` y un tablero 9×9 de 10 minas
+  se restauraba y registraba victorias (y mejores tiempos) de Experto; ahora
+  filas/columnas/minas deben ser las de la dificultad. Una mina ya revelada
+  (imposible en un guardado real) también se rechaza: inflaba
+  `revealedCount` y podía adelantar la victoria.
+- **Solitario: el autocompletado corría con el reloj parado.** En una partida
+  restaurada con todo destapado, `startAutoComplete()` movía cartas sin
+  arrancar el cronómetro (Carta Blanca ya lo arrancaba): el "mejor tiempo"
+  quedaba regalado. Unificado con test.
+- **`.credit` (Por Francisco…) a 13px en desktop en los 4 juegos:** antes
+  sólo Solitario y Carta Blanca lo subían; Corazones y Buscaminas quedaban
+  en 12px.
+
+### Cambiado
+
+- **Token nuevo `--gold-rgb`** (terna R,G,B del dorado, en claro y oscuro)
+  y fin de los dorados hardcodeados: los ~48 usos de `#e8b44a`/`#2a1d05`/
+  `rgba(232,180,74,…)` en las hojas de juego pasan a `var(--gold)`/
+  `var(--gold-ink)`/`rgba(var(--gold-rgb),…)`. En claro es byte-idéntico;
+  en oscuro la selección/pistas/pulsos ahora siguen al dorado del tema.
+- **Deduplicación CSS:** la caja de la carta, `.card.sel`/`.dragging`/
+  `.land`, las pistas (`.card.hint`/`.hint-target` y sus keyframes) y la
+  capa de arrastre (`.drag-layer`) — duplicadas byte a byte entre
+  `solitario.css` y `carta-blanca.css` — pasan a `styles/cards.css`;
+  `.btn.attention` (y su keyframe) a `styles/game.css`. Corazones suelta
+  también su copia de la caja de carta. Verificado byte-idéntico con la
+  regresión visual (0 diferencias antes de regenerar referencias).
+- **Regresión visual ampliada a 40 capturas:** los 5 estados intermedios de
+  los juegos de cartas ahora también se capturan en **modo oscuro** (la
+  selección dorada y las cartas carbón no se comparaban en ningún lado).
+- **`VERSION` de `sw.js` a `v1.32.0`**.
+
+### Eliminado
+
+- `asNumArray()` (`shared/storage.js`): sin ningún llamador desde que se
+  escribió; el parámetro muerto `mid` de `scoreRow()` en Corazones (siempre
+  llegaba `null` y su rama viva tenía un bug latente con deltas negativos);
+  y el cálculo del líder repetido 3 veces en Corazones (ahora
+  `leaderSeat()`).
 
 ## [1.19.0] — 2026-07-11
 

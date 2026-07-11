@@ -227,6 +227,32 @@ test("Solitario: el autocompletado corta cuando no hay progreso (#5)", async fun
   assertNoErrors(p.errors);
 });
 
+/* 7a2) Solitario — el autocompletado arranca el reloj, igual que en Carta
+   Blanca: en una partida RESTAURADA con todo destapado el botón
+   ✓ Autocompletar está visible sin haber hecho ninguna jugada, y
+   startAutoComplete() movía cartas con el cronómetro parado (started ===
+   false): el tiempo final quedaba subcontado y podía registrar un "mejor
+   tiempo" regalado. Carta Blanca ya llamaba startTimer() ahí. */
+test("Solitario: el autocompletado arranca el reloj (consistente con Carta Blanca)", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  var r = await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: true, id: id }; }
+    // Final de partida trivial: 2 reyes por subir, nada tapado.
+    var su = Object.keys(SUIT), f = [[], [], [], []];
+    for (var i = 0; i < 4; i++)
+      for (var rk = 1; rk <= (i < 2 ? 12 : 13); rk++) f[i].push(c(su[i], rk, i * 13 + rk));
+    state = { stock: [], waste: [], foundations: f,
+              tableau: [[c(su[0], 13, 700)], [c(su[1], 13, 701)], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; stuckCheckMoves = -1; started = false; seconds = 0;
+    render();
+    startAutoComplete();
+    return { started: started };   // leído en el mismo tick, antes del primer autoTick
+  });
+  assert(r.started === true, "startAutoComplete() debería arrancar el reloj (started=true), como hace Carta Blanca");
+  await p.page.waitForFunction(function () { return autoTimer === null; }, null, { timeout: 3000 });
+  assertNoErrors(p.errors);
+});
+
 /* 7b) Solitario — el teclado no debe esquivar el bloqueo del autocompletado.
    handleCardClick() (el handler real detrás de keyActivate en las cartas) no
    chequeaba autoTimer, a diferencia de handleEmptyColumn/handleFoundationClick/
@@ -544,6 +570,42 @@ test("Buscaminas: el tablero guardado se restaura idéntico al recargar", async 
   assertNoErrors(p.errors);
 });
 
+/* 15b) Buscaminas — un guardado cuyo tablero no coincide con la dificultad
+   declarada se descarta: las estadísticas se registran POR dificultad, así
+   que un guardado artesanal con difficulty:"expert" y un tablero 9×9 de 10
+   minas registraría victorias (y mejores tiempos) de Experto jugando un
+   tablero de Principiante. También se descarta una celda con mina YA
+   revelada (imposible en un guardado real: al perder se borra el guardado),
+   que inflaba revealedCount y podía adelantar la victoria. */
+test("Buscaminas: un guardado con dificultad falsa o mina revelada se descarta sin errores", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  var r = await p.page.evaluate(function () {
+    var out = {};
+    noGuess = false; digCell(4, 4); render();   // guardado real de Principiante
+    var sane = JSON.parse(localStorage.getItem(GAME_KEY));
+    out.savedOk = !!sane && sane.difficulty === "beginner";
+
+    var fake = JSON.parse(JSON.stringify(sane)); fake.difficulty = "expert";
+    localStorage.setItem(GAME_KEY, JSON.stringify(fake));
+    out.fakeDiffRejected = loadGame() === false;
+
+    var revealedMine = JSON.parse(JSON.stringify(sane));
+    for (var k = 0; k < revealedMine.g.length; k++)
+      if (revealedMine.g[k] & 1) { revealedMine.g[k] |= 2; break; }   // mina + revelada
+    localStorage.setItem(GAME_KEY, JSON.stringify(revealedMine));
+    out.revealedMineRejected = loadGame() === false;
+
+    localStorage.setItem(GAME_KEY, JSON.stringify(sane));
+    out.saneRestored = loadGame() === true;
+    return out;
+  });
+  assert(r.savedOk, "no se generó el guardado de referencia");
+  assert(r.fakeDiffRejected, "loadGame aceptó un tablero 9×9 declarado como Experto");
+  assert(r.revealedMineRejected, "loadGame aceptó una mina ya revelada");
+  assert(r.saneRestored, "loadGame rechazó el guardado sano de referencia");
+  assertNoErrors(p.errors);
+});
+
 /* 16) Corazones — las cartas elegidas para pasar sobreviven la recarga (#16). */
 test("Corazones: las cartas elegidas para pasar sobreviven la recarga (#16)", async function (ctx) {
   var p = await open(ctx, "corazones.html");
@@ -664,6 +726,61 @@ test("Corazones: un guardado con valores numéricos inválidos (turn/score/histo
   assert(r.scoreRejected, "validSaved aceptó un score con HTML inyectado");
   assert(r.historyRejected, "validSaved aceptó una fila de history con HTML inyectado");
   assert(r.loadRejected, "loadGame debería descartar el guardado con score inválido");
+  assertNoErrors(p.errors);
+});
+
+/* 17c) Corazones — un guardado con MANOS DESPAREJAS (tamaños que no cierran
+   con las bazas jugadas) se descarta. validSaved() validaba 52 cartas únicas
+   en TOTAL, pero no el invariante de tamaño por asiento (13 − bazas jugadas
+   − 1 si ya jugó en la baza en mesa): un guardado artesanal con manos
+   13/13/13/1 pasaba, y cuando al asiento corto se le acababan las cartas la
+   IA moría con un TypeError (lowestCard de una lista vacía). Lo mismo con
+   tricksPlayed = 13 en fase "play" (una mano ya terminada, que un guardado
+   real nunca tiene: endHand() pasa a "scoring" y ahí no se persiste): el
+   juego quedaba colgado sin jugadas posibles. */
+test("Corazones: un guardado con manos desparejas o mano terminada se descarta sin errores", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    var out = {};
+    function deck() {
+      var d = [];
+      for (var si = 0; si < SUIT_ORDER.length; si++)
+        for (var rk = 2; rk <= 14; rk++)
+          d.push({ suit: SUIT_ORDER[si], rank: rk, id: SUIT_ORDER[si] + "-" + rk });
+      return d;
+    }
+    function base(hands, tricks, trickCards) {
+      return {
+        v: 1,
+        players: hands.map(function (h) { return { hand: h, score: 0, roundPoints: 0, taken: [] }; }),
+        phase: "play", trick: trickCards || [], leadSeat: 0, turn: 0,
+        heartsBroken: false, tricksPlayed: tricks, handNumber: 1, passDir: "left",
+        target: 100, history: [], humanPass: []
+      };
+    }
+    var d = deck();
+    // Estado sano a mitad de mano: 3 bazas jugadas, 10 cartas por asiento.
+    var mid = base([d.slice(0, 10), d.slice(13, 23), d.slice(26, 36), d.slice(39, 49)], 3);
+    out.saneMidAccepted = validSaved(JSON.parse(JSON.stringify(mid)));
+    // Estado sano con baza en mesa: los asientos 1 y 2 ya jugaron su carta.
+    var t = base([d.slice(0, 10), d.slice(13, 22), d.slice(26, 35), d.slice(39, 49)], 3,
+      [{ seat: 1, card: d[22] }, { seat: 2, card: d[35] }]);
+    out.saneTrickAccepted = validSaved(JSON.parse(JSON.stringify(t)));
+    // Manos desparejas: 13/13/13/1 (el total sigue dando 52 con tricksPlayed=3).
+    var uneven = base([d.slice(0, 13), d.slice(13, 26), d.slice(26, 39), d.slice(39, 40)], 3);
+    out.unevenRejected = !validSaved(JSON.parse(JSON.stringify(uneven)));
+    // Mano ya terminada guardada como "play" (tricksPlayed=13, manos vacías).
+    var done = base([[], [], [], []], 13);
+    out.doneRejected = !validSaved(JSON.parse(JSON.stringify(done)));
+    localStorage.setItem(GAME_KEY, JSON.stringify(uneven));
+    out.loadRejected = loadGame() === false;
+    return out;
+  });
+  assert(r.saneMidAccepted, "validSaved rechazó un estado sano a mitad de mano");
+  assert(r.saneTrickAccepted, "validSaved rechazó un estado sano con baza en mesa");
+  assert(r.unevenRejected, "validSaved aceptó manos desparejas (13/13/13/1)");
+  assert(r.doneRejected, "validSaved aceptó una mano terminada en fase 'play'");
+  assert(r.loadRejected, "loadGame debería descartar el guardado con manos desparejas");
   assertNoErrors(p.errors);
 });
 
@@ -1536,6 +1653,53 @@ var AXE_SRC = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
     assert(violations.length === 0, file + ": violaciones de accesibilidad:\n" + violations.join("\n"));
     assertNoErrors(p.errors);
   });
+});
+
+/* 34c) Accesibilidad — contraste en MODO OSCURO de los modales de Corazones.
+   axe-core (34b) audita el estado inicial de cada página en claro, con los
+   modales cerrados: el verde "líder" (#1f7a46) del fin de mano y de la tabla
+   de puntajes quedaba ilegible como TEXTO sobre el modal carbón del modo
+   oscuro (2.58:1; WCAG AA pide 4.5:1) y nada lo detectaba. Este test abre
+   esos modales con el tema oscuro aplicado y calcula el contraste real de
+   los pares texto/fondo (la fórmula de luminancia relativa de WCAG, la misma
+   cuenta documentada en styles/estadisticas.css). */
+test("Corazones: el verde de 'líder' es legible en modo oscuro (modales de puntajes)", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.addInitScript(function () { try { localStorage.setItem("theme", "dark"); } catch (e) {} });
+  await p.page.goto(url("corazones.html"), { waitUntil: "load" });
+  await p.page.waitForTimeout(150);
+  var r = await p.page.evaluate(function () {
+    function lum(c) {
+      var m = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+      var lin = m.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+    }
+    function contrast(fg, bg) {
+      var a = lum(fg) + 0.05, b = lum(bg) + 0.05;
+      return Math.max(a, b) / Math.min(a, b);
+    }
+    // Poblar y abrir los dos modales que usan el verde de líder (el asiento 0
+    // queda líder: sus filas llevan .me y .lead a la vez).
+    handHistory = [[5, 0, 13, 8]];
+    players[0].score = 5; players[1].score = 26; players[2].score = 13; players[3].score = 8;
+    buildScoresTable();
+    document.getElementById("scores").hidden = false;
+    var modalBg = getComputedStyle(document.querySelector("#scores .card-modal")).backgroundColor;
+    var out = { theme: document.documentElement.dataset.theme };
+    out.scoresLead = contrast(getComputedStyle(document.querySelector(".score-table td.lead")).color, modalBg);
+    document.getElementById("scores").hidden = true;
+    showRound([5, 0, 13, 8], -1);
+    var roundBg = getComputedStyle(document.querySelector("#round .card-modal")).backgroundColor;
+    out.roundMe = contrast(getComputedStyle(document.querySelector("#round-body .taken-row.me .nm")).color, roundBg);
+    out.roundLead = contrast(getComputedStyle(document.querySelector("#round-body .taken-row.lead .pts")).color, roundBg);
+    document.getElementById("round").hidden = true;
+    return out;
+  });
+  assert(r.theme === "dark", "la página debería estar en tema oscuro");
+  ["scoresLead", "roundMe", "roundLead"].forEach(function (k) {
+    assert(r[k] >= 4.5, k + ": contraste " + r[k].toFixed(2) + ":1 en modo oscuro (WCAG AA pide 4.5:1)");
+  });
+  assertNoErrors(p.errors);
 });
 
 /* 35) Arquitectura — shared/ui.js expone un toast() único, igual en los 4 juegos. */

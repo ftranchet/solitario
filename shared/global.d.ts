@@ -72,7 +72,6 @@ declare global {
   // shared/storage.js — validación de valores de localStorage (RNF-04)
   function asNum(v: unknown, def: number): number;
   function asIntInRange(v: unknown, min: number, max: number, def: number): number;
-  function asNumArray(v: unknown): number[];
 
   var GAMES: GameEntry[];
 

@@ -763,6 +763,10 @@ function startAutoComplete() {
   clearHintHighlights();
   selection = null;
   snapshot();
+  // El reloj corre durante el autocompletado (igual que en Carta Blanca): en
+  // una partida restaurada con todo destapado, el botón está visible sin
+  // haber jugado, y sin esto las cartas subían con el cronómetro parado.
+  startTimer();
   autoProgress = true;
   updateAutoButton();
   autoTimer = setInterval(autoTick, 130);

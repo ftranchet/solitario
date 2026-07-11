@@ -20,8 +20,12 @@
   --felt-2: #176039;
   --felt-3: #0d3a23;
 
-  /* Acento dorado: botones primarios, selección, marca */
+  /* Acento dorado: botones primarios, selección, marca. --gold-rgb repite el
+     valor como terna R, G, B para los usos con transparencia
+     (rgba(var(--gold-rgb), 0.55)): rgba() no acepta un hex adentro y así el
+     dorado translúcido de pulsos/halos sigue al tema igual que el sólido. */
   --gold: #e8b44a;
+  --gold-rgb: 232, 180, 74;
   --gold-ink: #2a1d05;
 
   /* Superficies claras (tarjetas de contenido tipo estadísticas/menús) */
@@ -60,6 +64,7 @@
   --felt-3: #071811;
 
   --gold: #eab958;
+  --gold-rgb: 234, 185, 88;
   --gold-ink: #1a1203;
 
   /* Superficies: la "carta" y los modales pasan a gris carbón. */

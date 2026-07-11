@@ -709,3 +709,23 @@ El dueño del producto adoptó las 3 recomendaciones.
   - **Puerta:** rituales 2 y 3 completos y verificados (grep sin
     contradicciones tras la corrección de RNF-07); punto 1 con el mapeo
     completo y reproducible pero sin publicar (ver arriba).
+
+- **Post-plan — segunda auditoría integral (2026-07-11, publicada en
+  1.20.0).** Con las 8 fases cerradas se corrió una segunda auditoría de
+  código y documentación completa, siguiendo el "Ritual de cierre de fase"
+  ya formalizado (test primero para cada bug). Lo encontrado y arreglado —
+  detalle completo en el CHANGELOG, versión 1.20.0: 2 bugs visuales de modo
+  oscuro (verde "líder" de Corazones a 2.58:1 de contraste; fichas del
+  launcher blancas contra la política "Oscuro total"), 2 huecos de RNF-04
+  contra guardados artesanales (manos desparejas en Corazones que
+  crasheaban la IA; dificultad falsa/mina revelada en Buscaminas que
+  contaminaba estadísticas), 1 inconsistencia entre juegos (el
+  autocompletado de Solitario no arrancaba el reloj; Carta Blanca sí),
+  deduplicación del CSS de carta que la Fase 5 no había cubierto (~80
+  líneas de solitario.css/carta-blanca.css → cards.css/game.css, verificado
+  byte-idéntico por la regresión visual ANTES de regenerar referencias),
+  token `--gold-rgb` para eliminar los ~48 dorados hardcodeados, código
+  muerto (`asNumArray`, parámetro `mid` de `scoreRow`), y regresión visual
+  ampliada a 40 capturas (los 5 estados intermedios ahora también en
+  oscuro). 4 tests nuevos (96 en total), cada uno verificado en rojo
+  contra el código sin arreglar antes del fix.
