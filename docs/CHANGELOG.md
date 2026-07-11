@@ -12,6 +12,16 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.12.1] — 2026-07-11
+
+### Cambiado
+
+- **Pip central más grande en Solitario y Carta Blanca** (`0.85 × ancho de
+  carta`, antes `0.72`) y apenas más abajo (60% de la altura), para que el
+  palo se distinga mejor sin pisar el índice superior ni asomarse en la
+  franja visible de las cartas apiladas de una escalera.
+- **`VERSION` de `sw.js` a `v1.24.0`** y capturas de referencia regeneradas.
+
 ## [1.12.0] — 2026-07-11
 
 ### Cambiado
