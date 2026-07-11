@@ -10,7 +10,34 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-2 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0)_
+_(nada por ahora — las Fases 0-3 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0)_
+
+## [1.15.0] — 2026-07-11
+
+PLAN-2.md, Fase 3: coherencia de documentación. Sin cambios de
+comportamiento (salvo un comentario corregido en `games/carta-blanca.js`).
+
+### Corregido
+
+- **ARQUITECTURA.md** ya no describe el modo oscuro como "sin implementar"
+  (se implementó en la Fase 4 de PLAN.md); corrige qué tiene realmente
+  `shared/cards.js` y `shared/storage.js`; matiza el criterio de aceptación
+  sobre duplicación de `SUIT` (está 3 veces a propósito).
+- **`shared/global.d.ts`** ya no dice que los motores de cada juego son
+  `<script>` inline (se externalizaron a `games/<juego>.js` hace varias
+  versiones).
+- **El comentario de `autoMoveSelection` en Carta Blanca** ahora describe la
+  prioridad real del código (pila final > columna no vacía > pozo libre >
+  columna vacía); el código ya se comportaba así, sólo el comentario
+  estaba desactualizado.
+- **PRD:** RNF-02 documenta el trade-off deliberado de `user-scalable=no`
+  contra WCAG 1.4.4; RNF-07 documenta que CI no corre Firefox pese a
+  prometer compatibilidad, y enlaza la decisión ya tomada de agregarlo.
+
+### Cambiado
+
+- **`VERSION` de `sw.js` a `v1.28.0`** (un archivo servido cambió, aunque
+  sólo en un comentario).
 
 ## [1.14.0] — 2026-07-11
 

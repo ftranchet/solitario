@@ -208,7 +208,10 @@ function moveSelectionToFoundation() {
   return true;
 }
 /* Doble clic / doble toque: mandar la carta (o la escalera) a donde corresponda.
-   Prioridad: pila final > otra columna del tablero > pozo libre. */
+   Prioridad real (ver el orden abajo): pila final > una columna NO vacía que
+   la reciba > pozo libre (sólo una carta) > una columna vacía, como último
+   recurso (guardar en un pozo libre deja más opciones abiertas que "gastar"
+   una columna vacía moviendo una sola carta ahí). */
 function autoMoveSelection() {
   if (moveSelectionToFoundation()) return true;
   if (selection.pile === "foundation") return false;

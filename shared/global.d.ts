@@ -5,8 +5,9 @@
  * No es un módulo real ni se sirve al navegador ni se enlaza desde ningún
  * HTML: sólo lo usa `tsc --checkJs` (ver tsconfig.json) para validar que los
  * archivos compartidos son consistentes entre sí. Los motores de cada juego
- * (los <script> inline en solitario.html, etc.) NO están tipados; sus propias
- * globals (SUIT, RANK_LABEL, state, players, grid...) no se declaran acá.
+ * (games/solitario.js, etc. — externalizados de <script> inline en la Fase 1
+ * de PLAN.md) NO están tipados; sus propias globals (SUIT, RANK_LABEL, state,
+ * players, grid...) no se declaran acá.
  */
 export {};
 

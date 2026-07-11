@@ -5,7 +5,7 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.6 |
+| Versión del documento | 1.7 |
 | Estado | Vigente |
 | Última actualización | 2026-07-11 |
 | Responsable | Francisco Tranchet |
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.7 | 2026-07-11 | F. Tranchet + IA | PLAN-2.md, Fase 3 (coherencia de documentación): RNF-02 documenta el trade-off deliberado de `user-scalable=no` contra WCAG 1.4.4/RNF-08; RNF-07 documenta la brecha real (CI no corre Firefox) y enlaza la decisión D3. |
 | 1.6 | 2026-07-11 | F. Tranchet + IA | El roadmap (§8) apunta al nuevo [PLAN-2.md](./PLAN-2.md) (robustez, seguridad y consistencia, salido de la auditoría integral del 2026-07-11); PLAN.md queda enlazado como plan completado. |
 | 1.5 | 2026-07-09 | F. Tranchet + IA | Auditoría de merge: la matriz (§9) marca implementados "Temas claro/oscuro" y "Aviso de actualización del SW" (Fases 4 y 5 de PLAN.md); §1 y RNF-01 dejan de describir cada juego como "un único archivo HTML autocontenido" (desde la capa compartida es una página delgada + módulos compartidos); RF-PWA-05 refleja la estrategia de caché vigente (network-first para HTML/CSS/JS). |
 | 1.4 | 2026-07-08 | F. Tranchet + IA | El roadmap (§8) pasa a apuntar al nuevo [PLAN.md](./PLAN.md) (plan de trabajo por fases desde Fase 0); §8 conserva sólo el backlog de ideas sin planificar. Se agrega PLAN.md a las referencias (§10). |
@@ -183,6 +184,14 @@ inicio y jugable completamente offline.
   orientación real: en apaisado corto los juegos de cartas mueven pozos/mazo y
   pilas finales a columnas laterales (y los controles a rieles), y el reparto
   inicial siempre entra sin scroll.
+  **Trade-off deliberado con RNF-08:** los 4 juegos declaran
+  `user-scalable=no` en el viewport (evita el zoom accidental al tocar dos
+  veces sobre una carta, un problema táctil real). Esto entra en tensión con
+  WCAG 1.4.4 (Resize Text), que pide permitir el zoom del usuario; además
+  iOS ya lo ignora en la práctica (Safari permite pellizcar para agrandar
+  igual). Se aceptó el trade-off a favor de la experiencia táctil del juego;
+  queda documentado acá para que sea una decisión explícita, no un
+  descuido de accesibilidad.
 - **RNF-03 · Privacidad.** No hay backend ni analítica; todos los datos quedan en
   `localStorage` del dispositivo.
 - **RNF-04 · Robustez.** Un guardado corrupto (JSON inválido o baraja con cartas
@@ -194,7 +203,12 @@ inicio y jugable completamente offline.
 - **RNF-06 · Calidad.** Suite de tests de navegador (Playwright) que corre los
   HTML reales; CI en cada push/PR. Cero errores de consola al cargar.
 - **RNF-07 · Compatibilidad.** Navegadores modernos (Chromium, Firefox, Safari)
-  en sus versiones actuales.
+  en sus versiones actuales. **Brecha entre lo prometido y lo verificado:**
+  hoy CI corre la suite completa en Chromium y un humo en WebKit, pero
+  ningún job en Firefox — la promesa de este requisito no está cubierta
+  para ese navegador. `docs/PLAN-2.md` (decisión D3) ya resolvió agregar un
+  job de humo en Firefox, análogo al de WebKit; queda pendiente de
+  implementar en su Fase 6.
 - **RNF-08 · Accesibilidad (a11y).** Las cartas exponen `aria-label` legible
   para lectores de pantalla (sin revelar las cartas boca abajo) y los
   avisos/estado se anuncian (`role="status"` / `aria-live`). Navegación por

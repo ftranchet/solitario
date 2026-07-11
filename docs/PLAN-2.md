@@ -253,7 +253,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 0 | Desflaquear + regresión visual de estados intermedios y oscuro | S | ✅ |
 | 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ✅ |
 | 2 | Validación de localStorage + tests de inyección | M | ✅ |
-| 3 | Documentación coherente con el código | S | ⬜ |
+| 3 | Documentación coherente con el código | S | ✅ |
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ⬜ |
 | 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js; reloj/undo) | L | ⬜ |
 | 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ⬜ |
@@ -391,3 +391,39 @@ implementadas todavía** — la implementación va en las fases indicadas.
     regeneradas (0 diferencias — cambios puramente de lógica, sin CSS/HTML).
   - **Puerta:** 82/82 tests verdes (4 corridas seguidas), `tsc -p .`
     limpio, 35/35 comparaciones visuales.
+
+- **Fase 3 (hecha).** Los ADR se declaran "documentos vivos"; se corrigieron
+  las afirmaciones que ya no eran ciertas.
+  - **ARQUITECTURA.md:** nota de actualización donde §8 y §10 decían que el
+    modo oscuro "queda deliberadamente sin implementar" (se implementó en
+    la Fase 4 de PLAN.md — mismo tratamiento que ya tenía la brecha de
+    CSP). §5.1 corrige qué tiene realmente `cards.js` (no `SUIT`/mazo/
+    mezcla — eso sigue por juego) y `storage.js` (los helpers de
+    validación de TIPO de la Fase 2 sí están; la validación de FORMA de
+    cada guardado sigue por juego). El criterio de aceptación "Sin
+    duplicación de `SUIT` ✅" se matiza: está 3 veces a propósito (orden de
+    palos distinto por juego, As como rango 14 en Corazones).
+  - **`shared/global.d.ts`:** el comentario ya no dice que los motores son
+    "los `<script>` inline" (se externalizaron en la Fase 1 de PLAN.md).
+  - **`games/carta-blanca.js`:** el comentario de `autoMoveSelection` decía
+    "pila final > columna > pozo libre"; la prioridad real del código es
+    pila final > columna NO vacía > pozo libre > columna vacía (recién
+    como último recurso). Sólo se corrigió el comentario; el código ya
+    hacía lo correcto.
+  - **PRD:** RNF-02 documenta el trade-off deliberado de `user-scalable=no`
+    (evita el zoom accidental al tocar una carta dos veces) contra WCAG
+    1.4.4/RNF-08 — antes no estaba explicitado como decisión, sólo vivía en
+    el código. RNF-07 documenta la brecha real (CI no corre Firefox pese a
+    prometer compatibilidad) y enlaza D3.
+  - **Ritual anti-desfase, verificado (se adopta formalmente en la Fase 7):**
+    `grep -rn "no implementado\|pendiente\|sin implementar" docs/` no
+    encontró contradicciones — el resto de los resultados son entradas
+    históricas del CHANGELOG/historial de revisiones (registro de un
+    momento pasado, no afirmaciones vigentes) o ítems genuinamente
+    pendientes (el job de Firefox, extender el test de contrato a
+    persistencia, los íconos SVG).
+  - **`VERSION` de `sw.js` a `v1.28.0`**: `games/carta-blanca.js` cambió (un
+    comentario) y es un asset servido; se sube igual, consistente con la
+    guardia de CI (no distingue cambios cosméticos de los de comportamiento).
+  - **Puerta:** 82/82 tests verdes, `tsc -p .` limpio, grep de coherencia
+    sin contradicciones.

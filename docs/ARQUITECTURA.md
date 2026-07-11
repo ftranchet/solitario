@@ -114,9 +114,14 @@ real con esbuild.
                               motor de cada juego (PLAN.md, Fase 1); <script src>
                               clásico, mismo scope global que antes inline
   shared/
-    cards.js                 SUIT/RANK, mazo, mezcla (LCG), makeCardEl, cardLabel (a11y)
-    storage.js               candado multi-pestaña, gameSet/gameDel, aviso,
-                             validación, makeStats() (estadísticas)
+    cards.js                 cardFace/makeCardEl/cardLabel (a11y). SUIT/RANK_LABEL
+                             y el mazo/mezcla siguen por juego a propósito (varían:
+                             orden de palos, As como rango 1 o 14 en Corazones)
+    storage.js               candado multi-pestaña, gameSet/gameDel, aviso de
+                             guardado, makeStats() (estadísticas), helpers de
+                             validación de TIPO (asNum/asIntInRange/asNumArray,
+                             PLAN-2.md Fase 2); la validación de FORMA de cada
+                             guardado (validState/validSaved) sigue por juego
     ui.js                    toast, keyActivate/clickActivate (a11y de teclado),
                              el()/debounce() (helpers), celebrate() (confeti)
     pwa.js                   registro del service worker
@@ -217,17 +222,22 @@ Cada fase es mergeable por separado y no debe romper los 39 tests.
 
 > Estado real tras la Fase 6: ver el detalle en §10. Resumen: se implementó
 > navegación por teclado completa, foco visible y `prefers-reduced-motion`
-> completo; se corrigió un desperdicio de espacio real en desktop. Los temas
-> claro/oscuro quedan deliberadamente **sin implementar** (decisión de diseño
-> que requiere criterio visual humano, no una extracción mecánica); la opción
+> completo; se corrigió un desperdicio de espacio real en desktop. La opción
 > de paleta apta para daltónicos se **reevaluó como de menor prioridad** de lo
 > que se pensaba al escribir este documento.
+>
+> **Actualización:** los temas claro/oscuro, que esta sección describía como
+> deliberadamente sin implementar, se implementaron después en la Fase 4 de
+> [PLAN.md](./PLAN.md) (paleta "Oscuro total", toggle Auto/Claro/Oscuro
+> persistente). El resto de §8 (temas más abajo, criterio de aceptación en
+> §10) quedó desactualizado por eso; ver el detalle real en PLAN.md.
 
 - **Design tokens** en `tokens.css` (colores de marca, radios, sombras, escalas
   de espaciado y tipografía) → consistencia real y temas fáciles.
-- **Temas:** claro/oscuro (respetando `prefers-color-scheme`) — **no
-  implementado**, ver §10. Alto contraste y **palos aptos para daltónicos** (4
-  colores en vez de 2) — **repriorizado hacia abajo**, ver §10.
+- **Temas:** claro/oscuro (respetando `prefers-color-scheme`) — **implementado**
+  en la Fase 4 de [PLAN.md](./PLAN.md) (ver la nota de actualización arriba).
+  Alto contraste y **palos aptos para daltónicos** (4 colores en vez de 2) —
+  **repriorizado hacia abajo**, ver §10.
 - **Responsive:** mejores layouts en pantallas grandes (antes se capaba el
   ancho y se desaprovechaba el desktop) — **hecho** con un ajuste acotado
   (subir el techo de tamaño de carta/celda en pantallas anchas), no con
@@ -263,7 +273,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
 | 3 | `ui.js` (toast) | ✅ |
 | 4 | Contrato + registro de juegos | ✅ (alcance acotado) |
 | 5 | Tipos (`@ts-check`) + CSP + auditoría XSS | ✅ (alcance acotado) |
-| 6 | Temas, responsive, a11y por teclado | ✅ (alcance acotado; temas afuera) |
+| 6 | Temas, responsive, a11y por teclado | ✅ (alcance acotado; temas afuera — implementados después, PLAN.md Fase 4) |
 
 **Progreso**
 
@@ -463,13 +473,16 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   implementaron container queries: no hicieron falta para resolver el
   defecto real encontrado.
 
-  **Lo que NO se hizo, a propósito.**
-  - **Temas claro/oscuro.** Es una decisión de **diseño estético**, no una
-    extracción mecánica como las de las Fases 0-5: requiere criterio visual
-    humano sobre decenas de colores, y la identidad actual (mesa de fieltro
-    verde) no tiene un "modo claro" obvio sin una sesión de diseño real.
-    Implementarlo sin esa validación arriesgaba entregar algo que se ve mal,
-    que es peor que no tenerlo. Queda como propuesta, no como código.
+  **Lo que NO se hizo acá, a propósito (en esta fase de este documento).**
+  - **Temas claro/oscuro.** Era una decisión de **diseño estético**, no una
+    extracción mecánica como las de las Fases 0-5: requería criterio visual
+    humano sobre decenas de colores, y la identidad de acá (mesa de fieltro
+    verde) no tenía un "modo claro" obvio sin una sesión de diseño real. Por
+    eso quedó fuera de esta fase y se documentó como propuesta.
+    **Actualización:** se implementó después, en la Fase 4 de
+    [PLAN.md](./PLAN.md) — paleta "Oscuro total" (cartas gris carbón, no
+    blancas) con toggle Auto/Claro/Oscuro persistente. Ver el detalle real
+    ahí; esta entrada queda como registro histórico de la decisión original.
   - **Paleta apta para daltónicos (4 colores de palo).** Al planificar esta
     fase se revisó el argumento original del ADR y se lo encontró más débil
     de lo que parecía: los palos ya se distinguen por **forma** (♠♥♦♣ son
@@ -490,7 +503,12 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente · 💡 Propuesto.
   específicos de cada juego, no el test de contrato).
 - Una CSP estricta activa en las 6 páginas, **sin excepción**. ✅ (Fase 5 +
   cierre de la brecha `unsafe-inline` en la Fase 1 de [PLAN.md](./PLAN.md)).
-- Sin duplicación de `SUIT`/cartas/persistencia/UI/stats entre juegos. ✅ (Fases 0-3)
+- Sin duplicación del **componente de carta**/persistencia/UI/stats entre
+  juegos. ✅ (Fases 0-3) — matizado: `SUIT`/`RANK_LABEL` y el mazo/mezcla siguen
+  definidos 3 veces (una por juego con cartas), a propósito: cada juego usa un
+  orden de palos distinto y Corazones pone el As como rango 14, no 1. No es
+  duplicación accidental sino una variación real que `shared/cards.js` no
+  fuerza a unificar (ver la nota de §5.1).
 
 ## 11. Decisión
 
