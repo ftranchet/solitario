@@ -25,7 +25,10 @@ body {
 
 /* ---------- Cabecera: marca, HUD y acciones ---------- */
 .brand { display: flex; flex-direction: column; line-height: 1.1; }
-.title { font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
+/* .title es un <h1> (accesibilidad: cada página necesita un nivel-1 único,
+   PLAN-2.md Fase 6); margin: 0 anula el margen por defecto del navegador
+   para que se vea igual que cuando era un <div>. */
+.title { margin: 0; font-weight: 800; font-size: 18px; letter-spacing: 0.5px; }
 .credit { font-size: 11px; opacity: 0.85; margin-top: 2px; white-space: nowrap; }
 /* Enlace del autor: en negrita y sin cambiar de color (hereda el del texto) */
 .credit .author { color: inherit; font-weight: 700; text-decoration: none; }

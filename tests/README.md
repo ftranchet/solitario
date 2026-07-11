@@ -109,6 +109,7 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Contrato · menú de juegos | El menú (🎮) de cada página de juego se GENERA desde el registro (`shared/menu.js`); el test abre el menú con un click real en `#btn-menu` y verifica los enlaces resultantes (mismo orden, mismos href, el actual marcado) |
 | Contrato · estructura de página | Cada página de juego tiene los scripts compartidos en orden, `data-store-ns` = id del registro, toggle de Tema, `viewport-fit=cover` y hojas tokens → base → game (el checklist ejecutable de docs/COMO-AGREGAR-UN-JUEGO.md) |
 | Precache | Todo archivo servido (HTML, CSS, JS, íconos) está en la lista `ASSETS` de `sw.js`; un archivo nuevo fuera de la lista rompe el test (ver docs/PLAN.md, Fase 0) |
+| Presupuesto de peso | El app shell precacheado (la lista `ASSETS` de `sw.js`) no supera un tope de 400 KB; si crece de más hay que subir el presupuesto a mano en el test, con la misma explicitud que `check-sw-version.sh` exige para `VERSION` (docs/PLAN-2.md, Fase 6) |
 
 **Seguridad y tipos**
 
@@ -143,6 +144,12 @@ CHROMIUM_BIN="/ruta/a/chrome" npm test
 | Buscaminas · roving tabindex | Una sola celda es alcanzable por Tab a la vez; las flechas mueven el foco; Enter cava |
 | Buscaminas · `generating` | `onTap` ignora la entrada (por teclado o mouse) mientras el tablero "sin adivinanzas" se genera en segundo plano |
 
+**Accesibilidad automática (axe-core)**
+
+| Test | Qué valida |
+|------|-----------|
+| Accesibilidad (axe-core) · ×6 | Cada una de las 6 páginas, auditada con [axe-core](https://github.com/dequelabs/axe-core) (vendorizado como devDependency de `tests/`, nunca se sirve en producción), no tiene violaciones automáticas (regla `meta-viewport` desactivada a propósito: el viewport fijo es intencional en una PWA táctil). Encontró y motivó el arreglo de 3 problemas reales (docs/PLAN-2.md, Fase 6): faltaba `<main>` en 5 páginas, faltaba un `<h1>` único en las 4 páginas de juego, y el contraste de `.empty` en Estadísticas no llegaba al mínimo WCAG AA |
+
 ## Screenshots y regresión visual automática
 
 `screenshot.js` captura las 6 páginas en los 4 breakpoints (vertical,
@@ -164,8 +171,10 @@ commiteala; si no lo es, el CI lo atrapa.
 
 También corre en CI `check-sw-version.sh`: si un cambio toca archivos
 servidos sin subir `VERSION` de `sw.js`, falla (la copia offline sólo se
-re-precachea al subir la versión). Y un job aparte corre el humo en WebKit
-(el motor de Safari): `PW_BROWSER=webkit npm test -- --smoke`.
+re-precachea al subir la versión). Y dos jobs aparte corren el humo en
+WebKit y Firefox (motores de Safari y Firefox, además del Chromium/Chrome
+de la corrida normal): `PW_BROWSER=webkit npm test -- --smoke` y
+`PW_BROWSER=firefox npm test -- --smoke`.
 
 ## Notas
 

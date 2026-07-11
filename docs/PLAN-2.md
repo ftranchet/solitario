@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **En curso** (Fase 0 hecha; D1/D2/D3 decididas — ver §"Decisiones") |
+| Estado | **En curso** (Fases 0-6 hechas; D1/D2/D3 decididas — ver §"Decisiones"; falta Fase 7) |
 | Versión | 1.1 |
 | Fecha | 2026-07-11 |
 | Origen | Auditoría integral de código y documentación (2026-07-11) |
@@ -256,7 +256,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 3 | Documentación coherente con el código | S | ✅ |
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ✅ |
 | 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js) | L | ✅ (alcance acotado; reloj/undo evaluados y no extraídos) |
-| 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ⬜ |
+| 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ✅ |
 | 7 | Tags de release + rituales | S | ⬜ |
 
 ## Decisiones (tomadas 2026-07-11)
@@ -267,7 +267,7 @@ El dueño del producto adoptó las 3 recomendaciones.
 |---|---|---|:---:|:---:|
 | D1 | ¿"Partidas jugadas" de Corazones cuenta al empezar o al terminar? | Contar al repartir la 1.ª mano (consistente con los otros 3 juegos) | 4 | ✅ |
 | D2 | ¿Empate al alcanzar el objetivo en Corazones? | Mano de desempate (regla habitual) | 4 | ✅ |
-| D3 | ¿Job de Firefox en CI o ajustar RNF-07? | Job de humo Firefox (barato, cierra la promesa del PRD) | 6 | ⬜ |
+| D3 | ¿Job de Firefox en CI o ajustar RNF-07? | Job de humo Firefox (barato, cierra la promesa del PRD) | 6 | ✅ |
 
 ## Progreso
 
@@ -551,3 +551,59 @@ El dueño del producto adoptó las 3 recomendaciones.
     de CSS encontrado en el camino), verificación manual de drag & drop
     en Carta Blanca (válido e inválido) además del test automático de
     Solitario.
+
+- **Fase 6 (hecha) — CI y tests de largo alcance.**
+  - **Presupuesto de peso.** Nuevo test que suma los bytes de todo lo
+    listado en `ASSETS` de `sw.js` y lo compara contra un tope de 400 KB
+    (el total actual ronda 341 KB), con el mismo criterio explícito que
+    `check-sw-version.sh` exige para `VERSION`: si el crecimiento es
+    intencional, subir el tope a mano, no ampliarlo en silencio. Convierte
+    la promesa de "interactivo < 2 s" del PRD en una puerta de CI.
+  - **Job de humo Firefox (D3).** Mismo patrón que el job de WebKit ya
+    existente: instala Firefox con Playwright en el job de CI y corre
+    `PW_BROWSER=firefox npm test -- --smoke`. `tests/run.js` ganó una
+    tercera rama en el selector de navegador (`chromium`/`webkit`/
+    `firefox`, vía `playwright-core`). Cierra la promesa de compatibilidad
+    con Firefox del RNF-07 con verificación real en CI, no sólo
+    documentada. **Sin verificación local completa:** el entorno de
+    sandbox de esta sesión bloquea la descarga del binario de Firefox
+    (`403 request rejected` contra el CDN de Playwright); el cambio
+    replica exactamente el job de WebKit ya probado, y CI (con acceso de
+    red completo) sí lo ejecuta de punta a punta.
+  - **Accesibilidad automatizada con axe-core.** Vendorizado como
+    devDependency de `tests/` (nunca se sirve en producción — RNF-01
+    intacto), corre sobre las 6 páginas y encontró 3 problemas reales que
+    la Fase 4 (RNF-08) no había cubierto porque axe audita cosas que el
+    ojo y los tests manuales de teclado no marcan:
+    1. **Faltaba un `<main>` landmark** en `solitario.html`,
+       `carta-blanca.html`, `corazones.html`, `buscaminas.html` y
+       `estadisticas.html` (el `<div id="app">`/`<div id="wrap">` raíz
+       pasó a `<main id="app">`/`<main id="wrap">`; `index.html` ya tenía
+       uno). Sin landmark, un lector de pantalla no puede saltar directo
+       al contenido principal.
+    2. **Faltaba un `<h1>` único** en las 4 páginas de juego (el
+       `<div class="title">` pasó a `<h1 class="title">`); `.title` en
+       `styles/game.css` suma `margin: 0` para no cambiar el layout
+       (antes heredaba el margen 0 implícito de un `<div>`, un `<h1>`
+       trae margen propio del user-agent stylesheet).
+    3. **Contraste insuficiente** en `.empty` de `styles/estadisticas.css`
+       (el texto "Todavía no jugaste ninguna partida"): `opacity: 0.6`
+       contra el fondo claro de la tarjeta daba 3.94:1, por debajo del
+       mínimo WCAG AA de 4.5:1 para texto normal. Subido a `opacity: 0.7`
+       (5.32:1 en claro, 6.30:1 en oscuro), documentado con la cuenta
+       exacta en un comentario.
+    La regla `meta-viewport` se desactivó a propósito en el test (el
+    viewport fijo — `user-scalable` implícito en `viewport-fit=cover` — es
+    intencional en una PWA táctil, no un descuido).
+  - **Dependabot** (`.github/dependabot.yml`, nuevo): vigila
+    `tests/package.json` semanalmente. Playwright sigue clavado a
+    `1.61.1` a propósito (reproducibilidad de las capturas deterministas
+    de `screenshot.js`); Dependabot avisa de versiones nuevas para
+    decidir el bump a mano, no lo aplica solo — documentado en un
+    comentario dentro del propio YAML.
+  - **`VERSION` de `sw.js` a `v1.31.0`** (los 5 HTML tocados y
+    `styles/game.css`/`styles/estadisticas.css` cambiaron); capturas de
+    referencia sin diferencias.
+  - **Puerta:** 92/92 tests verdes (3 corridas seguidas, incluidos los 6
+    tests nuevos de axe-core y el de presupuesto de peso), `tsc -p .`
+    limpio, 35/35 comparaciones visuales sin diferencias.

@@ -1,0 +1,15 @@
+version: 2
+
+# Sólo tests/ tiene dependencias (playwright-core, pixelmatch, pngjs,
+# axe-core): el resto del sitio es HTML/CSS/JS vanilla sin build, servido
+# tal cual (RNF-01). Playwright queda clavado en una versión exacta a
+# propósito en tests/package.json (reproducibilidad de las capturas
+# deterministas de tests/screenshot.js); Dependabot igual avisa de versiones
+# nuevas para decidir el bump a mano, no lo aplica solo (docs/PLAN-2.md,
+# Fase 6).
+updates:
+  - package-ecosystem: "npm"
+    directory: "/tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

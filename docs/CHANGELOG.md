@@ -10,7 +10,42 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-5 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0)_
+_(nada por ahora — las Fases 0-6 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0/1.18.0)_
+
+## [1.18.0] — 2026-07-11
+
+PLAN-2.md, Fase 6 (CI y tests de largo alcance): presupuesto de peso del
+app shell, job de humo en Firefox (decisión D3), auditoría automática de
+accesibilidad con axe-core (que encontró y corrigió 3 problemas reales) y
+Dependabot acotado a `tests/`.
+
+### Agregado
+
+- **Test de presupuesto de peso**: suma los bytes de todo lo listado en
+  `ASSETS` de `sw.js` y falla si supera 400 KB, con el mismo criterio
+  explícito que `check-sw-version.sh` exige para `VERSION`.
+- **Job de humo en Firefox** en CI (D3), análogo al de WebKit ya
+  existente: `PW_BROWSER=firefox npm test -- --smoke`. `tests/run.js`
+  suma la rama de navegador correspondiente.
+- **Auditoría de accesibilidad con axe-core** (vendorizado como
+  devDependency de `tests/`, nunca se sirve en producción) sobre las 6
+  páginas.
+- **`.github/dependabot.yml`**: vigilancia semanal de las dependencias de
+  `tests/` (Playwright sigue clavado a una versión exacta a propósito).
+
+### Cambiado
+
+- **`solitario.html`/`carta-blanca.html`/`corazones.html`/
+  `buscaminas.html`/`estadisticas.html`**: el contenedor raíz pasa de
+  `<div>` a `<main>` (landmark de accesibilidad).
+- **`solitario.html`/`carta-blanca.html`/`corazones.html`/
+  `buscaminas.html`**: el título de la cabecera pasa de `<div class="title">`
+  a `<h1 class="title">` (cada página necesita un nivel-1 único);
+  `styles/game.css` suma `margin: 0` a `.title` para no cambiar el layout.
+- **`styles/estadisticas.css`**: `.empty` sube de `opacity: 0.6` a `0.7`
+  (el contraste contra el fondo claro de la tarjeta no llegaba al mínimo
+  WCAG AA de 4.5:1).
+- **`VERSION` de `sw.js` a `v1.31.0`**.
 
 ## [1.17.0] — 2026-07-11
 

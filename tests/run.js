@@ -1505,6 +1505,39 @@ test("Accesibilidad: las cartas tienen aria-label y las boca abajo no se revelan
   assertNoErrors(p.errors);
 });
 
+/* 34b) Accesibilidad automatizada (axe-core) — barrido de las 6 páginas
+   buscando violaciones WCAG conocidas (landmarks, encabezados, contraste,
+   roles ARIA). Complementa, no reemplaza, los tests puntuales de RNF-08 de
+   arriba: aquéllos verifican comportamientos concretos a mano (aria-label,
+   teclado, foco visible); axe-core barre reglas generales que sería tedioso
+   escribir una por una. Convierte RNF-08 en verificable, igual que ya se
+   hizo con la CSP (docs/PLAN-2.md, Fase 6).
+   axe-core es una devDependency de tests/ (vendorizada: nunca se sirve al
+   navegador en producción, RNF-01 no se toca). Se evalúa el bundle vía CDP
+   (page.evaluate con el código fuente como string) en vez de
+   page.addScriptTag: la CSP estricta del sitio (script-src 'self', sin
+   'unsafe-inline') bloquearía un <script> inline inyectado por
+   addScriptTag; evaluate() corre en el contexto de la página sin pasar por
+   esa restricción, igual que cualquier otra instrumentación de Playwright.
+   meta-viewport se excluye a propósito: `user-scalable=no` es un trade-off
+   deliberado documentado en docs/PRD.md (RNF-02), no un descuido. */
+var AXE_SRC = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+["index.html", "solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html", "estadisticas.html"]
+.forEach(function (file) {
+  test("Accesibilidad (axe-core): " + file + " sin violaciones", async function (ctx) {
+    var p = await open(ctx, file);
+    await p.page.evaluate(AXE_SRC);
+    var results = await p.page.evaluate(function () {
+      return window.axe.run(document, { rules: { "meta-viewport": { enabled: false } } });
+    });
+    var violations = results.violations.map(function (v) {
+      return v.id + " (" + v.impact + "): " + v.help + " — " + v.nodes.length + " nodo(s)";
+    });
+    assert(violations.length === 0, file + ": violaciones de accesibilidad:\n" + violations.join("\n"));
+    assertNoErrors(p.errors);
+  });
+});
+
 /* 35) Arquitectura — shared/ui.js expone un toast() único, igual en los 4 juegos. */
 test("Arquitectura: shared/ui.js expone toast() igual en los 4 juegos", async function (ctx) {
   var pages = ["solitario.html", "carta-blanca.html", "corazones.html", "buscaminas.html"];
@@ -1743,6 +1776,38 @@ test("Precache: todo archivo servido está en la lista ASSETS de sw.js", async f
 
   assert(missing.length === 0,
     "archivo(s) servido(s) fuera de ASSETS en sw.js: " + missing.join(", "));
+});
+
+/* 40b) Presupuesto de peso — la suma de bytes de todo lo que sw.js precachea
+   (el "app shell": HTML, CSS, JS, íconos, manifest) no debe superar un tope.
+   Convierte la métrica del PRD ("interactivo < 2s en gama media") en una
+   puerta de CI verificable, al estilo de la guardia de VERSION
+   (tests/check-sw-version.sh): un archivo nuevo o uno que creció mucho lo
+   hace fallar acá, en vez de descubrirse recién en producción. No abre
+   navegador: lee el filesystem directo. (docs/PLAN-2.md, Fase 6). */
+test("Presupuesto de peso: el app shell precacheado no supera el tope", async function () {
+  var swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+  var listMatch = swSrc.match(/const ASSETS = \[([\s\S]*?)\];/);
+  assert(listMatch, "no se pudo encontrar la lista ASSETS en sw.js");
+  var assets = [];
+  var strRe = /"([^"]+)"/g, strMatch;
+  while ((strMatch = strRe.exec(listMatch[1]))) if (strMatch[1] !== "./") assets.push(strMatch[1]);
+
+  var BUDGET = 400 * 1024;   // 400 KB — con margen sobre el total actual (~341 KB)
+  var total = 0, byFile = [];
+  assets.forEach(function (rel) {
+    var size = fs.statSync(path.join(ROOT, rel)).size;
+    total += size;
+    byFile.push({ rel: rel, size: size });
+  });
+  byFile.sort(function (a, b) { return b.size - a.size; });
+
+  assert(total <= BUDGET,
+    "el app shell precacheado pesa " + (total / 1024).toFixed(1) + " KB, supera el " +
+    "presupuesto de " + (BUDGET / 1024) + " KB. Los 5 más pesados: " +
+    byFile.slice(0, 5).map(function (f) { return f.rel + " (" + (f.size / 1024).toFixed(1) + " KB)"; }).join(", ") +
+    ". Si el crecimiento es intencional, subí BUDGET acá con la misma explicitud " +
+    "que check-sw-version.sh exige subir VERSION.");
 });
 
 /* ==================== SEGURIDAD (Fase 5) ==================== */
@@ -2223,7 +2288,9 @@ test("Tema 'auto': sigue el prefers-color-scheme del sistema en vivo", async fun
 (async function () {
   // --smoke: sólo los tests de humo (carga sin errores + metadatos PWA).
   // Pensado para correr la suite mínima en OTRO motor de navegador (WebKit =
-  // Safari) en CI: PW_BROWSER=webkit npm test -- --smoke
+  // Safari, Firefox) en CI: PW_BROWSER=webkit|firefox npm test -- --smoke
+  // (D3, docs/PLAN-2.md: RNF-07 promete compatibilidad con Firefox; antes
+  // sólo se verificaba Chromium completo + WebKit de humo).
   var SMOKE = process.argv.indexOf("--smoke") >= 0;
   if (SMOKE) {
     tests = tests.filter(function (t) { return /^carga sin errores|^PWA: todas las páginas/.test(t.name); });
@@ -2237,6 +2304,10 @@ test("Tema 'auto': sigue el prefers-color-scheme del sistema en vivo", async fun
       var webkit = require("playwright-core").webkit;
       console.log("Navegador: webkit  ·  sirviendo " + BASE + (SMOKE ? "  ·  (smoke)" : ""));
       browser = await webkit.launch({ headless: true });
+    } else if (process.env.PW_BROWSER === "firefox") {
+      var firefox = require("playwright-core").firefox;
+      console.log("Navegador: firefox  ·  sirviendo " + BASE + (SMOKE ? "  ·  (smoke)" : ""));
+      browser = await firefox.launch({ headless: true });
     } else {
       var launch = resolveLaunch();
       console.log("Navegador: " + (launch.executablePath || ("channel:" + launch.channel)) + "  ·  sirviendo " + BASE + (SMOKE ? "  ·  (smoke)" : ""));
@@ -2244,7 +2315,7 @@ test("Tema 'auto': sigue el prefers-color-scheme del sistema en vivo", async fun
     }
   } catch (e) {
     srv.server.close();
-    console.error("\nNo se pudo abrir el navegador. Definí CHROMIUM_BIN o instalá Google Chrome (o, para WebKit, `npx playwright install webkit`).\n" + e.message);
+    console.error("\nNo se pudo abrir el navegador. Definí CHROMIUM_BIN o instalá Google Chrome (o, para WebKit/Firefox, `npx playwright install webkit|firefox`).\n" + e.message);
     process.exit(2);
   }
   var passed = 0, failed = 0;
