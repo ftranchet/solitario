@@ -206,12 +206,8 @@ inicio y jugable completamente offline.
 - **RNF-06 · Calidad.** Suite de tests de navegador (Playwright) que corre los
   HTML reales; CI en cada push/PR. Cero errores de consola al cargar.
 - **RNF-07 · Compatibilidad.** Navegadores modernos (Chromium, Firefox, Safari)
-  en sus versiones actuales. **Brecha entre lo prometido y lo verificado:**
-  hoy CI corre la suite completa en Chromium y un humo en WebKit, pero
-  ningún job en Firefox — la promesa de este requisito no está cubierta
-  para ese navegador. `docs/PLAN-2.md` (decisión D3) ya resolvió agregar un
-  job de humo en Firefox, análogo al de WebKit; queda pendiente de
-  implementar en su Fase 6.
+  en sus versiones actuales. CI corre la suite completa en Chromium y un
+  humo en WebKit y en Firefox (`docs/PLAN-2.md`, decisión D3 y Fase 6).
 - **RNF-08 · Accesibilidad (a11y).** Las cartas exponen `aria-label` legible
   para lectores de pantalla (sin revelar las cartas boca abajo) y los
   avisos/estado se anuncian (`role="status"` / `aria-live`). Navegación por

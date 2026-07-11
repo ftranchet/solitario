@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **En curso** (Fases 0-6 hechas; D1/D2/D3 decididas — ver §"Decisiones"; falta Fase 7) |
-| Versión | 1.1 |
+| Estado | **Fases 0-7 hechas** (D1/D2/D3 decididas — ver §"Decisiones"; Fase 7 con un bloqueo parcial de infraestructura, ver esa sección) |
+| Versión | 1.2 |
 | Fecha | 2026-07-11 |
 | Origen | Auditoría integral de código y documentación (2026-07-11) |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [PLAN](./PLAN.md) (cerrado) · [CHANGELOG](./CHANGELOG.md) |
@@ -220,6 +220,15 @@ visual, se corta y se reevalúa (no se fuerza).
 
 ### Fase 7 — Rituales de largo plazo · _tamaño S_
 
+> **Bloqueo parcial (2026-07-11):** el punto 1 (tags) se creó localmente
+> para las 25 versiones (`v0.1.0`…`v1.18.0`, retroactivo incluido) pero
+> `git push origin --tags` (y por tag individual) devuelve **403** del
+> proxy de esta sesión, mientras que el push de ramas al mismo repo
+> funciona sin problema — es una restricción de política del token de
+> esta sesión sobre refs de tag, no un error de red ni de credenciales
+> vencidas. Los puntos 2 y 3 no dependen de esto y están hechos. Ver el
+> detalle en Progreso.
+
 1. **Tags de release:** `git tag v1.x.y` al mergear cada versión del
    changelog (y retroactivo para la actual). Bisecar regresiones y
    correlacionar con `VERSION` del SW pasa a ser inmediato.
@@ -232,6 +241,7 @@ visual, se corta y se reevalúa (no se fuerza).
    adoptarlo como paso fijo del checklist de cada fase futura.
 
 **Puerta:** tags publicados + ambos rituales escritos en los docs que tocan.
+(Los tags están creados pero no publicados — ver el bloqueo arriba.)
 
 ---
 
@@ -243,6 +253,38 @@ visual, se corta y se reevalúa (no se fuerza).
 | `BroadcastChannel` para sincronizar pestañas | El candado actual (un solo dueño del guardado) ya evita la corrupción, que era el riesgo real. Sincronización viva es una feature, no robustez; va al backlog del PRD. |
 | Exportar/importar estadísticas | Ya está en el backlog del PRD (§8). Este plan no lo re-prioriza. |
 | Migrar motores a ES Modules / interfaz `mount/serialize/restore` | Misma decisión de PLAN.md y ARQUITECTURA.md: paga recién con un 5.º juego real. |
+
+## Ritual de cierre de fase (checklist fijo desde Fase 7)
+
+Nace informal en la Fase 3 (punto 5) y se usó, ya en la práctica, en todas
+las fases de este plan. Se adopta acá como paso fijo del checklist de
+**cualquier fase futura**, en éste o en un próximo `PLAN-N.md`:
+
+1. **Test primero.** Para cada bug: un test de regresión que falle contra
+   el código sin arreglar, después el fix, después el mismo test en verde.
+   Nunca al revés.
+2. **Grep anti-desfase.** `grep -rn "no implementado\|pendiente\|sin
+   implementar" docs/` y confirmar que cada resultado sigue siendo
+   verdad (si la fase implementó algo que un doc marcaba como pendiente,
+   ese doc se corrige en la misma fase, no después).
+3. **Suite completa verde** (`npm test` en `tests/`, ×3 corridas seguidas
+   si la fase tocó algo con estado async/reloj/concurrencia), `tsc -p .`
+   limpio, y regresión visual completa (`node visual.js`) sin diferencias
+   no intencionales.
+4. **`VERSION` de `sw.js`** subida si la fase tocó algún archivo servido
+   (HTML/CSS/JS/íconos) — `tests/check-sw-version.sh` lo hace exigible.
+5. **Docs actualizados en el mismo commit que el código:** entrada nueva en
+   `CHANGELOG.md`, fila de estado + "Progreso" del plan marcados ✅.
+6. **Tag de release** (`git tag vX.Y.Z` en el commit que cierra la
+   versión) al mergear a `main` — ver Fase 7, punto 1. Sin esto, bisecar
+   una regresión y correlacionarla con `VERSION` del SW exige adivinar
+   el commit a mano.
+7. **Commit → push a la rama de trabajo → merge `--ff-only` a `main`.**
+   Nunca forzar un merge no fast-forward silenciosamente: si no es
+   fast-forward, `main` avanzó por otro lado y hay que rebasar primero.
+
+**Puerta:** los 7 pasos corridos, en orden, antes de marcar la fase ✅ en
+la tabla de "Estado".
 
 ## Estado
 
@@ -257,7 +299,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ✅ |
 | 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js) | L | ✅ (alcance acotado; reloj/undo evaluados y no extraídos) |
 | 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ✅ |
-| 7 | Tags de release + rituales | S | ⬜ |
+| 7 | Tags de release + rituales | S | 🟡 (rituales hechos; tags creados, no publicados — bloqueo de infraestructura) |
 
 ## Decisiones (tomadas 2026-07-11)
 
@@ -607,3 +649,63 @@ El dueño del producto adoptó las 3 recomendaciones.
   - **Puerta:** 92/92 tests verdes (3 corridas seguidas, incluidos los 6
     tests nuevos de axe-core y el de presupuesto de peso), `tsc -p .`
     limpio, 35/35 comparaciones visuales sin diferencias.
+
+- **Fase 7 (hecha con un bloqueo parcial) — rituales de largo plazo.**
+  - **Patrón de migración de esquema** (punto 2): documentado en
+    [COMO-AGREGAR-UN-JUEGO.md](./COMO-AGREGAR-UN-JUEGO.md), nueva sección
+    "Cuándo cambia el formato de guardado". El piso actual (`v !== 1` →
+    descartar) es correcto mientras exista una sola forma de guardado por
+    juego; el patrón escrito de antemano (migrar con una función dedicada
+    `migrateV1()`, validar el resultado con el MISMO validador que un
+    guardado nativo, descartar si la migración o la validación fallan,
+    nunca reescribir el guardado en el momento —el próximo `gameSet()` ya
+    lo persiste en la forma nueva—, y un test de regresión que siembra un
+    payload `v: 1` real) evita que cada juego improvise el suyo el día que
+    haga falta un `v: 2`.
+  - **Ritual de cierre de fase** (punto 3): formalizado como una sección
+    nueva de este documento ("Ritual de cierre de fase", antes de
+    "Estado"), con los 7 pasos que ya se venían siguiendo de hecho en las
+    Fases 0-6 (test primero, grep anti-desfase, suite+tsc+visual,
+    `VERSION`, docs en el mismo commit, tag de release, commit → push →
+    merge `--ff-only`) — ahora escritos como checklist fijo para cualquier
+    fase futura, en éste o en un próximo `PLAN-N.md`.
+  - **Grep anti-desfase corrido sobre el propio cierre:** `grep -rn "no
+    implementado\|pendiente\|sin implementar" docs/` encontró una
+    contradicción real y vigente: RNF-07 del PRD todavía describía "CI no
+    corre Firefox" como brecha abierta, cuando la Fase 6 ya la cerró.
+    Corregido (RNF-07 ahora dice sólo lo que es cierto hoy). El resto de
+    los resultados son registro histórico deliberado (entradas de
+    CHANGELOG y de la propia narrativa de Progreso de este plan, que
+    describen una brecha que era cierta EN ESE MOMENTO) o un ítem
+    genuinamente pendiente y ya documentado como tal (extender el test de
+    contrato de registro a "persiste y restaura", ARQUITECTURA.md §10).
+  - **Tags de release (punto 1) — bloqueo de infraestructura, no de
+    diseño.** Se reconstruyeron y crearon localmente los 25 tags
+    `v0.1.0`…`v1.18.0` (retroactivo incluido), mapeando cada versión del
+    changelog al commit real que la cierra cruzando fecha + contenido de
+    cada entrada contra `git log` (documentado acá para que quede
+    reproducible si hace falta rehacerlo): `v0.1.0`→`870d380`,
+    `v0.3.0`→`4455cdc`, `v0.5.0`→`a1dcc52`, `v0.9.0`→`51e58ed`,
+    `v1.0.0`→`525077a`, `v1.1.0`→`8bf6d7f`, `v1.2.0`→`e157e83`,
+    `v1.3.0`→`2c880d7`, `v1.4.0`→`20780d5`, `v1.5.0`→`3400c83`,
+    `v1.6.0`→`ae4c6c2`, `v1.7.0`→`e1500f4`, `v1.8.0`→`db4f149`,
+    `v1.9.0`→`be6a228`, `v1.10.0`→`9e6f6ff`, `v1.11.0`→`38a76cc`,
+    `v1.12.0`→`b06aa9d` (incluye el commit "(ajuste)" que la propia entrada
+    del changelog de 1.12.0 ya describe), `v1.12.1`→`6f04526`,
+    `v1.12.2`→`625cd30`, `v1.13.0` a `v1.18.0` → los commits
+    `"X.Y.Z: ..."` ya explícitos en el log. **`git push origin --tags` (y
+    por tag individual) devuelve 403** mientras el push de ramas al mismo
+    repo funciona sin problema — confirmado que no es un problema de CA/
+    red (el resto de esta sesión empujó y mergeó ramas sin inconvenientes)
+    sino una restricción de política sobre refs de tag para el token de
+    esta sesión. Los tags quedan creados en el checkout local (que es
+    efímero) pero no publicados en `origin`; alguien con permisos de
+    push de tags sobre `ftranchet/solitario` tiene que correr algo
+    equivalente a `git push origin v0.1.0 v0.3.0 v0.5.0 v0.9.0 v1.0.0
+    v1.1.0 v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.8.0 v1.9.0 v1.10.0
+    v1.11.0 v1.12.0 v1.12.1 v1.12.2 v1.13.0 v1.14.0 v1.15.0 v1.16.0
+    v1.17.0 v1.18.0` (los commits de arriba, si hay que recrearlos) para
+    cerrar este punto.
+  - **Puerta:** rituales 2 y 3 completos y verificados (grep sin
+    contradicciones tras la corrección de RNF-07); punto 1 con el mapeo
+    completo y reproducible pero sin publicar (ver arriba).

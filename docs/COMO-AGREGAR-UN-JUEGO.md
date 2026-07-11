@@ -72,3 +72,44 @@ olvidás de algo, lo va a decir la suite, no un usuario.
 - Ningún build: todo es estático (RNF-01).
 - Migrar el motor a una interfaz común: se decidirá recién cuando un juego
   real lo necesite (ver ARQUITECTURA.md, Fase 4).
+
+## Cuándo cambia el formato de guardado (migración de esquema)
+
+Hoy los 4 juegos tienen `v: 1` y el piso es "todo o nada": `if (data.v !=
+null && data.v !== 1) return false` descarta cualquier guardado que no sea
+exactamente `v: 1` (correcto mientras sólo existió una forma). El día que
+un juego necesite cambiar la FORMA del guardado (agregar un campo
+obligatorio, partir uno en dos, cambiar un enum), ese piso se queda corto:
+tirar toda la partida en curso de un usuario por un cambio que el propio
+código sabe traducir es peor experiencia de la necesaria. El patrón a
+seguir, para no improvisarlo distinto en cada juego:
+
+1. **Subí `v` a 2** en el juego que cambia (los otros 3 quedan en su propio
+   `v` — no es un valor compartido entre juegos).
+2. **Escribí una función de migración** `migrateV1(data)` que devuelve el
+   objeto en la forma de `v: 2` (o `null` si no puede migrarlo — datos
+   faltantes, tipo inesperado). Vive junto al resto de la persistencia del
+   juego, no en `shared/storage.js` (la migración es 100% específica del
+   juego; `shared/storage.js` no conoce la forma de ningún guardado).
+3. **En el loader:** si `data.v === 2`, validar y usar directo; si
+   `data.v === 1`, pasar por `migrateV1()` y validar el resultado con el
+   MISMO validador que usa un guardado `v: 2` fresco (nunca un validador
+   aparte para datos migrados — si pasa la migración tiene que ser
+   indistinguible de un guardado nativo); si `migrateV1()` devuelve `null`
+   o la validación falla, descartar como hoy (RNF-04: nunca romper, en el
+   peor caso se pierde la partida en curso, no el resto del estado).
+   Cualquier `data.v` que no sea ni 1 ni 2 se descarta (un guardado de una
+   versión FUTURA, escrito por una versión más nueva de la app, no se
+   intenta interpretar).
+4. **No hace falta reescribir el guardado migrado en el momento**: el
+   próximo `gameSet()` (la próxima jugada) ya lo persiste en `v: 2`: la
+   migración vive sólo en el camino de lectura.
+5. **Test de regresión obligatorio** (mismo patrón que ya cubre el rechazo
+   de guardados corruptos): sembrar un `localStorage` con un payload
+   `v: 1` real, recargar, y verificar que la partida se restaura
+   correctamente en la forma `v: 2`.
+6. **Cuándo ya no hace falta la migración**: cuando el `v: 1` real deja de
+   aparecer en guardados de usuarios activos (regla práctica: cuando el
+   PRD lo decida, no una fecha fija) se puede borrar `migrateV1()` y volver
+   al piso simple `if (data.v !== N) return false` — documentado en el
+   changelog como un cambio deliberado, no un descuido.

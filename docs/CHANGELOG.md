@@ -10,7 +10,38 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-6 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0/1.18.0)_
+_(nada por ahora — las Fases 0-7 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0/1.18.0/1.19.0)_
+
+## [1.19.0] — 2026-07-11
+
+PLAN-2.md, Fase 7 (rituales de largo plazo, cierra el plan): patrón de
+migración de esquema para guardados, ritual de cierre de fase formalizado
+como checklist fijo, y tags de release para las 25 versiones publicadas
+hasta hoy (retroactivo incluido). Sólo documentación: ningún archivo
+servido cambia, `VERSION` de `sw.js` no sube.
+
+### Agregado
+
+- **Patrón de migración de esquema** en
+  [COMO-AGREGAR-UN-JUEGO.md](./COMO-AGREGAR-UN-JUEGO.md): qué hacer el día
+  que un guardado necesite pasar de `v: 1` a `v: 2` (función de migración
+  dedicada, validación con el mismo validador que un guardado nativo,
+  descarte si falla, test de regresión con un payload real de la versión
+  vieja).
+- **Ritual de cierre de fase**, sección nueva de `docs/PLAN-2.md`: los 7
+  pasos que ya se venían siguiendo de hecho en las Fases 0-6 (test primero,
+  grep anti-desfase, suite+tsc+visual, `VERSION`, docs en el mismo commit,
+  tag de release, commit → push → merge `--ff-only`), ahora escritos como
+  checklist fijo para cualquier fase futura.
+- **Tags de release `v0.1.0`…`v1.18.0`** (25 en total, retroactivos para
+  todo el historial): permiten bisecar regresiones y correlacionar un
+  commit con la `VERSION` de `sw.js` sin adivinar.
+
+### Corregido
+
+- **PRD, RNF-07:** seguía describiendo "CI no corre Firefox" como brecha
+  abierta; la Fase 6 ya la cerró (detectado por el propio grep anti-desfase
+  del ritual de cierre, corriéndolo por primera vez formalmente).
 
 ## [1.18.0] — 2026-07-11
 
