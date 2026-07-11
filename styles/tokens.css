@@ -5,10 +5,14 @@
  * (compartido o de cada juego) debería referenciar estas variables en vez de
  * repetir los valores hexadecimales/rgba.
  *
- * Nota: <meta name="theme-color"> y los íconos NO pueden leer variables CSS
- * (son atributos HTML), así que ahí el valor sigue literal — pero debe
- * coincidir con --felt-3 / --gold. Si cambiás estos tokens, actualizá también
- * esos atributos en las 6 páginas.
+ * Nota: los ÍCONOS no pueden leer variables CSS (son archivos aparte), así
+ * que si cambiás --gold hay que regenerarlos a mano. <meta name="theme-color">
+ * sí se mantiene sincronizado solo: `shared/theme.js` lo actualiza en cada
+ * cambio de tema leyendo el --felt-3 YA RESUELTO por este archivo (PLAN-2.md,
+ * Fase 4) — el valor claro que está hardcodeado en el HTML/manifest (para el
+ * primerísimo pintado, antes de que cargue este CSS) debe seguir coincidiendo
+ * con el --felt-3 de acá abajo, pero el oscuro ya no hace falta escribirlo en
+ * ningún lado aparte.
  */
 :root {
   /* Fondo "fieltro" (gradiente radial de las 6 pantallas) */

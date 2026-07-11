@@ -5,7 +5,7 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.7 |
+| Versión del documento | 1.8 |
 | Estado | Vigente |
 | Última actualización | 2026-07-11 |
 | Responsable | Francisco Tranchet |
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.8 | 2026-07-11 | F. Tranchet + IA | PLAN-2.md, Fase 4: RF-COR-03 documenta la mano de desempate en Corazones ante un empate en el liderazgo (decisión D2). |
 | 1.7 | 2026-07-11 | F. Tranchet + IA | PLAN-2.md, Fase 3 (coherencia de documentación): RNF-02 documenta el trade-off deliberado de `user-scalable=no` contra WCAG 1.4.4/RNF-08; RNF-07 documenta la brecha real (CI no corre Firefox) y enlaza la decisión D3. |
 | 1.6 | 2026-07-11 | F. Tranchet + IA | El roadmap (§8) apunta al nuevo [PLAN-2.md](./PLAN-2.md) (robustez, seguridad y consistencia, salido de la auditoría integral del 2026-07-11); PLAN.md queda enlazado como plan completado. |
 | 1.5 | 2026-07-09 | F. Tranchet + IA | Auditoría de merge: la matriz (§9) marca implementados "Temas claro/oscuro" y "Aviso de actualización del SW" (Fases 4 y 5 de PLAN.md); §1 y RNF-01 dejan de describir cada juego como "un único archivo HTML autocontenido" (desde la capa compartida es una página delgada + módulos compartidos); RF-PWA-05 refleja la estrategia de caché vigente (network-first para HTML/CSS/JS). |
@@ -132,7 +133,9 @@ inicio y jugable completamente offline.
 - **RF-COR-02.** «Disparar a la luna» con modo configurable (+26 a los demás o
   −26 al tirador).
 - **RF-COR-03.** Modal de fin de mano con puntajes e historial; fin de partida al
-  alcanzar el objetivo.
+  alcanzar el objetivo, salvo empate en el menor puntaje (2+ jugadores), en
+  cuyo caso se juega una mano de desempate en vez de declarar ganador por
+  orden de asiento (PLAN-2.md, decisión D2).
 - **RF-COR-04.** Coordinación entre pestañas: un único «dueño» del guardado.
 - **RF-COR-05.** Persistencia de la mano en curso, incluidas las cartas elegidas
   para pasar.

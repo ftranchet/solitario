@@ -254,21 +254,20 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ✅ |
 | 2 | Validación de localStorage + tests de inyección | M | ✅ |
 | 3 | Documentación coherente con el código | S | ✅ |
-| 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ⬜ |
+| 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ✅ |
 | 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js; reloj/undo) | L | ⬜ |
 | 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ⬜ |
 | 7 | Tags de release + rituales | S | ⬜ |
 
 ## Decisiones (tomadas 2026-07-11)
 
-El dueño del producto adoptó las 3 recomendaciones. Quedan **decididas, no
-implementadas todavía** — la implementación va en las fases indicadas.
+El dueño del producto adoptó las 3 recomendaciones.
 
-| ID | Pregunta | Decisión | Fase |
-|---|---|---|:---:|
-| D1 | ¿"Partidas jugadas" de Corazones cuenta al empezar o al terminar? | Contar al repartir la 1.ª mano (consistente con los otros 3 juegos) | 4 |
-| D2 | ¿Empate al alcanzar el objetivo en Corazones? | Mano de desempate (regla habitual) | 4 |
-| D3 | ¿Job de Firefox en CI o ajustar RNF-07? | Job de humo Firefox (barato, cierra la promesa del PRD) | 6 |
+| ID | Pregunta | Decisión | Fase | Estado |
+|---|---|---|:---:|:---:|
+| D1 | ¿"Partidas jugadas" de Corazones cuenta al empezar o al terminar? | Contar al repartir la 1.ª mano (consistente con los otros 3 juegos) | 4 | ✅ |
+| D2 | ¿Empate al alcanzar el objetivo en Corazones? | Mano de desempate (regla habitual) | 4 | ✅ |
+| D3 | ¿Job de Firefox en CI o ajustar RNF-07? | Job de humo Firefox (barato, cierra la promesa del PRD) | 6 | ⬜ |
 
 ## Progreso
 
@@ -427,3 +426,49 @@ implementadas todavía** — la implementación va en las fases indicadas.
     guardia de CI (no distingue cambios cosméticos de los de comportamiento).
   - **Puerta:** 82/82 tests verdes, `tsc -p .` limpio, grep de coherencia
     sin contradicciones.
+
+- **Fase 4 (hecha).** Con D1 y D2 ya decididas por el dueño del producto
+  (2026-07-11), esta fase las implementó junto con el resto del alcance.
+  - **`theme-color` alineado con `--felt-3` y sincronizado con el tema.**
+    Las 6 páginas y el manifest usaban `#0e3a22`, distinto de
+    `--felt-3: #0d3a23`; se igualaron. Además, `<meta name="theme-color">`
+    quedaba fijo en ese verde claro aunque el usuario eligiera modo oscuro
+    (la barra del navegador en Android/iOS no acompañaba). `shared/
+    theme.js` ahora sincroniza el `<meta>` con el `--felt-3` YA RESUELTO
+    por CSS (no lo duplica a mano) en cada cambio de tema — con un
+    best-effort en la carga inicial (antes de que el CSS esté listo, no
+    encuentra nada y no importa) y una llamada de respaldo garantizada una
+    vez que el DOM/CSS está listo. Test que fuerza el modo oscuro y
+    confirma que el `<meta>` pasa a `#071811` (el `--felt-3` oscuro).
+  - **Bandera por teclado en Buscaminas (tecla F).** Antes un usuario de
+    teclado no podía plantar una bandera en absoluto (el modo bandera y el
+    toque largo dependen del mouse/touch). `F` llama a `onLong(r, c)`, la
+    misma función que ya usa el toque largo — mismo criterio que el resto
+    de la navegación por teclado del proyecto (nunca reimplementar la
+    regla, sólo invocar el handler real). Mencionado en el modal "Cómo
+    jugar". Test que planta y saca una bandera con F.
+  - **D1 — "partidas jugadas" de Corazones.** Se contaba sólo al terminar
+    la partida completa (`recordMatchEnd()`, disparado por `showWin()`);
+    una partida abandonada a mitad de camino no sumaba nada, a diferencia
+    de los otros 3 juegos. Ahora `newMatch()` cuenta al repartir la 1.ª
+    mano (`bumpStat("played")`), y se sacó el conteo duplicado de
+    `recordMatchEnd()`. Test que llama `newMatch()` y confirma `played
+    === 1` de inmediato, sin jugar ni terminar nada.
+  - **D2 — empate en Corazones.** Al alcanzar el objetivo, un empate en el
+    MENOR puntaje (2+ jugadores) lo resolvía en silencio el sort estable
+    de `showWin()`, favoreciendo al de asiento más bajo. `endHand()` ahora
+    sólo marca `pendingOver = true` si alguien llegó al objetivo Y el
+    líder es único; con empate, se juega una mano más (el flujo normal de
+    "Continuar" ya reparte la siguiente mano cuando `pendingOver` es
+    falso, así que no hizo falta tocar nada más). Test con dos escenarios:
+    empate en 100 → sigue jugando; líder único en 100 → termina.
+  - **Limpieza:** `SEAT[].name`/`SEAT[].human` en Corazones (nadie los
+    leía; los nombres salen de `DEFAULT_NAMES`/`names`) y los símbolos de
+    `SUIT` en Solitario (escapes `♠` → glifos literales, igual que
+    Carta Blanca y Corazones).
+  - **`VERSION` de `sw.js` a `v1.29.0`**; capturas de referencia
+    regeneradas (0 diferencias).
+  - **Puerta:** 85/85 tests verdes (incluida la partida completa por la UI
+    corrida 5 veces seguidas, para confirmar que D2 no introduce
+    inestabilidad con `target` bajo), `tsc -p .` limpio, 35/35
+    comparaciones visuales.

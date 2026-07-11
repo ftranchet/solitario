@@ -28,10 +28,27 @@
     return typeof window.matchMedia === "function" &&
       matchMedia("(prefers-color-scheme: dark)").matches;
   }
+  // <meta name="theme-color"> no puede leer variables CSS (es un atributo
+  // HTML), así que se sincroniza acá con --felt-3 para que la barra del
+  // navegador (Android/iOS) también pase a oscuro en vez de quedarse
+  // siempre con el verde claro. Lee el valor YA RESUELTO por CSS (no lo
+  // duplica a mano): si tokens.css cambia --felt-3, esto se actualiza solo.
+  // En la primerísima llamada (antes de que carguen las hojas de estilo,
+  // que van DESPUÉS de este script en el <head>) puede no encontrar nada
+  // todavía — no importa, el <meta> ya arranca con el valor claro correcto
+  // en el HTML, y wireControls() vuelve a llamar esto una vez que el CSS
+  // esté listo.
+  function syncThemeColorMeta() {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    var felt = getComputedStyle(document.documentElement).getPropertyValue("--felt-3").trim();
+    if (felt) meta.setAttribute("content", felt);
+  }
   function apply() {
     var p = pref();
     var dark = p === "dark" || (p === "auto" && systemDark());
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    syncThemeColorMeta();
   }
   apply();
 
@@ -90,6 +107,6 @@
     }
     refresh();
   }
-  if (document.readyState !== "loading") wireControls();
-  else addEventListener("DOMContentLoaded", wireControls);
+  if (document.readyState !== "loading") { wireControls(); syncThemeColorMeta(); }
+  else addEventListener("DOMContentLoaded", function () { wireControls(); syncThemeColorMeta(); });
 })();

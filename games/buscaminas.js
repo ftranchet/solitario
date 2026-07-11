@@ -524,6 +524,7 @@ board.addEventListener("keydown", function (e) {
   if (!rc) return;
   var r = rc[0], c = rc[1];
   if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") { e.preventDefault(); onTap(r, c); return; }
+  if (e.key === "f" || e.key === "F") { e.preventDefault(); onLong(r, c); return; }   // bandera/acorde, igual que el toque largo
   var nr = r, nc = c;
   if (e.key === "ArrowUp") nr = Math.max(0, r - 1);
   else if (e.key === "ArrowDown") nr = Math.min(rows - 1, r + 1);

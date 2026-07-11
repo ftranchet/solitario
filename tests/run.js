@@ -825,6 +825,66 @@ test("Corazones: disparar la luna no duplica 'moons' si se repite endHand() (rel
   assertNoErrors(p.errors);
 });
 
+/* 21a-3) Corazones — D1 (docs/PLAN-2.md, decidida 2026-07-11): "partidas
+   jugadas" ahora se cuenta al REPARTIR la 1.ª mano de la partida, igual que
+   Solitario/Carta Blanca/Buscaminas (antes sólo se contaba al terminar la
+   partida completa, en recordMatchEnd()/showWin() — una partida abandonada
+   a mitad de camino no sumaba nada). */
+test("Corazones: 'partidas jugadas' se cuenta al repartir la 1.ª mano (D1)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    localStorage.removeItem("corazones.stats");
+    newMatch();
+    return JSON.parse(localStorage.getItem("corazones.stats") || "{}");
+  });
+  assert(r.played === 1, "newMatch() debería sumar 1 a 'jugadas' de inmediato, sin necesidad de terminar la partida: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
+/* 21a-4) Corazones — D2 (docs/PLAN-2.md, decidida 2026-07-11): un empate en
+   el liderazgo (menor puntaje) al alcanzar el objetivo juega una mano de
+   desempate en vez de declarar ganador por orden de asiento (antes
+   favorecía en silencio al asiento más bajo — Array.prototype.sort es
+   estable y dejaba el primer empatado del orden original). */
+test("Corazones: empate en el liderazgo al alcanzar el objetivo juega una mano de desempate (D2)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    var out = {};
+    function reset() {
+      for (var s = 0; s < 4; s++) { players[s].score = 0; players[s].roundPoints = 0; players[s].taken = []; players[s].hand = []; }
+      phase = "play"; handHistory = []; handNumber = 1; target = 100; moonMode = "demas";
+    }
+    // Caso 1: dos jugadores empatan en el MENOR puntaje al llegar al objetivo.
+    reset();
+    players[0].score = 90; players[0].roundPoints = 10;   // -> 100
+    players[1].score = 90; players[1].roundPoints = 10;   // -> 100 (empate con el 0)
+    players[2].score = 150; players[2].roundPoints = 3;
+    players[3].score = 140; players[3].roundPoints = 0;
+    endHand();
+    out.tieScores = players.map(function (q) { return q.score; });
+    out.tiePendingOver = pendingOver;
+    document.getElementById("round").hidden = true;
+
+    // Caso 2: un único líder al llegar al objetivo -> termina normalmente.
+    reset();
+    players[0].score = 90; players[0].roundPoints = 10;   // -> 100, único mínimo
+    players[1].score = 150; players[1].roundPoints = 0;
+    players[2].score = 160; players[2].roundPoints = 0;
+    players[3].score = 170; players[3].roundPoints = 0;
+    endHand();
+    out.soloScores = players.map(function (q) { return q.score; });
+    out.soloPendingOver = pendingOver;
+    document.getElementById("round").hidden = true;
+
+    return out;
+  });
+  assert(r.tieScores[0] === 100 && r.tieScores[1] === 100, "caso empate: ambos deberían quedar en 100: " + JSON.stringify(r.tieScores));
+  assert(r.tiePendingOver === false, "con empate en el liderazgo, el juego NO debería terminar todavía (mano de desempate, D2)");
+  assert(r.soloScores[0] === 100, "caso sin empate: el líder único debería quedar en 100: " + JSON.stringify(r.soloScores));
+  assert(r.soloPendingOver === true, "con un único líder al llegar al objetivo, el juego debería terminar");
+  assertNoErrors(p.errors);
+});
+
 /* 21b) Corazones — juega una carta con el teclado (Tab + Enter en vez de
    click), reutilizando la misma humanPlay() que dispara el click delegado. */
 test("Corazones: juega una carta con el teclado (Enter)", async function (ctx) {
@@ -902,6 +962,25 @@ test("Buscaminas: roving tabindex — flechas mueven el foco, Enter cava", async
   await p.page.keyboard.press("Enter");
   var dug = await p.page.evaluate(function () { return { started: started, revealed: grid[0][1].revealed }; });
   assert(dug.started && dug.revealed, "Enter debería cavar la celda enfocada, igual que un tap");
+  assertNoErrors(p.errors);
+});
+
+/* 22b-2) Buscaminas — bandera por teclado (tecla F, equivalente a onLong):
+   antes no había forma de plantar una bandera sin usar el mouse (el "modo
+   bandera" del botón también depende de un click) — un usuario de teclado
+   no podía marcar minas sospechadas en absoluto (ver docs/PLAN-2.md,
+   Fase 4). */
+test("Buscaminas: la tecla F planta una bandera en la celda enfocada", async function (ctx) {
+  var p = await open(ctx, "buscaminas.html");
+  await p.page.evaluate(function () { noGuess = false; newGame(); });
+  await p.page.evaluate(function () { document.querySelector('.cell[data-r="0"][data-c="0"]').focus(); });
+  await p.page.keyboard.press("f");
+  var r = await p.page.evaluate(function () { return { flagged: grid[0][0].flagged, flags: flags }; });
+  assert(r.flagged && r.flags === 1, "F debería plantar una bandera en la celda enfocada: " + JSON.stringify(r));
+
+  await p.page.keyboard.press("f");
+  var r2 = await p.page.evaluate(function () { return { flagged: grid[0][0].flagged, flags: flags }; });
+  assert(!r2.flagged && r2.flags === 0, "F de nuevo debería sacar la bandera: " + JSON.stringify(r2));
   assertNoErrors(p.errors);
 });
 
@@ -1197,7 +1276,7 @@ test("PWA: el manifest y los íconos están enlazados y son válidos", async fun
   assert(info.hasMaskable, "falta un ícono con purpose maskable");
   assert(info.hasAppleIcon, "falta <link rel=apple-touch-icon>");
   assert(info.shortcutCount === 4 && info.allShortcutsOk, "los shortcuts deben ser 4 y resolver a una página real");
-  assert(info.theme === "#0e3a22", "theme-color inesperado: " + info.theme);
+  assert(info.theme === "#0d3a23", "theme-color inesperado (debería coincidir con --felt-3): " + info.theme);
   assertNoErrors(p.errors);
 });
 
@@ -1216,7 +1295,7 @@ test("PWA: todas las páginas están enlazadas como PWA", async function (ctx) {
     });
     assert(meta.manifest, pages[i] + ": falta <link rel=manifest>");
     assert(meta.apple, pages[i] + ": falta <link rel=apple-touch-icon>");
-    assert(meta.theme === "#0e3a22", pages[i] + ": theme-color inesperado (" + meta.theme + ")");
+    assert(meta.theme === "#0d3a23", pages[i] + ": theme-color inesperado (debería coincidir con --felt-3, " + meta.theme + ")");
     assertNoErrors(p.errors);
   }
 });
@@ -1775,15 +1854,21 @@ test("Tema: el toggle claro/oscuro aplica tokens, persiste y es global", async f
   await p.page.waitForFunction(function () { return document.documentElement.dataset.theme === "dark"; }, null, { timeout: 2000 });
   var r = await p.page.evaluate(function () {
     var active = document.querySelector('[data-theme-pref].active');
+    var themeMeta = document.querySelector('meta[name="theme-color"]');
     return {
       theme: document.documentElement.dataset.theme,
       felt: getComputedStyle(document.documentElement).getPropertyValue("--felt-3").trim(),
-      active: active ? active.getAttribute("data-theme-pref") : null
+      active: active ? active.getAttribute("data-theme-pref") : null,
+      metaColor: themeMeta && themeMeta.getAttribute("content")
     };
   });
   assert(r.theme === "dark", "elegir Oscuro debería poner data-theme=dark, quedó " + r.theme);
   assert(r.felt === "#071811", "en oscuro --felt-3 debería ser el token oscuro, es " + r.felt);
   assert(r.active === "dark", "el botón Oscuro debería quedar marcado activo");
+  // <meta name="theme-color"> (la barra del navegador en Android/iOS) debe
+  // seguir al tema: shared/theme.js la sincroniza con --felt-3 en cada
+  // cambio (PLAN-2.md, Fase 4) — antes quedaba fija en el verde claro.
+  assert(r.metaColor === r.felt, "theme-color debería seguir a --felt-3 en oscuro: meta=" + r.metaColor + " felt=" + r.felt);
 
   // Persiste al recargar (aunque el sistema esté en claro).
   await p.page.reload({ waitUntil: "load" });

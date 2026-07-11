@@ -9,12 +9,13 @@ var SUIT_ORDER = ["clubs", "diamonds", "spades", "hearts"];
 var SUIT_SORT = { clubs: 0, diamonds: 1, spades: 2, hearts: 3 };
 var RANK_LABEL = {2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K",14:"A"};
 /* Asientos: 0=Vos (abajo), 1=Este (der.), 2=Norte (arriba), 3=Oeste (izq.).
-   El juego avanza "a la izquierda" = sentido horario en pantalla = (i+3)%4. */
+   El juego avanza "a la izquierda" = sentido horario en pantalla = (i+3)%4.
+   El nombre visible de cada asiento sale de DEFAULT_NAMES/names, no de acá. */
 var SEAT = [
-  { cls: "south", name: "Vos",   human: true },
-  { cls: "east",  name: "Este",  human: false },
-  { cls: "north", name: "Norte", human: false },
-  { cls: "west",  name: "Oeste", human: false }
+  { cls: "south" },
+  { cls: "east" },
+  { cls: "north" },
+  { cls: "west" }
 ];
 var HUMAN = 0;
 /* Nombres (0=vos; 1=Este, 2=Norte, 3=Oeste). Los rivales son editables. */
@@ -298,8 +299,21 @@ function endHand() {
   phase = "scoring";
   busy = true;
   render();
+  // D2 (docs/PLAN-2.md): un empate en el liderazgo (menor puntaje) al
+  // alcanzar el objetivo juega una mano de desempate en vez de declarar
+  // ganador por orden de asiento — antes, con 2+ empatados en el mínimo,
+  // el sort estable de showWin() favorecía en silencio al de asiento más
+  // bajo. Sólo termina si alguien llegó al objetivo Y el líder es único.
   pendingOver = false;
-  for (s = 0; s < 4; s++) if (players[s].score >= target) pendingOver = true;
+  var reachedTarget = false;
+  for (s = 0; s < 4; s++) if (players[s].score >= target) reachedTarget = true;
+  if (reachedTarget) {
+    var minScore = players[0].score;
+    for (s = 1; s < 4; s++) if (players[s].score < minScore) minScore = players[s].score;
+    var leaders = 0;
+    for (s = 0; s < 4; s++) if (players[s].score === minScore) leaders++;
+    pendingOver = leaders === 1;
+  }
   showRound(deltas, shooter);   // muestra siempre las cartas de la mano (aun si terminó el juego)
 }
 
@@ -576,8 +590,10 @@ var PREFS_KEY = "corazones.prefs", STATS_KEY = "corazones.stats";
 var _stats = makeStats(STATS_KEY);
 var loadStats = _stats.load, saveStats = _stats.save, bumpStat = _stats.bump;
 function recordMatchEnd() {
+  // "played" ya se cuenta en newMatch() (D1, docs/PLAN-2.md): al repartir la
+  // 1.ª mano, no acá al terminar — así una partida abandonada a mitad de
+  // camino también cuenta, igual que en los otros 3 juegos.
   var s = loadStats();
-  s.played = (s.played || 0) + 1;
   var winner = 0;
   for (var i = 1; i < 4; i++) if (players[i].score < players[winner].score) winner = i;
   if (winner === HUMAN) s.won = (s.won || 0) + 1;
@@ -723,6 +739,11 @@ function newMatch() {
     { hand: [], score: 0, roundPoints: 0, taken: [] }, { hand: [], score: 0, roundPoints: 0, taken: [] }
   ];
   handNumber = 0; trick = []; busy = false; handHistory = [];
+  // D1 (docs/PLAN-2.md): cuenta al repartir la 1.ª mano, igual que
+  // Solitario/Carta Blanca/Buscaminas (antes sólo se contaba al terminar la
+  // partida completa en recordMatchEnd(), y una partida abandonada a mitad
+  // de camino no sumaba nada).
+  bumpStat("played");
   nextHand();
 }
 

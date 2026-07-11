@@ -1,9 +1,9 @@
 /* ---------- Datos básicos ---------- */
 var SUIT = {
-  spades:   { symbol: "\u2660", color: "black", name: "picas" },
-  hearts:   { symbol: "\u2665", color: "red", name: "corazones" },
-  diamonds: { symbol: "\u2666", color: "red", name: "diamantes" },
-  clubs:    { symbol: "\u2663", color: "black", name: "tr\u00e9boles" }
+  spades:   { symbol: "♠", color: "black", name: "picas" },
+  hearts:   { symbol: "♥", color: "red", name: "corazones" },
+  diamonds: { symbol: "♦", color: "red", name: "diamantes" },
+  clubs:    { symbol: "♣", color: "black", name: "tréboles" }
 };
 var SUIT_ORDER = ["spades", "hearts", "diamonds", "clubs"];
 var RANK_LABEL = {1:"A",2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",11:"J",12:"Q",13:"K"};

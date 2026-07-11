@@ -10,7 +10,35 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-3 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0)_
+_(nada por ahora — las Fases 0-4 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0)_
+
+## [1.16.0] — 2026-07-11
+
+PLAN-2.md, Fase 4: inconsistencias menores y reglas, con las decisiones D1
+y D2 (adoptadas por el dueño del producto el 2026-07-11) implementadas.
+
+### Agregado
+
+- **Bandera por teclado en Buscaminas:** con una celda enfocada, la tecla
+  **F** planta o saca una bandera (antes sólo se podía con mouse/touch).
+
+### Cambiado
+
+- **Corazones — D1: "partidas jugadas" ahora cuenta al repartir la 1.ª
+  mano** de la partida, no al terminarla; una partida abandonada a mitad
+  de camino ya suma, igual que en Solitario/Carta Blanca/Buscaminas.
+- **Corazones — D2: un empate en el menor puntaje al alcanzar el objetivo
+  juega una mano de desempate** en vez de declarar ganador por orden de
+  asiento.
+- **`theme-color`** (la barra del navegador en Android/iOS) ahora coincide
+  con el fieltro verde de la app y sigue el tema claro/oscuro elegido;
+  antes quedaba fijo en un verde ligeramente distinto al de la app.
+- **`VERSION` de `sw.js` a `v1.29.0`** y capturas de referencia regeneradas.
+
+### Corregido
+
+- Datos muertos (`SEAT[].name`/`SEAT[].human` en Corazones) y símbolos de
+  palo inconsistentes en Solitario, limpiados.
 
 ## [1.15.0] — 2026-07-11
 
