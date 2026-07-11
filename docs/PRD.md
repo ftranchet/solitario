@@ -5,9 +5,9 @@
 | Campo | Valor |
 |---|---|
 | Producto | **Juegos clásicos** (marca de cartas: _Carta Blanca_) |
-| Versión del documento | 1.5 |
+| Versión del documento | 1.6 |
 | Estado | Vigente |
-| Última actualización | 2026-07-09 |
+| Última actualización | 2026-07-11 |
 | Responsable | Francisco Tranchet |
 | Repositorio | `ftranchet/solitario` |
 
@@ -23,6 +23,7 @@
 
 | Versión | Fecha | Autor | Cambios |
 |---|---|---|---|
+| 1.6 | 2026-07-11 | F. Tranchet + IA | El roadmap (§8) apunta al nuevo [PLAN-2.md](./PLAN-2.md) (robustez, seguridad y consistencia, salido de la auditoría integral del 2026-07-11); PLAN.md queda enlazado como plan completado. |
 | 1.5 | 2026-07-09 | F. Tranchet + IA | Auditoría de merge: la matriz (§9) marca implementados "Temas claro/oscuro" y "Aviso de actualización del SW" (Fases 4 y 5 de PLAN.md); §1 y RNF-01 dejan de describir cada juego como "un único archivo HTML autocontenido" (desde la capa compartida es una página delgada + módulos compartidos); RF-PWA-05 refleja la estrategia de caché vigente (network-first para HTML/CSS/JS). |
 | 1.4 | 2026-07-08 | F. Tranchet + IA | El roadmap (§8) pasa a apuntar al nuevo [PLAN.md](./PLAN.md) (plan de trabajo por fases desde Fase 0); §8 conserva sólo el backlog de ideas sin planificar. Se agrega PLAN.md a las referencias (§10). |
 | 1.3 | 2026-07-08 | F. Tranchet + IA | Se completa RNF-08 (accesibilidad): navegación por teclado y foco visible en los 4 juegos. Se retira "temas claro/oscuro" del roadmap de alta prioridad (pasa a decisión de diseño pendiente). |
@@ -219,11 +220,13 @@ inicio y jugable completamente offline.
 
 ## 8. Roadmap / próximos pasos
 
-El plan de trabajo por fases (externalizar el motor de cada juego, layouts por
-orientación, íconos SVG, modo oscuro, pulido de interacción) vive en un
-documento propio:
+El plan de trabajo por fases vive en documentos propios:
 
-➡️ **[docs/PLAN.md](./PLAN.md)**
+➡️ **[docs/PLAN-2.md](./PLAN-2.md)** — robustez, seguridad y consistencia
+(vigente, salido de la auditoría integral del 2026-07-11).
+
+➡️ **[docs/PLAN.md](./PLAN.md)** — externalizar motores, layouts por
+orientación, modo oscuro, aviso de actualización (completado).
 
 **Backlog de ideas todavía sin planificar** (fuera de las fases actuales):
 
@@ -262,7 +265,8 @@ Estado: ✅ Implementado · 🟡 Parcial · ⬜ Pendiente.
 
 ## 10. Referencias
 
-- [PLAN.md](./PLAN.md) — plan de trabajo por fases (desde Fase 0).
+- [PLAN-2.md](./PLAN-2.md) — plan vigente: robustez, seguridad y consistencia.
+- [PLAN.md](./PLAN.md) — plan de trabajo por fases anterior (completado).
 - [CHANGELOG.md](./CHANGELOG.md) — historial de cambios del producto.
 - [ARQUITECTURA.md](./ARQUITECTURA.md) — registro de la arquitectura ya
   construida (capa compartida) que permite escalar a más juegos sin romper nada.

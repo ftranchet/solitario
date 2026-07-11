@@ -404,3 +404,7 @@ una fase que los atiende; el estado real del código en cada punto quedó
 verificado con tests (55→57) y capturas, no sólo declarado. Un juego nuevo o
 una necesidad de diseño concreta (p. ej. retomar íconos con una propuesta
 superadora) abre un plan nuevo, no reabre éste.
+
+> **Actualización (2026-07-11):** ese plan nuevo ya existe —
+> ➡️ **[PLAN-2.md](./PLAN-2.md)** (robustez, seguridad y consistencia, a
+> partir de la auditoría integral de código y documentación).

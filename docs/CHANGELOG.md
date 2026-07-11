@@ -10,7 +10,15 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora)_
+### Agregado
+
+- **`docs/PLAN-2.md`** — plan de robustez, seguridad y consistencia, salido de
+  la auditoría integral de código y documentación (2026-07-11): 8 fases
+  incrementales (desflaquear/regresión visual de estados intermedios, 4 bugs,
+  validación de localStorage, coherencia de docs, reglas/inconsistencias con
+  2 decisiones de producto, deduplicación, CI ampliado y rituales de largo
+  plazo), cada una con su puerta de verificación. PLAN.md y el PRD (§8) lo
+  enlazan como plan vigente.
 
 ## [1.12.2] — 2026-07-11
 
