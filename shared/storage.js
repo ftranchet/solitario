@@ -70,6 +70,37 @@
 })();
 
 /**
+ * Validación de valores que vienen de `localStorage` (partida guardada o
+ * estadísticas): el origen es COMPARTIDO (p. ej. usuario.github.io), así que
+ * otra página del mismo origen podría escribir ahí cualquier cosa — un
+ * string donde se espera un número, que después algún juego concatena crudo
+ * en `innerHTML` (ver docs/PLAN-2.md, Fase 2). Devuelven el valor sólo si es
+ * del tipo/rango esperado; si no, el `def` de repuesto.
+ * @param {unknown} v
+ * @param {number} def
+ */
+function asNum(v, def) { return (typeof v === "number" && isFinite(v)) ? v : def; }
+/**
+ * @param {unknown} v
+ * @param {number} min
+ * @param {number} max
+ * @param {number} def
+ */
+function asIntInRange(v, min, max, def) {
+  return (typeof v === "number" && isFinite(v) && Math.floor(v) === v && v >= min && v <= max) ? v : def;
+}
+/**
+ * @param {unknown} v
+ * @returns {number[]}
+ */
+function asNumArray(v) {
+  if (!Array.isArray(v)) return [];
+  var out = [];
+  for (var i = 0; i < v.length; i++) out.push(asNum(v[i], 0));
+  return out;
+}
+
+/**
  * makeStats(key) — fábrica mínima de lectura/escritura de estadísticas.
  * `loadStats`/`saveStats`/`bumpStat(field)` eran idénticas en los 4 juegos
  * (leer JSON de localStorage, reescribirlo, sumar 1 a un contador); se

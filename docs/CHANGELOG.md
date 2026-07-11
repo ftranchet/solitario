@@ -10,7 +10,35 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — la Fase 1 de PLAN-2.md ya se publicó en 1.13.0)_
+_(nada por ahora — las Fases 0-2 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0)_
+
+## [1.14.0] — 2026-07-11
+
+PLAN-2.md, Fase 2 (seguridad): cierra la clase de inyección que la
+auditoría XSS original no cubrió — valores numéricos de `localStorage`
+concatenados en `innerHTML` sin validar tipo, explotables desde otra
+página del mismo origen compartido.
+
+### Agregado
+
+- **Helpers de validación en `shared/storage.js`**: `asNum`,
+  `asIntInRange`, `asNumArray` — devuelven el valor sólo si es del
+  tipo/rango esperado.
+
+### Corregido
+
+- **Corazones no validaba `score`/`roundPoints`/`turn`/`leadSeat`/
+  `tricksPlayed`/`handNumber`/`passDir` ni las filas de `handHistory`** al
+  restaurar una partida guardada; un valor fuera de tipo o de rango (por
+  ejemplo `turn: 7`) podía romper el juego o llegar sin escapar a
+  `innerHTML`. Ahora un guardado así se descarta, igual que un guardado
+  con cartas repetidas.
+- **`bestMoves` (Solitario) y `bestScore` (Corazones) en Estadísticas** no
+  pasaban por el mismo saneamiento que el resto de los campos numéricos.
+
+### Cambiado
+
+- **`VERSION` de `sw.js` a `v1.27.0`** y capturas de referencia regeneradas.
 
 ## [1.13.0] — 2026-07-11
 

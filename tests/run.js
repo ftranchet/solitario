@@ -617,6 +617,56 @@ test("Corazones: el guardado con carta repetida se descarta sin errores", async 
   assertNoErrors(p.errors);
 });
 
+/* 17b) Corazones — un guardado con valores numéricos fuera de rango o de otro
+   tipo (turn/leadSeat/tricksPlayed no numéricos o fuera de rango, score con
+   un string, una fila de handHistory con HTML) se descarta sin excepciones.
+   Estos valores llegan crudos a innerHTML (renderOpp, buildScoresTable) sin
+   este chequeo: el origen es compartido (p. ej. usuario.github.io), así que
+   otra página del mismo origen podría escribirlos ahí (ver docs/PLAN-2.md,
+   Fase 2). Antes sólo se validaban las CARTAS; estos campos no. */
+test("Corazones: un guardado con valores numéricos inválidos (turn/score/history) se descarta sin errores", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    var out = {};
+    function sane() {
+      return {
+        players: players.map(function (q) { return { hand: q.hand, score: 0, roundPoints: 0, taken: [] }; }),
+        phase: "pass", trick: [], leadSeat: 0, turn: 0,
+        heartsBroken: false, tricksPlayed: 0, handNumber: 1, passDir: "left",
+        target: 100, history: [], humanPass: []
+      };
+    }
+    out.saneAccepted = validSaved(JSON.parse(JSON.stringify(sane())));
+
+    var badTurn = sane(); badTurn.turn = 7;
+    out.turnRejected = !validSaved(badTurn);
+
+    var badLead = sane(); badLead.leadSeat = -1;
+    out.leadRejected = !validSaved(badLead);
+
+    var badTricks = sane(); badTricks.tricksPlayed = "5";
+    out.tricksRejected = !validSaved(badTricks);
+
+    var badScore = sane(); badScore.players[0].score = "<img src=x onerror=1>";
+    out.scoreRejected = !validSaved(badScore);
+
+    var badHistory = sane(); badHistory.history = [[0, "<img src=x onerror=1>", 0, 0]];
+    out.historyRejected = !validSaved(badHistory);
+
+    localStorage.setItem(GAME_KEY, JSON.stringify(badScore));
+    out.loadRejected = loadGame() === false;
+    return out;
+  });
+  assert(r.saneAccepted, "validSaved rechazó un estado sano");
+  assert(r.turnRejected, "validSaved aceptó turn fuera de rango (7)");
+  assert(r.leadRejected, "validSaved aceptó leadSeat fuera de rango (-1)");
+  assert(r.tricksRejected, "validSaved aceptó tricksPlayed como string");
+  assert(r.scoreRejected, "validSaved aceptó un score con HTML inyectado");
+  assert(r.historyRejected, "validSaved aceptó una fila de history con HTML inyectado");
+  assert(r.loadRejected, "loadGame debería descartar el guardado con score inválido");
+  assertNoErrors(p.errors);
+});
+
 /* ==================== REGLAS DE JUEGO ==================== */
 
 /* 18) Carta Blanca — determinismo del reparto: la partida n.º 1 debe dar exactamente
@@ -984,6 +1034,26 @@ test("Estadísticas: muestra los datos guardados y Reiniciar los borra", async f
   });
   assert(after.sol === null, "Reiniciar debe borrar las estadísticas guardadas");
   assert(after.txt.indexOf("Todavía no jugaste") >= 0, "debería mostrar el estado vacío");
+  assertNoErrors(p.errors);
+});
+
+/* 25b) Estadísticas — bestMoves (Solitario) y bestScore (Corazones) venían de
+   localStorage sin pasar por h.n() antes de concatenarse en innerHTML (a
+   diferencia de played/won/bestTime, que sí); un valor no numérico ahí se
+   insertaba crudo. El origen es compartido (p. ej. usuario.github.io), así
+   que otra página podría escribirlo (ver docs/PLAN-2.md, Fase 2). */
+test("Seguridad: bestMoves/bestScore inválidos en las estadísticas no se inyectan como HTML", async function (ctx) {
+  var p = await open(ctx, "estadisticas.html");
+  var payload = '<img src=x onerror="window.__xss=1">';
+  var r = await p.page.evaluate(function (payload) {
+    localStorage.setItem("solitario.stats", JSON.stringify({ played: 3, won: 1, bestTime: 60, bestMoves: payload }));
+    localStorage.setItem("corazones.stats", JSON.stringify({ played: 2, won: 1, bestScore: payload, moons: 0 }));
+    render();
+    var html = document.getElementById("cards").innerHTML;
+    return { html: html, xssRan: window.__xss === 1, anyImgTag: /<img/i.test(html) };
+  }, payload);
+  assert(!r.xssRan, "el onerror inyectado se ejecutó: bestMoves/bestScore no estaban sanitizados");
+  assert(!r.anyImgTag, "el payload se insertó como elemento <img> real en vez de neutralizarse");
   assertNoErrors(p.errors);
 });
 

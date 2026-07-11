@@ -252,7 +252,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 |---|---|:---:|:---:|
 | 0 | Desflaquear + regresión visual de estados intermedios y oscuro | S | ✅ |
 | 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ✅ |
-| 2 | Validación de localStorage + tests de inyección | M | ⬜ |
+| 2 | Validación de localStorage + tests de inyección | M | ✅ |
 | 3 | Documentación coherente con el código | S | ⬜ |
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ⬜ |
 | 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js; reloj/undo) | L | ⬜ |
@@ -359,3 +359,35 @@ implementadas todavía** — la implementación va en las fases indicadas.
     — sólo ruido de antialiasing bajo el umbral en 2 capturas).
   - **Puerta:** 80/80 tests verdes (5 corridas seguidas), `tsc -p .` limpio,
     35/35 comparaciones visuales.
+
+- **Fase 2 (hecha).** Cierra la clase de inyección que la auditoría XSS
+  original (ARQUITECTURA.md, Fase 5) no cubrió: valores NUMÉRICOS de
+  localStorage concatenados en `innerHTML` sin validar tipo, explotables
+  desde otra página del mismo origen compartido.
+  - **Helpers de validación en `shared/storage.js`** (`@ts-check`, con sus
+    tipos en `shared/global.d.ts`): `asNum(v, def)`, `asIntInRange(v, min,
+    max, def)`, `asNumArray(v)` — devuelven el valor sólo si es del
+    tipo/rango esperado, si no el `def` de repuesto. Un solo lugar, misma
+    filosofía de "eliminar la clase de error" que ya usa el proyecto.
+  - **Corazones — `validSaved`/`loadGame` estrictos.** Antes sólo se
+    validaban las CARTAS (sin repetidas); `score`/`roundPoints` (por
+    jugador), `turn`/`leadSeat`/`trick[].seat` (enteros 0–3),
+    `tricksPlayed` (0–13), `handNumber` (entero positivo) y `passDir`
+    (uno de los 4 valores válidos) no tenían ningún chequeo de tipo o
+    rango — un guardado con `turn: 7` pasaba la validación y rompía
+    `advance()` (`players[7]` no existe); un `score` con HTML llegaba
+    crudo a `renderOpp()`. También se sumó validar cada fila de
+    `handHistory` (números) y cada carta de `taken` (antes sólo se
+    chequeaba que fuera un array). Test que arma un guardado sano de
+    referencia y 5 variantes corruptas (turn, leadSeat, tricksPlayed como
+    string, score con HTML, fila de history con HTML) — las 5 rechazadas,
+    la sana aceptada.
+  - **Estadísticas — `bestMoves` (Solitario) y `bestScore` (Corazones)**
+    ahora pasan por `h.n()` antes de concatenarse (los demás campos ya lo
+    hacían). Test que guarda un payload `<img onerror>` en ambos campos y
+    confirma que ni se ejecuta ni aparece como `<img>` real en el HTML de
+    las tarjetas.
+  - **`VERSION` de `sw.js` a `v1.27.0`**; capturas de referencia
+    regeneradas (0 diferencias — cambios puramente de lógica, sin CSS/HTML).
+  - **Puerta:** 82/82 tests verdes (4 corridas seguidas), `tsc -p .`
+    limpio, 35/35 comparaciones visuales.

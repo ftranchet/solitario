@@ -603,6 +603,23 @@ function validSaved(d) {
   // Formato versionado: una versión futura desconocida se descarta.
   if (d.v != null && d.v !== 1) return false;
   if (d.phase !== "play" && d.phase !== "pass") return false;   // sólo estados jugables
+  // Números fuera de rango o de otro tipo (p. ej. un string inyectado desde
+  // otra página del mismo origen, ver docs/PLAN-2.md, Fase 2) se rechazan:
+  // llegan crudos a innerHTML en renderOpp()/buildScoresTable().
+  if (d.turn != null && asIntInRange(d.turn, 0, 3, null) === null) return false;
+  if (d.leadSeat != null && asIntInRange(d.leadSeat, 0, 3, null) === null) return false;
+  if (d.tricksPlayed != null && asIntInRange(d.tricksPlayed, 0, 13, null) === null) return false;
+  if (d.handNumber != null && asIntInRange(d.handNumber, 1, 1000000, null) === null) return false;
+  if (d.passDir != null && DIRS.indexOf(d.passDir) < 0) return false;
+  if (d.history != null) {
+    if (!Array.isArray(d.history)) return false;
+    for (var h = 0; h < d.history.length; h++) {
+      var row = d.history[h];
+      if (row == null) continue;
+      if (!Array.isArray(row)) return false;
+      for (var c = 0; c < row.length; c++) if (asNum(row[c], null) === null) return false;
+    }
+  }
   // Las cartas en juego (manos + baza en mesa) no pueden repetirse (RNF-04:
   // un guardado corrupto se descarta), igual que en Solitario/Carta Blanca.
   var n = 0, i, s, seen = {}, key;
@@ -610,6 +627,7 @@ function validSaved(d) {
     if (!Array.isArray(d.trick)) return false;
     for (i = 0; i < d.trick.length; i++) {
       if (!d.trick[i] || !validCard(d.trick[i].card)) return false;
+      if (asIntInRange(d.trick[i].seat, 0, 3, null) === null) return false;
       key = d.trick[i].card.suit + "-" + d.trick[i].card.rank;
       if (seen[key]) return false;
       seen[key] = 1;
@@ -620,16 +638,20 @@ function validSaved(d) {
   for (s = 0; s < 4; s++) {
     var p = d.players[s];
     if (!p || !Array.isArray(p.hand)) return false;
+    if (p.score != null && asNum(p.score, null) === null) return false;
+    if (p.roundPoints != null && asNum(p.roundPoints, null) === null) return false;
     for (i = 0; i < p.hand.length; i++) {
       if (!validCard(p.hand[i])) return false;
       key = p.hand[i].suit + "-" + p.hand[i].rank;
       if (seen[key]) return false;
       seen[key] = 1;
     }
-    if (p.taken != null && !Array.isArray(p.taken)) return false;
+    if (p.taken != null) {
+      if (!Array.isArray(p.taken)) return false;
+      for (i = 0; i < p.taken.length; i++) if (!validCard(p.taken[i])) return false;
+    }
     n += p.hand.length;
   }
-  if (d.history != null && !Array.isArray(d.history)) return false;
   return n === 52;
 }
 function loadGame() {
@@ -637,10 +659,19 @@ function loadGame() {
     var d = JSON.parse(localStorage.getItem(GAME_KEY));
     if (!validSaved(d)) return false;
     players = [];
-    for (var s = 0; s < 4; s++) players.push({ hand: d.players[s].hand, score: d.players[s].score || 0, roundPoints: d.players[s].roundPoints || 0, taken: d.players[s].taken || [] });
-    phase = d.phase; trick = d.trick || []; leadSeat = d.leadSeat || 0; turn = d.turn || 0;
-    heartsBroken = !!d.heartsBroken; tricksPlayed = d.tricksPlayed || 0;
-    handNumber = d.handNumber || 1; passDir = d.passDir || "left";
+    for (var s = 0; s < 4; s++) players.push({
+      hand: d.players[s].hand,
+      score: asNum(d.players[s].score, 0),
+      roundPoints: asNum(d.players[s].roundPoints, 0),
+      taken: d.players[s].taken || []
+    });
+    phase = d.phase; trick = d.trick || [];
+    leadSeat = asIntInRange(d.leadSeat, 0, 3, 0);
+    turn = asIntInRange(d.turn, 0, 3, 0);
+    heartsBroken = !!d.heartsBroken;
+    tricksPlayed = asIntInRange(d.tricksPlayed, 0, 13, 0);
+    handNumber = asIntInRange(d.handNumber, 1, 1000000, 1);
+    passDir = d.passDir || "left";
     if (d.target === 50 || d.target === 100) target = d.target;
     handHistory = (d.history && d.history.length != null) ? d.history : [];
     busy = false; humanPass = [];

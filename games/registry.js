@@ -55,7 +55,7 @@
         if (!h.n(st.played)) return "";
         return h.rowPlayed(st) +
           h.row("Mejor tiempo", h.fmtTime(st.bestTime)) +
-          (st.bestMoves ? h.row("Menos movimientos", st.bestMoves) : "");
+          (st.bestMoves ? h.row("Menos movimientos", h.n(st.bestMoves)) : "");
       }
     },
     {
@@ -78,7 +78,7 @@
       body: function (st, h) {
         if (!h.n(st.played)) return "";
         return h.rowPlayed(st) +
-          h.row("Menor puntaje final", (st.bestScore != null ? st.bestScore : "—")) +
+          h.row("Menor puntaje final", (st.bestScore != null ? h.n(st.bestScore) : "—")) +
           h.row("Lunas disparadas", h.n(st.moons));
       }
     },
