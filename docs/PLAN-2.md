@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Propuesto** (ninguna fase iniciada) |
-| Versión | 1.0 |
+| Estado | **En curso** (Fase 0 hecha; D1/D2/D3 decididas — ver §"Decisiones") |
+| Versión | 1.1 |
 | Fecha | 2026-07-11 |
 | Origen | Auditoría integral de código y documentación (2026-07-11) |
 | Relacionado | [PRD](./PRD.md) · [ARQUITECTURA](./ARQUITECTURA.md) · [PLAN](./PLAN.md) (cerrado) · [CHANGELOG](./CHANGELOG.md) |
@@ -149,20 +149,12 @@ Los ADR se declaran "documentos vivos"; que vuelvan a decir la verdad.
 **Puerta:** relectura cruzada docs↔código; el grep del punto 5 sin
 contradicciones.
 
-### Fase 4 — Inconsistencias menores y reglas · _tamaño M · 2 decisiones_
+### Fase 4 — Inconsistencias menores y reglas · _tamaño M_
 
-> **Decisiones de producto** (no se implementan a ciegas, como el modo oscuro
-> en su momento):
->
-> - **D1 — "Partidas jugadas":** en Solitario/Carta Blanca/Buscaminas cuenta
->   al *empezar*; en Corazones, al *terminar* la partida. Opciones: (a)
->   Corazones cuenta al repartir la primera mano —consistente con el resto,
->   **recomendada**—, o (b) se re-rotula la fila en Estadísticas
->   ("Partidas terminadas").
-> - **D2 — Empate al alcanzar el objetivo en Corazones:** hoy gana el
->   empatado con menor asiento (favorece al humano en silencio). Opciones:
->   (a) jugar una mano de desempate —regla habitual, **recomendada**—, o
->   (b) declarar victoria compartida y mostrarla como tal.
+> **D1 y D2 ya decididas** (2026-07-11, dueño del producto): D1 — Corazones
+> pasa a contar "partidas jugadas" al repartir la 1.ª mano, igual que los
+> otros 3 juegos. D2 — un empate al alcanzar el objetivo se resuelve con una
+> mano de desempate. Ver el detalle de cada una en §"Decisiones".
 
 1. **`theme-color` desalineado:** las 6 páginas y el manifest usan `#0e3a22`
    pero `tokens.css` exige que coincida con `--felt-3` (`#0d3a23`); además en
@@ -207,17 +199,16 @@ Blanca comparten estas piezas casi byte a byte).
 documentado en el commit de cada extracción. Si un paso no da byte-idéntico
 visual, se corta y se reevalúa (no se fuerza).
 
-### Fase 6 — CI y tests de largo alcance · _tamaño S · 1 decisión_
+### Fase 6 — CI y tests de largo alcance · _tamaño S_
 
-> **D3 — Firefox:** el PRD (RNF-07) promete compatibilidad con Firefox pero
-> CI no lo corre. Opciones: (a) job de humo Firefox como el de WebKit
-> (**recomendada**: son ~10 líneas de workflow reutilizando `--smoke`), o
-> (b) ajustar RNF-07 para prometer sólo lo verificado.
+> **D3 ya decidida** (2026-07-11): job de humo Firefox en CI, como el de
+> WebKit (reutilizando `--smoke`) — el PRD (RNF-07) promete compatibilidad
+> con Firefox y hoy CI no lo corre.
 
 1. **Presupuesto de peso:** test que suma los bytes de `ASSETS` contra un tope
    (p. ej. 400 KB) — convierte la métrica del PRD "interactivo < 2 s" en
    puerta de CI, al estilo de la guardia de `VERSION`.
-2. **D3** según lo decidido.
+2. **Job de humo Firefox** (D3), análogo al de WebKit ya existente.
 3. **Accesibilidad automatizada:** axe-core (vendorizado en `tests/`, no en
    producción — RNF-01 no se toca) sobre las 6 páginas; convierte RNF-08 en
    verificable como ya se hizo con la CSP.
@@ -259,7 +250,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 
 | Fase | Alcance | Tamaño | Estado |
 |---|---|:---:|:---:|
-| 0 | Desflaquear + regresión visual de estados intermedios y oscuro | S | ⬜ |
+| 0 | Desflaquear + regresión visual de estados intermedios y oscuro | S | ✅ |
 | 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ⬜ |
 | 2 | Validación de localStorage + tests de inyección | M | ⬜ |
 | 3 | Documentación coherente con el código | S | ⬜ |
@@ -268,9 +259,12 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ⬜ |
 | 7 | Tags de release + rituales | S | ⬜ |
 
-## Decisiones pendientes del dueño del producto
+## Decisiones (tomadas 2026-07-11)
 
-| ID | Pregunta | Recomendación | Fase |
+El dueño del producto adoptó las 3 recomendaciones. Quedan **decididas, no
+implementadas todavía** — la implementación va en las fases indicadas.
+
+| ID | Pregunta | Decisión | Fase |
 |---|---|---|:---:|
 | D1 | ¿"Partidas jugadas" de Corazones cuenta al empezar o al terminar? | Contar al repartir la 1.ª mano (consistente con los otros 3 juegos) | 4 |
 | D2 | ¿Empate al alcanzar el objetivo en Corazones? | Mano de desempate (regla habitual) | 4 |
@@ -278,5 +272,41 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 
 ## Progreso
 
-_(se completa al ejecutar cada fase, con el detalle de lo hecho y lo dejado
-afuera, como en PLAN.md)_
+- **Fase 0 (hecha).**
+  - **Flake real encontrado y corregido — no era el que documentaba
+    PLAN.md.** El test "Corazones: juega una carta con el teclado (Enter)"
+    ya no fallaba (su comentario describe una carrera distinta, entre
+    `waitForFunction` y la lectura de `trick`/`phase`, que el propio código
+    ya maneja bien con un `||`). Reproduciendo la suite completa en bucle
+    apareció un flake real en OTRO test: "Solitario: un solo Enter manda la
+    carta a su lugar (teclado)" (1 de cada ~8-10 corridas), con el resultado
+    "no pasó nada" (`moves: 0`). Causa raíz: Solitario, Carta Blanca y
+    Corazones cablean `new ResizeObserver(relayout).observe(...)` sobre el
+    tablero; observar dispara una notificación inicial (spec de
+    ResizeObserver) que entra al debounce de 120ms de `relayout`
+    (`setSizes(); render();`). Si ese relayout diferido corre DESPUÉS del
+    `render()` propio del test pero ANTES del `Enter` (dos `evaluate()`
+    separados: uno arma el estado, otro hace `focus()`), reconstruye el DOM
+    y se roba el foco — el Enter no le llega a nadie. Afecta a los 3 tests
+    de teclado de los juegos de cartas (Solitario, Carta Blanca, Corazones);
+    Buscaminas no, porque ya no tiene `ResizeObserver` (su tamaño es CSS
+    puro desde la Fase 2 de PLAN.md). Fix: helper `settleRelayout()` en
+    `tests/run.js`, documentado, llamado en los 3 tests entre el `render()`
+    de prueba y el `focus()`. Verificado: 18 corridas completas de la suite
+    seguidas sin fallos (antes, ~1 de cada 8-10 fallaba).
+  - **Regresión visual de estados intermedios.** `tests/screenshot.js` suma
+    un array `STATES` (5 estados: escalera larga apilada y carta
+    seleccionada en Solitario y Carta Blanca, más el pozo en modo difícil
+    en Solitario) armados a mano vía `page.evaluate` sobre `state`/
+    `selection`/`settings` — exactamente la técnica usada ad hoc durante el
+    rediseño de cartas de esta semana, ahora repetible. Además, las 6
+    páginas en modo oscuro (antes documentación estática en
+    `docs/screenshots/dark/`, sin comparar) se generan con
+    `localStorage.setItem("theme","dark")` vía `addInitScript` y
+    `tests/visual.js` las compara pixel a pixel igual que al resto (factoreado
+    `compareDir()`, reutilizado para `baseline/` y `dark/`). 35 capturas
+    comparadas (antes 24), 0 diferencias. Cada estado nuevo se revisó a mano
+    antes de aceptarlo como referencia (incluida la escalera K♥-Q♠-J♦-10♣-9♥-8♠-7♦,
+    el caso que motivó esta fase).
+  - **Puerta:** 73/73 tests verdes (18 corridas seguidas), `tsc -p .` limpio,
+    35/35 comparaciones visuales sin diferencias.

@@ -18,7 +18,22 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   validación de localStorage, coherencia de docs, reglas/inconsistencias con
   2 decisiones de producto, deduplicación, CI ampliado y rituales de largo
   plazo), cada una con su puerta de verificación. PLAN.md y el PRD (§8) lo
-  enlazan como plan vigente.
+  enlazan como plan vigente. Las decisiones D1 (Corazones cuenta "partidas
+  jugadas" al repartir la 1.ª mano), D2 (empate en Corazones → mano de
+  desempate) y D3 (job de humo Firefox en CI) quedaron tomadas; se
+  implementan en las Fases 4 y 6.
+- **PLAN-2.md, Fase 0 — cimientos de verificación de tests (hecha).**
+  Se encontró y corrigió un flake real de CI (distinto del que documentaba
+  PLAN.md): los 3 tests de teclado de los juegos de cartas (Solitario, Carta
+  Blanca, Corazones) podían perder el foco justo antes del `Enter` cuando el
+  relayout diferido por el `ResizeObserver` del tablero reconstruía el DOM
+  entre medio; nuevo helper `settleRelayout()` en `tests/run.js`, verificado
+  con 18 corridas completas de la suite sin fallos. `tests/screenshot.js` y
+  `tests/visual.js` suman estados deterministas (escalera larga apilada,
+  carta seleccionada, pozo en modo difícil) y comparan también las 6 páginas
+  en modo oscuro (antes documentación estática sin verificar). 35
+  comparaciones visuales (antes 24), 0 diferencias; 73/73 tests, `tsc -p .`
+  limpio.
 
 ## [1.12.2] — 2026-07-11
 

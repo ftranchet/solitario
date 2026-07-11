@@ -86,6 +86,23 @@ async function open(context, file) {
   return p;
 }
 
+/* Asienta el relayout diferido de los 3 juegos de cartas (Solitario, Carta
+   Blanca, Corazones) antes de hacer foco() + una tecla real en un test.
+   Los tres cablean `new ResizeObserver(relayout).observe(#board/#table)`,
+   que dispara una notificación inicial apenas se observa (spec de
+   ResizeObserver) y entra al debounce de 120ms de `relayout` (`setSizes();
+   render();`). Si ese relayout diferido corre DESPUÉS del render() propio
+   del test pero ANTES del Enter, reconstruye el DOM (innerHTML = "") y se
+   roba el foco: el Enter no le llega a nadie y la jugada no se aplica —
+   un flake intermitente (visto en los 3 tests de teclado de estos juegos,
+   nunca en Buscaminas, que ya no tiene ResizeObserver desde que su tamaño
+   pasó a CSS puro). Con esta espera, por el momento en que un test hace
+   foco(), esa única notificación inicial ya se resolvió y no hay más
+   relayouts en camino (el viewport no cambia durante el test). */
+async function settleRelayout(page) {
+  await page.waitForTimeout(220);
+}
+
 /* ========================= TESTS ========================= */
 
 /* 1) Carga sin errores de consola/página en todas las pantallas. */
@@ -321,6 +338,7 @@ test("Carta Blanca: un solo Enter manda la carta a su lugar (teclado)", async fu
     };
     selection = null; undoStack = []; render();
   });
+  await settleRelayout(p.page);
   await p.page.evaluate(function () { document.querySelector('.card[data-pile="free"]').focus(); });
   await p.page.keyboard.press("Enter");   // un solo Enter: manda el 9♥ sobre el 10♠
   var r = await p.page.evaluate(function () {
@@ -659,6 +677,7 @@ test("Corazones: juega una carta con el teclado (Enter)", async function (ctx) {
     leadSeat = 3; turn = 3; busy = false; handNumber = 1; render(); advance();
   });
   await p.page.waitForFunction(function () { return (turn === 0 && trick.length === 3) || phase !== "play"; }, null, { timeout: 4000 });
+  await settleRelayout(p.page);
   await p.page.evaluate(function () { document.querySelector(".hand .card.playable").focus(); });
   await p.page.keyboard.press("Enter");
   await p.page.waitForFunction(function () { return trick.length === 4 || phase !== "play"; }, null, { timeout: 4000 });
@@ -924,6 +943,7 @@ test("Solitario: un solo Enter manda la carta a su lugar (teclado)", async funct
     selection = null; undoStack = []; stuckCheckMoves = -1;
     render();
   });
+  await settleRelayout(p.page);
   await p.page.evaluate(function () { document.querySelector('.card[data-pile="waste"]').focus(); });
   await p.page.keyboard.press("Enter");   // un solo Enter: manda el 9♥ sobre el 10♠
   var r = await p.page.evaluate(function () {

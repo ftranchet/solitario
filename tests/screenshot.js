@@ -1,18 +1,25 @@
 /*
  * Captura screenshots de las 6 páginas en los 4 breakpoints del plan (ver
  * docs/PLAN.md, Fase 0 y Fase 2): vertical, apaisado corto, tablet y desktop
- * ancho. No es parte de la suite de tests (no hace assertions); es una
- * herramienta manual para comparar regresiones visuales antes/después de una
- * fase.
+ * ancho; más un puñado de ESTADOS deterministas de los juegos de cartas
+ * (escalera larga apilada, carta seleccionada, pozo en modo difícil) y las 6
+ * páginas en modo OSCURO (ver docs/PLAN-2.md, Fase 0). No es parte de la
+ * suite de tests (no hace assertions); es una herramienta manual/de CI para
+ * comparar regresiones visuales antes/después de un cambio (tests/visual.js
+ * la usa para eso).
  *
- * Uso:   cd tests && node screenshot.js [carpeta-salida]
- * Por defecto guarda en docs/screenshots/baseline/.
+ * Uso:   cd tests && node screenshot.js [carpeta-baseline] [carpeta-oscuro]
+ * Por defecto guarda en docs/screenshots/baseline/ y docs/screenshots/dark/.
  *
  * Los breakpoints replican los que ya usa el CSS/JS de cada juego:
  *   - vertical:        max-width 700px (por debajo de min-width:700px)
  *   - apaisado-corto:  max-height 480px (dispara los estilos de landscape)
  *   - tablet:          entre 700 y 1100px de ancho
  *   - desktop-ancho:   min-width 1100px (techo de tamaño de carta/celda)
+ *
+ * Los estados y el modo oscuro se capturan en un solo breakpoint (desktop
+ * ancho): no dependen del layout responsive, ya cubierto por el barrido de
+ * arriba.
  */
 const fs = require("fs");
 const path = require("path");
@@ -33,6 +40,146 @@ const BREAKPOINTS = [
   { name: "apaisado-corto", width: 844, height: 390 },
   { name: "tablet", width: 820, height: 1180 },
   { name: "desktop-ancho", width: 1440, height: 900 },
+];
+const STATE_VIEWPORT = { width: 1440, height: 900 };
+
+/* Estados intermedios deterministas: antes SÓLO se comparaba el reparto
+   inicial (repartido con la semilla fija de más abajo), así que una
+   regresión visual que sólo aparece con el tablero avanzado —como el pip
+   central que se asomaba en la franja de una escalera apilada, corregido en
+   1.12.x— no la habría detectado ningún test (ver docs/PLAN-2.md, Fase 0).
+   Cada `setup` corre en la página (vía page.evaluate) y arma el estado a
+   mano con `state`/`selection`/`settings`, las mismas globals que ya leen
+   los tests de tests/run.js — no valida reglas, es sólo para mostrar el
+   layout. */
+const STATES = [
+  {
+    page: "solitario.html",
+    name: "solitario--estado-escalera",
+    setup: function () {
+      function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+      state = {
+        stock: [c("clubs", 2, 900, false), c("diamonds", 5, 901, false)],
+        waste: [c("hearts", 4, 902)],
+        foundations: [[c("spades", 1, 903), c("spades", 2, 904)], [c("hearts", 1, 905)], [], []],
+        tableau: [
+          [c("clubs", 9, 906, false), c("diamonds", 3, 907)],
+          [c("spades", 5, 908, false), c("hearts", 7, 909, false), c("clubs", 6, 910)],
+          [],
+          [c("diamonds", 8, 911)],
+          [c("clubs", 4, 912, false), c("spades", 9, 913)],
+          [c("hearts", 2, 914, false), c("diamonds", 10, 915, false), c("clubs", 3, 916)],
+          // Escalera larga apilada: K♥ Q♠ J♦ 10♣ 9♥ 8♠ 7♦ (7 cartas, alternando color)
+          [c("hearts", 13, 917), c("spades", 12, 918), c("diamonds", 11, 919), c("clubs", 10, 920),
+            c("hearts", 9, 921), c("spades", 8, 922), c("diamonds", 7, 923)],
+        ],
+        moves: 12,
+      };
+      selection = null; undoStack = []; stuckCheckMoves = -1;
+      render();
+    },
+  },
+  {
+    page: "solitario.html",
+    name: "solitario--estado-seleccion",
+    setup: function () {
+      function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+      state = {
+        stock: [c("clubs", 2, 900, false)],
+        waste: [c("hearts", 4, 901)],
+        foundations: [[c("spades", 1, 902)], [], [], []],
+        tableau: [
+          [c("clubs", 9, 903, false), c("diamonds", 3, 904)],
+          [c("spades", 5, 905, false), c("clubs", 6, 906)],
+          [c("hearts", 13, 907)],
+          [c("diamonds", 8, 908)],
+          [],
+          [c("clubs", 4, 909, false), c("spades", 9, 910), c("hearts", 8, 911)],
+          [c("diamonds", 10, 912)],
+        ],
+        moves: 8,
+      };
+      selection = { pile: "tableau", col: 5, index: 1 };   // 9♠ + 8♥ seleccionados
+      undoStack = []; stuckCheckMoves = -1;
+      render();
+    },
+  },
+  {
+    page: "solitario.html",
+    name: "solitario--estado-pozo-dificil",
+    setup: function () {
+      function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+      settings.draw = 3;
+      state = {
+        stock: [c("clubs", 2, 900, false)],
+        waste: [c("hearts", 4, 901), c("diamonds", 3, 902), c("spades", 8, 903)],
+        foundations: [[c("spades", 1, 904)], [], [], []],
+        tableau: [
+          [c("clubs", 9, 905, false), c("diamonds", 6, 906)],
+          [c("hearts", 13, 907)],
+          [],
+          [c("diamonds", 8, 908)],
+          [c("clubs", 4, 909, false), c("spades", 9, 910)],
+          [c("hearts", 2, 911, false), c("clubs", 3, 912)],
+          [c("diamonds", 10, 913)],
+        ],
+        moves: 5,
+      };
+      selection = null; undoStack = []; stuckCheckMoves = -1;
+      render();
+    },
+  },
+  {
+    page: "carta-blanca.html",
+    name: "carta-blanca--estado-escalera",
+    setup: function () {
+      function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+      state = {
+        free: [c("clubs", 2, 900), null, c("diamonds", 5, 901), null],
+        foundations: [[c("spades", 1, 902), c("spades", 2, 903)], [c("hearts", 1, 904)], [], []],
+        tableau: [
+          [c("clubs", 9, 905), c("diamonds", 3, 906)],
+          [c("spades", 5, 907), c("hearts", 7, 908), c("clubs", 6, 909)],
+          [],
+          [c("diamonds", 8, 910)],
+          [c("clubs", 4, 911), c("spades", 9, 912)],
+          [c("hearts", 2, 913), c("diamonds", 10, 914)],
+          [c("clubs", 3, 915)],
+          // Escalera larga apilada: K♥ Q♠ J♦ 10♣ 9♥ 8♠ 7♦ 6♣ (8 cartas)
+          [c("hearts", 13, 916), c("spades", 12, 917), c("diamonds", 11, 918), c("clubs", 10, 919),
+            c("hearts", 9, 920), c("spades", 8, 921), c("diamonds", 7, 922), c("clubs", 6, 923)],
+        ],
+        moves: 15,
+      };
+      selection = null; undoStack = [];
+      render();
+    },
+  },
+  {
+    page: "carta-blanca.html",
+    name: "carta-blanca--estado-seleccion",
+    setup: function () {
+      function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+      state = {
+        free: [c("clubs", 2, 900), null, null, null],
+        foundations: [[c("spades", 1, 901)], [], [], []],
+        tableau: [
+          [c("clubs", 9, 902), c("diamonds", 3, 903)],
+          [c("spades", 5, 904), c("clubs", 6, 905)],
+          [c("hearts", 13, 906)],
+          [c("diamonds", 8, 907)],
+          [],
+          [c("clubs", 4, 908), c("spades", 9, 909), c("hearts", 8, 910)],
+          [c("diamonds", 10, 911)],
+          [],
+        ],
+        moves: 6,
+      };
+      selection = { pile: "tableau", col: 5, index: 1 };   // 9♠ + 8♥ seleccionados
+      undoStack = [];
+      render();
+    },
+  },
 ];
 
 function startServer(rootDir) {
@@ -72,7 +219,9 @@ function resolveLaunch() {
 
 (async function () {
   var outDir = path.resolve(ROOT, process.argv[2] || "docs/screenshots/baseline");
+  var darkOutDir = path.resolve(ROOT, process.argv[3] || "docs/screenshots/dark");
   fs.mkdirSync(outDir, { recursive: true });
+  fs.mkdirSync(darkOutDir, { recursive: true });
 
   var srv = await startServer(ROOT);
   var base = "http://127.0.0.1:" + srv.port + "/";
@@ -108,7 +257,48 @@ function resolveLaunch() {
     await context.close();
   }
 
+  // Estados deterministas de los juegos de cartas (ver comentario de STATES).
+  {
+    var stateContext = await browser.newContext({ viewport: STATE_VIEWPORT, reducedMotion: "reduce" });
+    for (var s = 0; s < STATES.length; s++) {
+      var st = STATES[s];
+      var statePage = await stateContext.newPage();
+      await statePage.goto(base + st.page, { waitUntil: "load" });
+      await statePage.waitForTimeout(200);
+      await statePage.evaluate(st.setup);
+      await statePage.waitForTimeout(100);
+      var stateName = st.name + ".png";
+      await statePage.screenshot({ path: path.join(outDir, stateName) });
+      console.log("  " + stateName);
+      await statePage.close();
+    }
+    await stateContext.close();
+  }
+
+  // Modo oscuro: las 6 páginas, un solo breakpoint (antes docs/screenshots/dark/
+  // era documentación estática sin comparar; ver docs/PLAN-2.md, Fase 0).
+  {
+    var darkContext = await browser.newContext({ viewport: STATE_VIEWPORT, reducedMotion: "reduce" });
+    for (var d = 0; d < PAGES.length; d++) {
+      var darkPage = await darkContext.newPage();
+      // localStorage antes de que cargue theme.js (primer script del <head>):
+      // aplica "dark" ANTES del primer pintado, igual que el toggle real.
+      await darkPage.addInitScript(function () { try { localStorage.setItem("theme", "dark"); } catch (e) {} });
+      await darkPage.addInitScript(function () {
+        var seed = 20260710;
+        Math.random = function () { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+      });
+      await darkPage.goto(base + PAGES[d], { waitUntil: "load" });
+      await darkPage.waitForTimeout(200);
+      var darkName = PAGES[d].replace(".html", "") + ".png";
+      await darkPage.screenshot({ path: path.join(darkOutDir, darkName) });
+      console.log("  dark/" + darkName);
+      await darkPage.close();
+    }
+    await darkContext.close();
+  }
+
   await browser.close();
   srv.server.close();
-  console.log("Listo: " + outDir);
+  console.log("Listo: " + outDir + " (+ " + darkOutDir + ")");
 })();
