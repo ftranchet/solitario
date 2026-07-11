@@ -80,27 +80,7 @@
 }
 .col .card { position: absolute; left: 0; }
 
-/* .card.up / colores de palo / .card.down -> styles/cards.css */
-
-/* Índice repartido en los extremos superiores: número arriba-izquierda y palo
-   arriba-derecha, del mismo tamaño (se ven aunque las cartas estén apiladas,
-   mostrando sólo la franja superior), y pip grande del palo en el CENTRO de
-   la carta para distinguirlo de un vistazo. Todo en el color del palo. */
-.card .idx {
-  position: absolute; top: 6%; left: 7%; right: 7%;
-  display: flex; align-items: center; justify-content: space-between; line-height: 1;
-  font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.65);
-}
-.card .idx .r { font-size: calc(var(--cw) * 0.42); }
-.card .idx .s { font-size: calc(var(--cw) * 0.42); }
-.card .pip {
-  /* Centrado en el espacio libre DEBAJO del índice (no en la carta entera):
-     queda a la misma distancia del índice y del borde inferior, sin chocar
-     con las figuras con cola (Q) ni asomarse en la franja de las apiladas. */
-  position: absolute; left: 50%; top: 67%; transform: translate(-50%, -50%);
-  font-size: calc(var(--cw) * 0.85); font-weight: 900; line-height: 1;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
-}
+/* .card.up / colores de palo / .card.down / .idx / .pip -> styles/cards.css */
 
 .card.sel {
   outline: 3px solid #e8b44a; outline-offset: -1px;

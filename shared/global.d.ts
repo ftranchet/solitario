@@ -79,4 +79,17 @@ declare global {
   // shared/theme.js
   function getThemePref(): string;
   function setThemePref(p: string): void;
+
+  // shared/drag.js depende de estas globals, que Solitario y Carta Blanca
+  // (los dos únicos consumidores) declaran con el mismo nombre y sentido:
+  // ¿autocompletado en curso? (bloquea el arrastre), la selección activa,
+  // el tamaño de carta vigente y las acciones de fin de jugada.
+  var autoTimer: unknown;
+  var selection: { pile: string; col: number; index: number } | null;
+  var CW: number;
+  var CH: number;
+  function startTimer(): void;
+  function render(): void;
+  function checkWin(): void;
+  function getSelectionCards(): Card[] | null;
 }

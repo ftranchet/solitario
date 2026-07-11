@@ -1826,7 +1826,7 @@ test("CSP: las 6 páginas declaran una Content-Security-Policy estricta", async 
    archivos directo del filesystem. */
 test("Tipos: los módulos compartidos declaran // @ts-check", async function () {
   var files = [
-    "shared/storage.js", "shared/cards.js", "shared/ui.js", "shared/pwa.js",
+    "shared/storage.js", "shared/cards.js", "shared/drag.js", "shared/ui.js", "shared/pwa.js",
     "shared/theme.js", "shared/menu.js", "shared/launcher.js", "shared/estadisticas-page.js", "games/registry.js"
   ];
   for (var i = 0; i < files.length; i++) {

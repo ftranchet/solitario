@@ -16,10 +16,6 @@ var undoStack = [];
 var seconds = 0, timerId = null, started = false;
 var CW, CH, OFFSET;
 
-/* ---------- Arrastre ---------- */
-var pending = null;        // { src, startX, startY, rect, pointerId, elem, canDrag }
-var drag = null;           // { layer, inner, grabDX, grabDY }
-
 /* ---------- Pistas y autocompletar ---------- */
 var hintMoves = null, hintIndex = 0, hintStateMoves = -1, hintTimer = null;
 var autoTimer = null;
@@ -276,108 +272,27 @@ function handleFoundationClick() {
 }
 function afterMove() { startTimer(); render(); checkWin(); }
 
-/* ---------- Arrastre (drag) ---------- */
-function onPointerDown(e, src, elem) {
-  if (autoTimer) return;
-  if (pending) return;
-  if (e.button != null && e.button > 0) return;
-  e.preventDefault();
-  try { elem.setPointerCapture(e.pointerId); } catch (_) {}
-  var canDrag = src.pile !== "tableau" || canSelectTableau(src.col, src.index);
-  pending = {
-    src: src, startX: e.clientX, startY: e.clientY,
-    rect: elem.getBoundingClientRect(), pointerId: e.pointerId, elem: elem, canDrag: canDrag
-  };
-  window.addEventListener("pointermove", onPointerMove);
-  window.addEventListener("pointerup", onPointerUp);
-  window.addEventListener("pointercancel", onPointerCancel);
-}
-function onPointerMove(e) {
-  if (!pending || e.pointerId !== pending.pointerId) return;
-  if (!drag) {
-    if (!pending.canDrag) return;
-    var dx = e.clientX - pending.startX, dy = e.clientY - pending.startY;
-    if (Math.sqrt(dx * dx + dy * dy) < 8) return;
-    beginDrag();
-  }
-  if (drag) { e.preventDefault(); positionDrag(e.clientX, e.clientY); }
-}
-function onPointerUp(e) {
-  if (!pending || e.pointerId !== pending.pointerId) return;
-  cleanupListeners();
-  var wasDrag = !!drag;
-  var s = pending.src;
-  if (wasDrag) finishDrag(e);
-  pending = null;
-  if (!wasDrag) handleCardClick(s.pile, s.col, s.index);
-}
-function onPointerCancel(e) {
-  if (!pending || e.pointerId !== pending.pointerId) return;
-  cleanupListeners();
-  if (drag) { drag.layer.remove(); drag = null; selection = null; render(); }
-  pending = null;
-}
-function cleanupListeners() {
-  window.removeEventListener("pointermove", onPointerMove);
-  window.removeEventListener("pointerup", onPointerUp);
-  window.removeEventListener("pointercancel", onPointerCancel);
-}
-function getRunElements(sel) {
-  var nodes;
-  if (sel.pile === "tableau") {
-    nodes = document.querySelectorAll('.card[data-pile="tableau"][data-col="' + sel.col + '"]');
-    var arr = [];
-    for (var i = 0; i < nodes.length; i++) if (parseInt(nodes[i].dataset.index, 10) >= sel.index) arr.push(nodes[i]);
-    return arr;
-  }
-  if (sel.pile === "free") nodes = document.querySelectorAll('.card[data-pile="free"][data-col="' + sel.col + '"]');
-  else nodes = document.querySelectorAll('.card[data-pile="foundation"][data-col="' + sel.col + '"]');
-  return Array.prototype.slice.call(nodes);
-}
-function beginDrag() {
-  var src = pending.src;
-  selection = { pile: src.pile, col: src.col, index: src.pile === "tableau" ? src.index : (src.pile === "foundation" ? src.index : 0) };
-  var cards = getSelectionCards();
-  var originals = getRunElements(selection);
-  for (var i = 0; i < originals.length; i++) originals[i].classList.add("dragging");
-
-  var layer = el("div", "drag-layer");
-  var inner = el("div", "drag-inner");
-  for (var j = 0; j < cards.length; j++) {
-    var c = makeCardEl(cards[j], false);
-    c.style.position = "absolute"; c.style.left = "0"; c.style.top = (j * OFFSET) + "px";
-    inner.appendChild(c);
-  }
-  layer.appendChild(inner);
-  document.body.appendChild(layer);
-  drag = { layer: layer, inner: inner, grabDX: pending.startX - pending.rect.left, grabDY: pending.startY - pending.rect.top };
-  positionDrag(pending.startX, pending.startY);
-}
-function positionDrag(x, y) {
-  drag.inner.style.transform = "translate(" + (x - drag.grabDX) + "px," + (y - drag.grabDY) + "px)";
-}
-function dropTargetAt(x, y) {
-  var under = document.elementFromPoint(x, y);
-  return under ? under.closest("[data-drop]") : null;
-}
-function finishDrag(e) {
-  var cardLeft = e.clientX - drag.grabDX, cardTop = e.clientY - drag.grabDY;
-  drag.layer.remove();
-  drag = null;
-  // Soltado: primero donde está el dedo/cursor (lo intuitivo, sirva donde sirva el agarre);
-  // si ahí no hay pila, se prueba el cuerpo de la carta como respaldo (no rebota si la tapa).
-  var target = dropTargetAt(e.clientX, e.clientY) || dropTargetAt(cardLeft + CW * 0.5, cardTop + CH * 0.30);
-  var moved = false;
-  if (target) {
-    var d = target.getAttribute("data-drop");
-    if (d.indexOf("foundation") === 0) moved = moveSelectionToFoundation();
-    else if (d.indexOf("free") === 0) moved = moveSelectionToFree(parseInt(d.split(":")[1], 10));
-    else if (d.indexOf("tableau") === 0) moved = moveSelectionToTableau(parseInt(d.split(":")[1], 10));
-  }
-  selection = null;
-  if (moved) { startTimer(); render(); checkWin(); }
-  else render();
-}
+/* ---------- Arrastre (drag) ----------
+   La máquina de puntero (pointerdown/move/up/cancel, capa flotante, umbral
+   de 8px) vive en shared/drag.js, compartida con Solitario. Acá sólo lo
+   que es propio de Carta Blanca: el nombre de la pila de un solo hueco
+   ("free"), el offset de apilado (OFFSET), si la escalera elegida se puede
+   agarrar como grupo (canSelectTableau), cómo se arma el índice de
+   selección según la pila de origen, y a qué pilas se puede soltar
+   (fundación, pozo libre o tablero). */
+var dragController = makeDragController({
+  extraPile: "free",
+  offset: function () { return OFFSET; },
+  canDrag: function (src) { return src.pile !== "tableau" || canSelectTableau(src.col, src.index); },
+  selectionIndex: function (src) { return src.pile === "tableau" ? src.index : (src.pile === "foundation" ? src.index : 0); },
+  tryDrop: function (d) {
+    if (d.indexOf("foundation") === 0) return moveSelectionToFoundation();
+    if (d.indexOf("free") === 0) return moveSelectionToFree(parseInt(d.split(":")[1], 10));
+    if (d.indexOf("tableau") === 0) return moveSelectionToTableau(parseInt(d.split(":")[1], 10));
+    return false;
+  },
+  onClick: function (s) { handleCardClick(s.pile, s.col, s.index); }
+});
 
 /* ---------- Reloj ----------
    Por timestamps, no por conteo de ticks: los navegadores estrangulan los
@@ -487,9 +402,10 @@ function updateStuckState() {
 /* ---------- Render ---------- */
 // el() vive en shared/ui.js.
 // cardFace, rankName, cardLabel y makeCardEl viven en shared/cards.js.
+// makeDragController vive en shared/drag.js.
 function attachDrag(elem, src) {
   elem.style.touchAction = "none";
-  elem.addEventListener("pointerdown", function (e) { onPointerDown(e, src, elem); });
+  elem.addEventListener("pointerdown", function (e) { dragController.onPointerDown(e, src, elem); });
   keyActivate(elem, function () { handleCardClick(src.pile, src.col, src.index); });
 }
 

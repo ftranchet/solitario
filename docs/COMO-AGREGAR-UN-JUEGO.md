@@ -30,7 +30,9 @@ olvidás de algo, lo va a decir la suite, no un usuario.
      **misma CSP** que las demás páginas (test de CSP).
    - Scripts en este orden: `shared/theme.js`, `shared/pwa.js`,
      `games/registry.js` (en `<head>`); `shared/ui.js`, `shared/storage.js`,
-     (`shared/cards.js` si usa cartas), `shared/menu.js` y **al final**
+     (`shared/cards.js` si usa cartas, `shared/drag.js` si además arrastra
+     con puntero estilo Solitario/Carta Blanca — Corazones no lo necesita,
+     su interacción es sólo clic/toque), `shared/menu.js` y **al final**
      `games/<id>.js` (en el cierre de `<body>`).
    - Hojas de estilo en orden: `styles/tokens.css` → `styles/base.css` →
      `styles/game.css` → (`styles/cards.css` si usa cartas) →

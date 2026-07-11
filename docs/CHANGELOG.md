@@ -10,7 +10,36 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
-_(nada por ahora — las Fases 0-4 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0)_
+_(nada por ahora — las Fases 0-5 de PLAN-2.md ya se publicaron en 1.13.0/1.14.0/1.15.0/1.16.0/1.17.0)_
+
+## [1.17.0] — 2026-07-11
+
+PLAN-2.md, Fase 5 (deduplicación, el mayor riesgo del plan): consolida el
+CSS del índice/pip de Solitario y Carta Blanca en `styles/cards.css`, y
+extrae la máquina de arrastre por puntero a `shared/drag.js`. Sin cambios
+de comportamiento (verificado byte-idéntico visual y funcionalmente).
+
+### Agregado
+
+- **`shared/drag.js`**: la máquina de arrastre por puntero (pointerdown/
+  move/up/cancel, capa flotante, umbral de 8px), antes duplicada casi
+  byte a byte entre Solitario y Carta Blanca (~100 líneas cada uno).
+
+### Cambiado
+
+- **`.card .idx`/`.card .pip`** (índice y palo grande de las cartas) pasan
+  de `styles/solitario.css`/`styles/carta-blanca.css` a `styles/cards.css`
+  (idénticos entre los dos desde el rediseño de legibilidad); Corazones
+  sigue con su propio override.
+- **`VERSION` de `sw.js` a `v1.30.0`**.
+
+### Corregido
+
+- Al mover el índice/pip a `cards.css`, el override de Corazones no
+  reseteaba dos propiedades nuevas que la regla compartida agrega
+  (`right`/`justify-content` en el índice; `left`/`top`/`transform` en el
+  pip), que se filtraban igual por cómo cascada el CSS. Corregido antes
+  de publicar (detectado por la regresión visual, no a simple vista).
 
 ## [1.16.0] — 2026-07-11
 

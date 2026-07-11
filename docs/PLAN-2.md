@@ -191,9 +191,9 @@ Blanca comparten estas piezas casi byte a byte).
    solitarios, parametrizada por los callbacks que ya difieren
    (`getSelectionCards`, `moveSelectionTo*`). Extracción mecánica con diff por
    bloques, como la Fase 1 vieja.
-3. **Reloj + deshacer (`snapshot`/`undo`) compartidos**, aprovechando que la
-   Fase 1 ya tocó el reloj en ambos (la duplicación transitoria del fix de
-   timestamps se paga acá).
+3. **Reloj + deshacer (`snapshot`/`undo`) compartidos** — evaluado, **no
+   extraído**: ver el detalle en Progreso. La duplicación remanente (~20
+   líneas) resultó demasiado chica para justificar un archivo nuevo.
 
 **Puerta:** suite completa verde + regresión visual completa + diff mecánico
 documentado en el commit de cada extracción. Si un paso no da byte-idéntico
@@ -255,7 +255,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | 2 | Validación de localStorage + tests de inyección | M | ✅ |
 | 3 | Documentación coherente con el código | S | ✅ |
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ✅ |
-| 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js; reloj/undo) | L | ⬜ |
+| 5 | Deduplicación (.idx/.pip → cards.css; shared/drag.js) | L | ✅ (alcance acotado; reloj/undo evaluados y no extraídos) |
 | 6 | Presupuesto de peso, D3 (Firefox), axe-core, Dependabot | S | ⬜ |
 | 7 | Tags de release + rituales | S | ⬜ |
 
@@ -472,3 +472,82 @@ El dueño del producto adoptó las 3 recomendaciones.
     corrida 5 veces seguidas, para confirmar que D2 no introduce
     inestabilidad con `target` bajo), `tsc -p .` limpio, 35/35
     comparaciones visuales.
+
+- **Fase 5 (hecha, alcance acotado) — el mayor riesgo del plan, y el que
+  más justificó ir de menor a mayor riesgo con la red de la Fase 0 ya
+  puesta.**
+  - **`.idx`/`.pip` → `styles/cards.css`.** Extracción mecánica de los
+    bloques ya idénticos entre `solitario.css` y `carta-blanca.css` a
+    `cards.css`, dejando el override en `corazones.css`.
+    **Bug real encontrado por la propia regresión visual, no por
+    inspección:** el primer intento dio 4 capturas de Corazones con
+    ~2% de píxeles distintos (por encima del umbral) — nada que se
+    notara a simple vista (un "fantasma" sutil en los dígitos del
+    índice/pip de la mano abanicada). La causa: CSS cascada por
+    DECLARACIÓN, no por regla completa — `corazones.css` sobreescribe
+    `.card .idx`/`.card .pip` pero nunca mencionaba `right`/
+    `justify-content` (en `.idx`) ni `left`/`top`/`transform` (en
+    `.pip`), propiedades que ahora SÍ pone la regla compartida de
+    `cards.css`; esas propiedades se filtraban igual, aunque el override
+    de Corazones cargara después, porque el override nunca las tocaba.
+    Fix: el override de Corazones ahora resetea esas propiedades
+    explícitamente (`right: auto`, `justify-content: flex-start`,
+    `left: auto`, `top: auto`, `transform: none`), documentado con un
+    comentario que explica la regla general ("un override que participa
+    de un cascade compartido tiene que ser completo para cada propiedad
+    que la base define, no sólo las que difieren"). Verificado
+    byte-idéntico (0 diferencias) después del fix.
+  - **`shared/drag.js`.** Extrae la máquina de puntero
+    (pointerdown/move/up/cancel, capa flotante, umbral de 8px de
+    arrastre, buscar el `data-drop` bajo el soltado) que era casi
+    idéntica entre Solitario y Carta Blanca (~100 líneas cada uno).
+    Diseño: `makeDragController(cfg)`, una fábrica que closure-iza el
+    estado privado (`pending`/`drag`, que se confirmó por grep que NO se
+    leían desde ningún otro lugar del juego) y recibe sólo los 6 puntos
+    donde los dos motores de verdad difieren (`extraPile`: "waste" vs.
+    "free"; `offset()`: `OFFSET_UP` vs. `OFFSET`; `canDrag(src)`:
+    siempre `true` en Solitario vs. `canSelectTableau()` en Carta
+    Blanca; `selectionIndex(src)`; `tryDrop(dropAttr)`: Carta Blanca
+    suma la rama del pozo libre; `onClick(src)`: la firma de
+    `handleCardClick` difiere en un argumento). El resto —lectura/
+    escritura de los globals `autoTimer`/`selection`/`CW`/`CH`/
+    `startTimer`/`render`/`checkWin`/`getSelectionCards`, ya declarados
+    igual en ambos juegos— se lee directo, sin pasarlo por `cfg` (son
+    `<script>` clásicos de un solo scope global, no módulos).
+    **Verificación real, no sólo el test automático existente:** el test
+    de Playwright ya cubría el drag & drop de Solitario; para Carta
+    Blanca (sin test de drag dedicado) se armó un script de verificación
+    aparte con arrastre de puntero real, que confirmó (a) una escalera
+    VÁLIDA de 2 cartas se arrastra como grupo y mueve las dos, y (b) una
+    escalera INVÁLIDA (mismo color) NO inicia el arrastre (`canDrag`
+    corta antes) ni se mueve nada — el primer intento de este chequeo
+    dio un falso positivo (parecía que sí arrastraba) por un error del
+    propio script de verificación, no del código: el click apuntaba al
+    centro de la carta de arriba, pero esa zona está tapada por la carta
+    de abajo en el DOM (mismo problema de solapamiento visual que llevó
+    al rediseño de cartas de esta semana); apuntando a la franja
+    superior expuesta, el comportamiento resultó correcto.
+    `shared/global.d.ts` suma las declaraciones ambientales para estos
+    globals (mismo patrón que `SUIT`/`RANK_LABEL` para `cards.js`).
+  - **Reloj + deshacer (`snapshot`/`undo`) — evaluado, NO extraído.** El
+    bloque de reloj ya había quedado 100% byte-idéntico entre los dos
+    juegos tras el fix de timestamps de la Fase 1 (confirmado por
+    `diff`); `snapshot()` también es idéntico; `undo()` difiere en UNA
+    línea (`stuckCheckMoves = -1`, un concepto que sólo existe en
+    Solitario). La duplicación remanente es de ~20 líneas — extraerla a
+    un archivo compartido nuevo habría costado MÁS líneas de las que
+    ahorra (script tag ×2, entrada en `sw.js`, entrada en el test de
+    `@ts-check`, declaraciones en `global.d.ts`, el propio archivo con
+    su comentario de cabecera), a diferencia de `drag.js` (~100 líneas,
+    ganancia neta clara) y la consolidación de CSS (también ganancia
+    clara). Se documenta acá la decisión en vez de forzar la extracción
+    por completar la lista original — mismo criterio que ya aplica el
+    proyecto en otras fases ("sólo se deduplica lo que ya tiene dos
+    consumidores reales" no alcanza si además no es una ganancia neta).
+  - **`VERSION` de `sw.js` a `v1.30.0`** (`shared/drag.js` nuevo, sumado
+    a `ASSETS`); capturas de referencia sin diferencias.
+  - **Puerta:** 85/85 tests verdes (3 corridas seguidas), `tsc -p .`
+    limpio, 35/35 comparaciones visuales (incluida la corrección del bug
+    de CSS encontrado en el camino), verificación manual de drag & drop
+    en Carta Blanca (válido e inválido) además del test automático de
+    Solitario.

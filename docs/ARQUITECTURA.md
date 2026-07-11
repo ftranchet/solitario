@@ -124,6 +124,8 @@ real con esbuild.
                              guardado (validState/validSaved) sigue por juego
     ui.js                    toast, keyActivate/clickActivate (a11y de teclado),
                              el()/debounce() (helpers), celebrate() (confeti)
+    drag.js                  arrastre por puntero (Solitario y Carta Blanca;
+                             PLAN-2.md Fase 5) — Corazones no lo usa (sólo clic)
     pwa.js                   registro del service worker
     menu.js                  menú de juegos (🎮) de las 4 páginas de juego,
                              generado desde games/registry.js

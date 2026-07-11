@@ -1,13 +1,16 @@
 /*
  * styles/cards.css — "Chrome" de la carta, idéntico en todos los juegos de
- * cartas: fondo de la cara, colores de palo (rojo/negro) y dorso.
+ * cartas: fondo de la cara, colores de palo (rojo/negro), dorso, y el
+ * layout del índice (.idx / .pip) de Solitario y Carta Blanca (idéntico
+ * entre los dos tras el rediseño de legibilidad, PLAN-2.md Fase 5).
  *
  * Depende de styles/tokens.css (debe enlazarse antes que este archivo).
  *
- * El tamaño y el layout del índice (.idx / .pip) NO están acá porque varían a
- * propósito entre juegos (Corazones apila rango y palo en la esquina izquierda
- * por su mano abanicada; Solitario/Carta Blanca los reparten en los extremos
- * superiores). Eso queda en el CSS de cada juego.
+ * Corazones override el índice/pip acá abajo, en su propio CSS: su mano se
+ * abanica en horizontal y sólo queda visible la franja IZQUIERDA de cada
+ * carta, así que apila rango y palo en esa esquina en vez de repartirlos en
+ * los extremos superiores (styles/corazones.css, cargado después de este
+ * archivo en las 3 páginas, así que sus reglas —misma especificidad— ganan).
  */
 
 .card.up {
@@ -28,4 +31,24 @@
 /* Foco visible por teclado (Tab a una carta, ver docs/ARQUITECTURA.md Fase 6). */
 .card:focus-visible {
   outline: 3px solid var(--gold); outline-offset: 2px;
+}
+
+/* Índice repartido en los extremos superiores: número arriba-izquierda y palo
+   arriba-derecha, del mismo tamaño (se ven aunque las cartas estén apiladas,
+   mostrando sólo la franja superior), y pip grande del palo en el CENTRO de
+   la carta para distinguirlo de un vistazo. Todo en el color del palo. */
+.card .idx {
+  position: absolute; top: 6%; left: 7%; right: 7%;
+  display: flex; align-items: center; justify-content: space-between; line-height: 1;
+  font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+}
+.card .idx .r { font-size: calc(var(--cw) * 0.42); }
+.card .idx .s { font-size: calc(var(--cw) * 0.42); }
+.card .pip {
+  /* Centrado en el espacio libre DEBAJO del índice (no en la carta entera):
+     queda a la misma distancia del índice y del borde inferior, sin chocar
+     con las figuras con cola (Q) ni asomarse en la franja de las apiladas. */
+  position: absolute; left: 50%; top: 67%; transform: translate(-50%, -50%);
+  font-size: calc(var(--cw) * 0.85); font-weight: 900; line-height: 1;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }

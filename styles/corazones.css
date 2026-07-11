@@ -38,16 +38,23 @@
    abanicadas, así siempre se distingue el palo. Pip grande abajo a la derecha.
    Corazones NO usa el pip central de Solitario/Carta Blanca: con la mano
    abanicada en horizontal el pip central asoma detrás de cada carta y se
-   choca visualmente con el índice apilado de la siguiente. */
+   choca visualmente con el índice apilado de la siguiente.
+   Override COMPLETO a propósito: como `.card .idx`/`.card .pip` ahora viven
+   en styles/cards.css (PLAN-2.md, Fase 5) con otras propiedades (`right`,
+   `justify-content` en `.idx`; `left`/`top`/`transform` en `.pip`), esta
+   regla tiene que resetear esas mismas propiedades explícitamente — el CSS
+   cascadea por DECLARACIÓN, no por regla completa, así que lo que acá no se
+   menciona se filtra igual desde la regla compartida aunque esta regla
+   cargue después. */
 .card .idx {
-  position: absolute; top: 5%; left: 8%;
-  display: flex; flex-direction: column; align-items: center; line-height: 0.9;
+  position: absolute; top: 5%; left: 8%; right: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; line-height: 0.9;
   font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
 .card .idx .r { font-size: calc(var(--cw) * 0.40); }
 .card .idx .s { font-size: calc(var(--cw) * 0.38); margin-top: 1px; }
 .card .pip {
-  position: absolute; right: 7%; bottom: 4%;
+  position: absolute; left: auto; top: auto; right: 7%; bottom: 4%; transform: none;
   font-size: calc(var(--cw) * 0.62); font-weight: 900; line-height: 1;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
