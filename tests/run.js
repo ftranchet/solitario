@@ -227,6 +227,36 @@ test("Solitario: el autocompletado corta cuando no hay progreso (#5)", async fun
   assertNoErrors(p.errors);
 });
 
+/* 7b) Solitario — el teclado no debe esquivar el bloqueo del autocompletado.
+   handleCardClick() (el handler real detrás de keyActivate en las cartas) no
+   chequeaba autoTimer, a diferencia de handleEmptyColumn/handleFoundationClick/
+   onPointerDown: un Enter durante el autocompletado mutaba el estado en
+   paralelo con autoTick() (bug real, ver docs/PLAN-2.md, Fase 1). Se fija
+   autoTimer a un valor verdadero SIN arrancar el interval real, para aislar
+   el guard sin la interferencia de los propios ticks del autocompletado. */
+test("Solitario: el teclado no actúa mientras corre el autocompletado", async function (ctx) {
+  var p = await open(ctx, "solitario.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id, up) { return { suit: s, rank: rk, color: SUIT[s].color, faceUp: up !== false, id: id }; }
+    state = { stock: [], waste: [c("hearts", 9, 500)], foundations: [[], [], [], []],
+              tableau: [[c("spades", 10, 501)], [], [], [], [], [], []], moves: 0 };
+    selection = null; undoStack = []; stuckCheckMoves = -1;
+    autoTimer = 1;
+    render();
+  });
+  await settleRelayout(p.page);
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="waste"]').focus(); });
+  await p.page.keyboard.press("Enter");
+  var r = await p.page.evaluate(function () {
+    var out = { col0: state.tableau[0].length, waste: state.waste.length, moves: state.moves, selection: selection };
+    autoTimer = null;   // limpieza: no dejar la página en un estado que confunda otra aserción
+    return out;
+  });
+  assert(r.col0 === 1 && r.waste === 1 && r.moves === 0 && r.selection === null,
+    "el Enter no debería aplicar ninguna jugada mientras corre el autocompletado: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
 /* 8) Carta Blanca — victoria muestra el modal. */
 test("Carta Blanca: la victoria muestra el modal", async function (ctx) {
   var p = await open(ctx, "carta-blanca.html");
@@ -349,6 +379,36 @@ test("Carta Blanca: un solo Enter manda la carta a su lugar (teclado)", async fu
   assertNoErrors(p.errors);
 });
 
+/* 11b-2) Carta Blanca — el teclado no debe esquivar el bloqueo del
+   autocompletado (mismo bug y misma técnica de aislamiento que en Solitario,
+   ver docs/PLAN-2.md, Fase 1). */
+test("Carta Blanca: el teclado no actúa mientras corre el autocompletado", async function (ctx) {
+  var p = await open(ctx, "carta-blanca.html");
+  await p.page.evaluate(function () {
+    function c(s, rk, id) { return { suit: s, rank: rk, color: SUIT[s].color, id: id }; }
+    state = {
+      free: [c("hearts", 9, 500), null, null, null],
+      foundations: [[], [], [], []],
+      tableau: [[c("spades", 10, 501)], [], [], [], [], [], [], []],
+      moves: 0
+    };
+    selection = null; undoStack = [];
+    autoTimer = 1;
+    render();
+  });
+  await settleRelayout(p.page);
+  await p.page.evaluate(function () { document.querySelector('.card[data-pile="free"]').focus(); });
+  await p.page.keyboard.press("Enter");
+  var r = await p.page.evaluate(function () {
+    var out = { col0: state.tableau[0].length, free0: state.free[0], moves: state.moves, selection: selection };
+    autoTimer = null;
+    return out;
+  });
+  assert(r.col0 === 1 && r.free0 !== null && r.moves === 0 && r.selection === null,
+    "el Enter no debería aplicar ninguna jugada mientras corre el autocompletado: " + JSON.stringify(r));
+  assertNoErrors(p.errors);
+});
+
 /* 11c) Carta Blanca — un solo click de mouse (no doble clic, no seleccionar
    y tocar aparte) manda una carta del tablero a la columna que la recibe.
    Pedido explícito: "hoy las cartas van al lugar adecuado con 2 clicks o
@@ -391,6 +451,31 @@ test("Buscaminas: al restaurar una partida el reloj espera la próxima jugada (#
   assert(r.idle, "tras restaurar, el reloj no debería estar corriendo todavía");
   assert(r.resumed, "el reloj debería reanudarse con la primera jugada");
   assertNoErrors(p.errors);
+});
+
+/* 12b) Solitario/Carta Blanca/Buscaminas — el reloj debe reflejar el tiempo
+   real transcurrido aunque el navegador demore/agrupe los ticks del
+   setInterval (pasa en pestañas en segundo plano: Chrome estrangula los
+   intervals a ~1/min). page.clock.fastForward (a diferencia de clock.runFor)
+   avanza el reloj SIN disparar los ticks intermedios y sólo llama una vez al
+   callback al final — reproduce exactamente ese estrangulamiento. Con
+   `seconds++` por tick (bug real, ver docs/PLAN-2.md, Fase 1), un único tick
+   tras 130s reales sólo sumaría 1; con el reloj por timestamps, debe reflejar
+   los ~130s reales. */
+["solitario.html", "carta-blanca.html", "buscaminas.html"].forEach(function (file) {
+  test(file.replace(".html", "") + ": el reloj refleja el tiempo real aunque el tick se demore (2.º plano)", async function (ctx) {
+    var p = await open(ctx, file);
+    await p.page.clock.install();
+    await p.page.evaluate(function () {
+      stopTimer(); seconds = 0; started = false;
+      startTimer();
+    });
+    await p.page.clock.fastForward(130000);
+    var s = await p.page.evaluate(function () { return seconds; });
+    assert(s >= 129 && s <= 131,
+      "el reloj debería reflejar ~130s reales transcurridos en un solo tick, no incrementar de a 1: fue " + s);
+    assertNoErrors(p.errors);
+  });
 });
 
 /* ==================== PERSISTENCIA ==================== */
@@ -661,6 +746,32 @@ test("Corazones: disparar a la luna puntúa según el modo (+26 demás / −26 t
   });
   assert(r.demas === "26,0,26,26", "modo 'los demás +26': esperaba 26,0,26,26 y fue " + r.demas);
   assert(r.tirador === "0,-26,0,0", "modo 'el tirador −26': esperaba 0,-26,0,0 y fue " + r.tirador);
+  assertNoErrors(p.errors);
+});
+
+/* 21a-2) Corazones — disparar la luna no debe duplicar la estadística
+   "moons" si la página se recarga con el modal de fin de mano abierto.
+   saveGame() no persiste mientras `phase === "scoring"` (a propósito), así
+   que un reload en ese momento restaura el estado ANTERIOR (trick lleno,
+   phase "play") y loadGame() vuelve a llamar resolveTrick() → endHand()
+   para la MISMA mano — acá se simula llamando endHand() dos veces seguidas
+   antes de cerrar el modal, igual que haría un reload real. El bump debe
+   quedar atado al cierre del modal (una acción del usuario que ocurre una
+   sola vez), no a cuántas veces se recalculó el resultado (bug real, ver
+   docs/PLAN-2.md, Fase 1). */
+test("Corazones: disparar la luna no duplica 'moons' si se repite endHand() (reload en el modal)", async function (ctx) {
+  var p = await open(ctx, "corazones.html");
+  var r = await p.page.evaluate(function () {
+    localStorage.removeItem("corazones.stats");
+    for (var s = 0; s < 4; s++) { players[s].score = 0; players[s].roundPoints = 0; players[s].taken = []; players[s].hand = []; }
+    players[HUMAN].roundPoints = 26;   // el humano se lleva todos los puntos: dispara la luna
+    phase = "play"; handHistory = []; handNumber = 1; target = 100; moonMode = "demas";
+    endHand();                                       // 1.ª vez: se arma y muestra el modal
+    endHand();                                        // simula el reload: loadGame() repite endHand() para la misma mano
+    document.getElementById("round-next").click();    // recién ahora el usuario cierra el modal
+    return JSON.parse(localStorage.getItem("corazones.stats") || "{}");
+  });
+  assert(r.moons === 1, "disparar la luna una sola vez debería sumar 1 a moons (aunque endHand() se repitiera): fue " + JSON.stringify(r));
   assertNoErrors(p.errors);
 });
 
@@ -1174,6 +1285,31 @@ test("PWA: aviso de versión nueva — toast con Recargar, skip-waiting y recarg
   await Promise.all([
     p.page.waitForEvent("framenavigated", { timeout: 3000 }),
     p.page.evaluate(function () { navigator.serviceWorker.dispatchEvent(new Event("controllerchange")); }),
+  ]);
+  assertNoErrors(p.errors);
+});
+
+/* 32c-2) PWA — "Recargar" no debe quedar muerto si `reg.waiting` ya
+   desapareció al momento del click (otra pestaña activó el SW en espera
+   primero, o el navegador lo activó solo al no quedar clientes) — antes el
+   botón sólo se deshabilitaba y no pasaba nada (bug real, ver
+   docs/PLAN-2.md, Fase 1). Debe recargar la página igual, como fallback. */
+test("PWA: 'Recargar' recarga directo si el SW en espera ya no está al hacer click", async function (ctx) {
+  var p = await newPage(ctx);
+  await p.page.addInitScript(function () {
+    var waiting = { postMessage: function () {} };
+    var fakeReg = { waiting: waiting, installing: null, addEventListener: function () {} };
+    window.__fakeReg = fakeReg;
+    navigator.serviceWorker.register = function () { return Promise.resolve(fakeReg); };
+    Object.defineProperty(navigator.serviceWorker, "controller", { value: {}, configurable: true });
+  });
+  await p.page.goto(url("solitario.html"), { waitUntil: "load" });
+  await p.page.waitForSelector(".toast-action", { timeout: 4000 });
+  await p.page.evaluate(function () { window.__fakeReg.waiting = null; });
+
+  await Promise.all([
+    p.page.waitForEvent("framenavigated", { timeout: 3000 }),
+    p.page.click(".toast-action .btn"),
   ]);
   assertNoErrors(p.errors);
 });

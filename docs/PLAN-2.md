@@ -251,7 +251,7 @@ Estado: ✅ Hecho · 🟡 En curso · ⬜ Pendiente.
 | Fase | Alcance | Tamaño | Estado |
 |---|---|:---:|:---:|
 | 0 | Desflaquear + regresión visual de estados intermedios y oscuro | S | ✅ |
-| 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ⬜ |
+| 1 | 4 bugs (autoTimer, lunas, reloj, botón Recargar) | S | ✅ |
 | 2 | Validación de localStorage + tests de inyección | M | ⬜ |
 | 3 | Documentación coherente con el código | S | ⬜ |
 | 4 | theme-color, bandera por teclado, D1, D2, limpieza | M | ⬜ |
@@ -310,3 +310,52 @@ implementadas todavía** — la implementación va en las fases indicadas.
     el caso que motivó esta fase).
   - **Puerta:** 73/73 tests verdes (18 corridas seguidas), `tsc -p .` limpio,
     35/35 comparaciones visuales sin diferencias.
+
+- **Fase 1 (hecha).** Los 4 bugs, cada uno con su test de regresión
+  verificado **fallando sobre el código viejo** antes de aplicar el fix (el
+  principio de esta fase, ver arriba).
+  - **El teclado esquivaba el bloqueo del autocompletado.**
+    `handleCardClick()` (el handler real detrás de `keyActivate` en las
+    cartas) no chequeaba `autoTimer`, a diferencia de
+    `handleEmptyColumn`/`handleFoundationClick`/`onPointerDown`: un Enter
+    durante el autocompletado mutaba el estado en paralelo con `autoTick()`.
+    Fix de una línea (`if (autoTimer) return;`) en Solitario y Carta Blanca.
+    2 tests nuevos: fijan `autoTimer` a un valor verdadero SIN arrancar el
+    interval real (aísla el guard de la interferencia de los propios ticks
+    del autocompletado) y confirman que un Enter no aplica ninguna jugada.
+  - **La estadística "lunas" (Corazones) se podía duplicar.** `saveGame()`
+    no persiste durante `phase === "scoring"` (a propósito), así que un
+    reload con el modal de fin de mano abierto restaura el estado ANTERIOR
+    (baza llena, `phase: "play"`) y `loadGame()` vuelve a llamar
+    `resolveTrick() → endHand()` para la MISMA mano — si hubo luna,
+    `bumpStat("moons")` se contaba de nuevo. Fix: el bump se separó del
+    cálculo (`endHand()`, que puede repetirse por reloads) y se ató al
+    CIERRE del modal (`#round-next`, una acción del usuario que ocurre una
+    sola vez por mano) con una variable `pendingMoonBump`. Test que llama
+    `endHand()` dos veces seguidas (simulando el reload) antes de cerrar el
+    modal una sola vez, y confirma `moons === 1` (antes daba 2).
+  - **El reloj (Solitario, Carta Blanca, Buscaminas) subcontaba en pestañas
+    en segundo plano.** `seconds++` por tick de `setInterval` no refleja el
+    tiempo real cuando el navegador estrangula los intervals de una pestaña
+    oculta (Chrome: ~1/min): un tick que llega tarde sólo suma 1, no el
+    tiempo real transcurrido. Fix: reloj por timestamps (`timerAnchor =
+    Date.now() - seconds*1000`; cada tick —y `stopTimer()`— RECALCULAN
+    `seconds` desde `Date.now() - timerAnchor` en vez de incrementar).
+    Mismo formato guardado (`seconds`), sin migración. 3 tests (uno por
+    juego) usan `page.clock.fastForward()` (a diferencia de `clock.runFor`,
+    NO dispara los ticks intermedios — reproduce exactamente el
+    estrangulamiento) para confirmar que 130s de tiempo real en un solo
+    tick se reflejan como ~130s, no como 1.
+  - **El botón "Recargar" podía quedar muerto** (`shared/pwa.js`) si
+    `reg.waiting` ya no estaba al momento del click (otra pestaña activó el
+    SW en espera primero, o el navegador lo activó solo al no quedar
+    clientes): el botón se deshabilitaba y no pasaba nada. Fix: si no hay
+    `reg.waiting`, recarga directo (con el mismo flag `reloading` que ya
+    usa el listener de `controllerchange`, para no recargar dos veces si
+    ambos caminos coinciden). Test que fuerza `reg.waiting = null` entre
+    que aparece el aviso y el click, y confirma que la página igual navega.
+  - **`VERSION` de `sw.js` a `v1.26.0`** (los 4 archivos tocados son parte
+    del app shell); capturas de referencia regeneradas (0 diferencias reales
+    — sólo ruido de antialiasing bajo el umbral en 2 capturas).
+  - **Puerta:** 80/80 tests verdes (5 corridas seguidas), `tsc -p .` limpio,
+    35/35 comparaciones visuales.

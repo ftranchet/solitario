@@ -283,9 +283,23 @@ function onPointerMoveDoc(e) {
 }
 function onPointerCancel() { if (press) { clearTimeout(press.timer); press = null; } }
 
-/* ---------- Reloj ---------- */
-function startTimer() { if (timerId) return; timerId = setInterval(function () { seconds++; updateHUD(); }, 1000); }
-function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
+/* ---------- Reloj ----------
+   Por timestamps, no por conteo de ticks: los navegadores estrangulan los
+   setInterval de una pestaña en segundo plano (Chrome: ~1/min), así que
+   sumar 1 por tick subcuenta el tiempo real transcurrido. `timerAnchor`
+   guarda cuándo "empezaría" el cronómetro si hubiera corrido sin pausas
+   (Date.now() menos lo ya acumulado); cada tick (por más tarde que llegue)
+   RECALCULA `seconds` desde el reloj real en vez de incrementar. */
+var timerAnchor = 0;
+function startTimer() {
+  if (timerId) return;
+  timerAnchor = Date.now() - seconds * 1000;
+  timerId = setInterval(function () { seconds = Math.floor((Date.now() - timerAnchor) / 1000); updateHUD(); }, 1000);
+}
+function stopTimer() {
+  if (timerId) { seconds = Math.floor((Date.now() - timerAnchor) / 1000); clearInterval(timerId); }
+  timerId = null;
+}
 function fmtTime(s) { var m = Math.floor(s / 60), x = s % 60; return (m < 10 ? "0" : "") + m + ":" + (x < 10 ? "0" : "") + x; }
 
 /* ---------- Render ---------- */

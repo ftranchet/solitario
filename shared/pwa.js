@@ -47,6 +47,12 @@ if ("serviceWorker" in navigator) {
     btn.onclick = function () {
       btn.disabled = true;
       if (reg.waiting) reg.waiting.postMessage("skip-waiting");
+      // Si el SW en espera ya no está (otra pestaña lo activó primero, o el
+      // navegador lo activó solo al no quedar clientes) no hay a quién
+      // mandarle skip-waiting: recargamos directo en vez de dejar el botón
+      // deshabilitado sin que pase nada. `reloading` evita una recarga
+      // doble si el controllerchange real llega igual, justo después.
+      else if (!reloading) { reloading = true; location.reload(); }
     };
     t.appendChild(span);
     t.appendChild(btn);

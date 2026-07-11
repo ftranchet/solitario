@@ -43,6 +43,13 @@ var lastTrickCardId = null; // para animar sólo la carta recién jugada
 var dealAnim = false;       // el próximo render es el de una mano nueva: reparto animado
 var handHistory = [];      // puntos por mano: [ [p0,p1,p2,p3], ... ]  (no usar "history": choca con window.history)
 var pendingOver = false;   // la mano que se está mostrando terminó la partida
+// ¿La mano que se está mostrando la ganó el humano disparando la luna? El bump
+// de la estadística "moons" queda atado al CIERRE del modal (una acción del
+// usuario que ocurre una sola vez), no a endHand(): saveGame() no persiste en
+// phase "scoring", así que un reload durante el modal hace que loadGame()
+// repita resolveTrick()/endHand() para la MISMA mano, y bumpStat ahí adentro
+// la contaría de nuevo (ver docs/PLAN-2.md, Fase 1).
+var pendingMoonBump = false;
 var CW, CH, OW;
 
 /* ---------- Mazo ---------- */
@@ -284,8 +291,8 @@ function endHand() {
   if (shooter >= 0) {
     if (moonMode === "tirador") { for (s = 0; s < 4; s++) deltas[s] = (s === shooter) ? -26 : 0; }
     else { for (s = 0; s < 4; s++) deltas[s] = (s === shooter) ? 0 : 26; }
-    if (shooter === HUMAN) bumpStat("moons");
   } else { for (s = 0; s < 4; s++) deltas[s] = players[s].roundPoints; }
+  pendingMoonBump = (shooter === HUMAN);
   for (s = 0; s < 4; s++) players[s].score += deltas[s];
   handHistory.push(deltas.slice());
   phase = "scoring";
@@ -721,6 +728,7 @@ document.getElementById("btn-settings").onclick = function () { updateSettingsUI
 document.getElementById("settings-close").onclick = function () { document.getElementById("settings").hidden = true; };
 document.getElementById("round-next").onclick = function () {
   document.getElementById("round").hidden = true;
+  if (pendingMoonBump) { pendingMoonBump = false; bumpStat("moons"); }
   if (pendingOver) showWin(); else nextHand();
 };
 document.getElementById("win-new").onclick = function () { newMatch(); };

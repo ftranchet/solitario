@@ -10,6 +10,14 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 ## [No publicado]
 
+_(nada por ahora — la Fase 1 de PLAN-2.md ya se publicó en 1.13.0)_
+
+## [1.13.0] — 2026-07-11
+
+PLAN-2.md, Fases 0 y 1: cimientos de verificación + 4 bugs reales
+encontrados en la auditoría integral, cada uno con un test de regresión
+verificado fallando contra el código anterior antes de aplicar el fix.
+
 ### Agregado
 
 - **`docs/PLAN-2.md`** — plan de robustez, seguridad y consistencia, salido de
@@ -34,6 +42,28 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
   en modo oscuro (antes documentación estática sin verificar). 35
   comparaciones visuales (antes 24), 0 diferencias; 73/73 tests, `tsc -p .`
   limpio.
+
+### Corregido
+
+- **El teclado esquivaba el bloqueo del autocompletado (Solitario, Carta
+  Blanca).** `handleCardClick()` no chequeaba `autoTimer` (a diferencia de
+  los demás handlers): un Enter durante el autocompletado mutaba el estado
+  en paralelo con la animación automática.
+- **La estadística "lunas" de Corazones se podía duplicar** al recargar la
+  página con el modal de fin de mano abierto (`saveGame()` no persiste en
+  ese momento, así que el reload repetía el cálculo de la mano). El conteo
+  ahora queda atado al cierre del modal, que ocurre una sola vez.
+- **El reloj (Solitario, Carta Blanca, Buscaminas) subcontaba el tiempo en
+  pestañas de fondo**, donde el navegador estrangula los `setInterval`.
+  Pasa a calcularse por diferencia de timestamps en vez de sumar 1 por
+  tick, así un tick tardío igual refleja el tiempo real transcurrido.
+- **El botón "Recargar" del aviso de actualización podía quedar sin
+  efecto** si el service worker en espera ya no estaba disponible al
+  tocarlo; ahora recarga la página directamente en ese caso.
+
+### Cambiado
+
+- **`VERSION` de `sw.js` a `v1.26.0`** y capturas de referencia regeneradas.
 
 ## [1.12.2] — 2026-07-11
 

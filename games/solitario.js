@@ -218,6 +218,7 @@ function dealStock() {
 
 /* ---------- Toques (tap) ---------- */
 function handleCardClick(pile, col, index, card) {
+  if (autoTimer) return;
   if (pile === "tableau" && !card.faceUp) return;
   if (selection) {
     var sameAnchor = selection.pile === pile && selection.col === col &&
@@ -354,14 +355,25 @@ function finishDrag(e) {
   else render();
 }
 
-/* ---------- Reloj ---------- */
+/* ---------- Reloj ----------
+   Por timestamps, no por conteo de ticks: los navegadores estrangulan los
+   setInterval de una pestaña en segundo plano (Chrome: ~1/min), así que
+   sumar 1 por tick subcuenta el tiempo real transcurrido. `timerAnchor`
+   guarda cuándo "empezaría" el cronómetro si hubiera corrido sin pausas
+   (Date.now() menos lo ya acumulado); cada tick (por más tarde que llegue)
+   RECALCULA `seconds` desde el reloj real en vez de incrementar. */
+var timerAnchor = 0;
 function startTimer() {
   if (started) return;
   started = true;
   if (!counted) { counted = true; bumpStat("played"); }
-  timerId = setInterval(function () { seconds++; updateHUD(); }, 1000);
+  timerAnchor = Date.now() - seconds * 1000;
+  timerId = setInterval(function () { seconds = Math.floor((Date.now() - timerAnchor) / 1000); updateHUD(); }, 1000);
 }
-function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
+function stopTimer() {
+  if (timerId) { seconds = Math.floor((Date.now() - timerAnchor) / 1000); clearInterval(timerId); }
+  timerId = null;
+}
 function resetTimer() { stopTimer(); seconds = 0; started = false; updateHUD(); }
 
 /* ---------- Victoria + festejo ---------- */
