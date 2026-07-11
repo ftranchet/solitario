@@ -12,6 +12,17 @@ proyecto adhiere (de forma aproximada) a [Versionado Semántico](https://semver.
 
 _(nada por ahora)_
 
+## [1.12.2] — 2026-07-11
+
+### Cambiado
+
+- **El pip central baja al 67% de la altura de la carta (Solitario y Carta
+  Blanca)**: centrado en el espacio libre DEBAJO del índice, queda a la misma
+  distancia del índice y del borde inferior en todas las cartas, y ya no roza
+  las figuras con cola (la Q era el peor caso). Verificado con las 4 reinas y
+  con escaleras apiladas (el pip sigue sin asomarse en la franja visible).
+- **`VERSION` de `sw.js` a `v1.25.0`** y capturas de referencia regeneradas.
+
 ## [1.12.1] — 2026-07-11
 
 ### Cambiado

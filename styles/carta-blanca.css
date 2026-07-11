@@ -94,7 +94,10 @@
 .card .idx .r { font-size: calc(var(--cw) * 0.42); }
 .card .idx .s { font-size: calc(var(--cw) * 0.42); }
 .card .pip {
-  position: absolute; left: 50%; top: 60%; transform: translate(-50%, -50%);
+  /* Centrado en el espacio libre DEBAJO del índice (no en la carta entera):
+     queda a la misma distancia del índice y del borde inferior, sin chocar
+     con las figuras con cola (Q) ni asomarse en la franja de las apiladas. */
+  position: absolute; left: 50%; top: 67%; transform: translate(-50%, -50%);
   font-size: calc(var(--cw) * 0.85); font-weight: 900; line-height: 1;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
